@@ -14,7 +14,9 @@
 
 ## Streams
 
-`audio_mapping.mic_ordinal`, `game_ordinal`, and `mixed_ordinal` select the Nth audio stream (`ffmpeg -map 0:a:N`). They are not container stream indexes. Defaults match `sample.mp4` after the user listened: 2 mic, 1 game, 0 mixed. Pass different ordinals to `init` for another recording. The three values must be distinct.
+`audio_mapping.mic_ordinal`, `game_ordinal`, and `mixed_ordinal` select the Nth audio stream (`ffmpeg -map 0:a:N`). They are not container stream indexes. Defaults match `sample.mp4` after the user listened: 2 mic, 1 game, 0 mixed. Pass the ordinals to `init` for every new recording. The three values must be distinct.
+
+OBS names such as `simple_aac_recording0` do not identify the role. Before trusting a dub, compare a few seconds of each audio ordinal. Mixed minus game should match the microphone, and the microphone should be near silence where the speaker is quiet. `jobs/<name>/inspect/probe.json` records the ordinals that were configured. It does not prove they are the right tracks.
 
 ## Reference
 

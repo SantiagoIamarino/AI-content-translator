@@ -50,6 +50,6 @@ The report is `jobs/<name>/report/validation.md`.
 
 ## Limits
 
-Timestamps are approximate. A complete status means every segment was placed under the scheduler rules. It is not a listening approval. `sample.mp4` does not prove the pipeline on a 1–2 hour recording or on a second unseen clip.
+Timestamps are approximate. A complete status means every segment was placed under the scheduler rules. It is not a listening approval. `sample.mp4` does not prove a 1–2 hour recording. One later 18-minute clip is recorded in `docs/validation.md` as a partial export, not as general acceptance.
 
 SoX and flash-attn warnings from the existing Qwen install are non-fatal. Do not reinstall environments to silence them.

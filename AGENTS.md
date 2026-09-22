@@ -19,7 +19,7 @@ bin/aidub init /path/to/recording.mp4 --name CLIP_NAME
 bin/aidub run CLIP_NAME
 ```
 
-Confirm the audio ordinals in `jobs/CLIP_NAME/inspect/probe.json` before trusting the dub. The defaults (mic 2, game 1, mixed 0) were verified by listening for `sample.mp4` only. Override with `--mic-ordinal`, `--game-ordinal`, and `--mixed-ordinal` at init if the layout differs. Ordinals count audio streams. They are not absolute stream indices.
+Pass `--mic-ordinal`, `--game-ordinal`, and `--mixed-ordinal` at init. The defaults (mic 2, game 1, mixed 0) were verified by listening for `sample.mp4` only. Generic OBS names do not identify the tracks. Compare short extracts before trusting the dub: mixed minus game should match the microphone. Then confirm those ordinals in `jobs/CLIP_NAME/inspect/probe.json`. Ordinals count audio streams. They are not absolute stream indices.
 
 ## Translation handoff
 

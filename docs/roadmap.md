@@ -8,7 +8,7 @@
 
 ## Not in this version
 
-- A second unseen gameplay clip. Still an acceptance check.
+- Listening approval of the 18-minute clip in `docs/validation.md`. That export is partial, not a voice-quality approval.
 - 1–2 hour recordings. The code does not load the video or synthesize the whole transcript at once, but that has not been timed or listened to.
 - Automatic translation, a web UI, a database, or a queue.
 - Word-level forced alignment.

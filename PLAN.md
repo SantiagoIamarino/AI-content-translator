@@ -33,7 +33,7 @@ Translation and compact repair are file handoffs to the coding agent already in 
 
 ## Not claimed
 
-Long recordings (1–2 h) and a second unseen gameplay clip are not validated by `sample.mp4`.
+`sample.mp4` does not validate 1–2 hour recordings. A later 18-minute clip is recorded in `docs/validation.md` as partial, not as general acceptance.
 
 ## Implemented
 

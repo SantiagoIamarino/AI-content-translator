@@ -21,6 +21,7 @@ from aidub.pipeline import _fp_ok
 from aidub.placement import Interval, collisions
 from aidub.schedule import plan_fit, synth_cache_key
 from aidub.segment import build_segments
+from aidub.report import validation_markdown
 from aidub.srt import render_srt
 from aidub.util import assert_write_in_job, fingerprint
 
@@ -198,6 +199,26 @@ class OutputTests(unittest.TestCase):
         ])
         self.assertIn("Placed line", text)
         self.assertNotIn("UNIQUE_OMITTED_LINE", text)
+
+    def test_report_limits_are_not_sample_specific(self):
+        text = validation_markdown({
+            "status": "partial",
+            "job_id": "clip",
+            "english_video": "output/english_PARTIAL.mp4",
+            "n_segments": 1,
+            "n_placed": 0,
+            "n_unplaced": 1,
+            "n_tempo": 0,
+            "n_alternate": 0,
+            "n_revisions": 0,
+            "n_synth_fresh": 0,
+            "n_synth_cache_hits": 0,
+            "mix": {"gain": 1.0, "mix_peak": 0.1, "clipping_samples": 0},
+            "checks": [],
+        })
+        self.assertNotIn("this sample", text.lower())
+        self.assertNotIn("second unseen", text.lower())
+        self.assertIn("1–2 hour", text)
 
     def test_english_mux_does_not_take_source_audio_or_shortest(self):
         cmd = mux_english_cmd("ffmpeg", "/tmp/a file.mp4", "/tmp/mix.wav", "/tmp/out.mp4")

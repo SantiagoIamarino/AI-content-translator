@@ -23,6 +23,8 @@ Written by `bin/aidub run` or `bin/aidub export-translation`. Each segment has a
 
 Required: every request id once, integer ids, nonempty English, no extra ids, no timing fields. `translator.kind` must be `agent-assisted`. Model is recorded only when the agent supplies it. Provenance is agent-assisted, not an API translation service.
 
+A long request can be drafted in batches under `jobs/<name>/handoff/` and assembled before `accept-translation`. Uncertain words stay flagged in the request. Translate the written Spanish. Do not silently replace a flagged word with a different claim.
+
 ## Repair request
 
 `aidub.repair_request.v1`

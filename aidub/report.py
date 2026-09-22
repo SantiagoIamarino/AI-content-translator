@@ -62,7 +62,7 @@ def validation_markdown(summary: dict) -> str:
         "",
         "- Timestamps are approximate Whisper times plus energy onset, not forced alignment.",
         "- A complete status means every segment was placed under the scheduling rules. It is not a listening approval.",
-        "- This sample does not validate 1–2 hour recordings or a second unseen clip.",
+        "- This job does not validate 1–2 hour recordings or any later recording.",
         "",
     ]
     return "\n".join(lines)
