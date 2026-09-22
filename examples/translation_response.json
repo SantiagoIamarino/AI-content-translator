@@ -1,0 +1,14 @@
+{
+  "schema": "aidub.translation_response.v1",
+  "job_id": "example",
+  "translator": {
+    "kind": "agent-assisted",
+    "model": "xai/grok-4.7"
+  },
+  "segments": [
+    {
+      "id": 1,
+      "english": "We've got these little dogs."
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "schema": "aidub.repair_response.v1",
+  "job_id": "example",
+  "translator": {
+    "kind": "agent-assisted",
+    "model": "xai/grok-4.7"
+  },
+  "segments": [
+    {
+      "id": 4,
+      "action": "revise",
+      "english": "A dog almost killed me. That's insane.",
+      "reason": "Dropped the filler 'I mean' and kept both claims."
+    }
+  ]
+}

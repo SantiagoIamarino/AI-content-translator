@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PY="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["executables"]["python_qwen"])' "$ROOT/config/default.json")"
+if [[ ! -x "$PY" ]]; then
+  echo "Qwen Python is not executable: $PY" >&2
+  echo "Fix executables.python_qwen in $ROOT/config/default.json. Do not install a new environment from this script." >&2
+  exit 1
+fi
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PY" -m aidub "$@"
