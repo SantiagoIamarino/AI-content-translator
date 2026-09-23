@@ -1,0 +1,78 @@
+{
+  "executables": {
+    "python_qwen": "/path/to/qwen3-tts/.venv/bin/python",
+    "whisper": "/path/to/whisper/.venv/bin/whisper",
+    "ffmpeg": "/usr/bin/ffmpeg",
+    "ffprobe": "/usr/bin/ffprobe"
+  },
+  "jobs_dir": "jobs",
+  "audio_mapping": {
+    "mic_ordinal": 2,
+    "game_ordinal": 1,
+    "mixed_ordinal": 0,
+    "note": "Placeholders. Ordinals count audio streams in container order. They are not absolute stream indices. Identify them per recording; do not assume these numbers."
+  },
+  "whisper": {
+    "model": "turbo",
+    "language": "Spanish",
+    "task": "transcribe",
+    "device": "cuda",
+    "word_timestamps": true,
+    "output_format": "json",
+    "verbose": false
+  },
+  "qwen3": {
+    "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    "attn_implementation": "sdpa",
+    "dtype": "bfloat16",
+    "device": "cuda:0",
+    "language": "English",
+    "x_vector_only_mode": false,
+    "generation": {
+      "do_sample": true,
+      "top_k": 50,
+      "top_p": 1.0,
+      "temperature": 0.9,
+      "repetition_penalty": 1.05,
+      "subtalker_dosample": true,
+      "subtalker_top_k": 50,
+      "subtalker_top_p": 1.0,
+      "subtalker_temperature": 0.9,
+      "max_new_tokens": 2048
+    }
+  },
+  "reference": {
+    "id": "B",
+    "wav": "/path/to/voice-reference.wav",
+    "text_file": "references/reference_b.txt",
+    "note": "The wav is not in Git. text_file must match the transcript locked in aidub/config.py unless that check is changed."
+  },
+  "schedule": {
+    "seed_base": 42,
+    "alternate_seed_offset": 100,
+    "max_tempo": 1.1,
+    "min_tempo": 1.0,
+    "trim_rms": 0.005,
+    "trim_window_sec": 0.01,
+    "trim_pad_ms": 0,
+    "fade_ms": 5,
+    "output_sr": 48000
+  },
+  "repair": {
+    "max_alternate_synthesis": 1,
+    "max_compact_revisions": 1
+  },
+  "mix": {
+    "limiter": 0.99
+  },
+  "segmentation": {
+    "energy_rms": 0.005,
+    "energy_window_sec": 0.01,
+    "onset_lookback_sec": 0.5,
+    "end_tail_sec": 0.2,
+    "merge_max_silence_sec": 0.12,
+    "min_voiced_sec": 0.04,
+    "uncertain_probability": 0.5
+  },
+  "docker_llm_container": "unused-do-not-start"
+}
