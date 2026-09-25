@@ -1,11 +1,24 @@
 import shutil
 import subprocess
+import time
 import traceback
 from pathlib import Path
 
 import numpy as np
 
-from .audio import atempo, metrics, mix_game_and_voice, read_audio, to_mono, trim_silence, write_wav
+from .asr_client import AsrClient, whisper_python
+from .audio import (
+    atempo,
+    margin_budget_ms,
+    metrics,
+    mix_game_and_voice,
+    read_audio,
+    render_voice_with_margins,
+    safety_fade,
+    to_mono,
+    trim_silence,
+    write_wav,
+)
 from .config import jobs_dir, reference_text, require_schedule_defaults, resolve_path
 from .export import decode_ok, mux_english_cmd, mux_spanish_cmd, place_voice, write_bilingual
 from .handoff import (
@@ -15,11 +28,14 @@ from .handoff import (
     validate_translation_response,
 )
 from .job import Job, JobLock
-from .media import align_to_video, assert_extract_preserves_origin, describe_streams, extract_audio_cmd, probe, resolve_ordinal, run_cmd
+from .ledger import append_candidate, cached_candidate, checkpoint_matches, read_checkpoint, write_checkpoint
+from .linework import account_lines, collect_line, revision_limit
+from .media import align_to_video, assert_extract_preserves_origin, bitstream_md5, describe_streams, extract_audio_cmd, probe, resolve_ordinal, run_cmd
 from .report import validation_markdown
+from .quality import assess_candidate, speaker_profile
 from .schedule import alternate_seed, apply_blockers, plan_fit, primary_seed
 from .srt import omitted_lines, render_srt
-from .synth import QwenBackend, lookup_cache, synthesize_cached
+from .synth import get_shared_backend, lookup_cache, shared_backend_loaded, synthesize_cached
 from .segment import build_segments
 from .util import fingerprint, md5_file, read_json, sha256_file, write_json
 
@@ -370,6 +386,7 @@ def _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, n
         "safe_window_sec": safe_window,
         "inference_seconds": float(meta.get("inference_seconds") or 0.0),
         "peak_gpu_gib": meta.get("peak_gpu_gib"),
+        "raw_path": str(meta["path"]),
     }
 
 
@@ -386,6 +403,73 @@ def _needed_keys(job, cfg, ref_sha, ref_text) -> list[tuple]:
         key = synth_cache_key(text, ref_sha, ref_text, seed, cfg["qwen3"])
         needed.append((seg, text, seed, kind, key))
     return needed
+
+
+class _LineAssessor:
+    def __init__(self, job: Job, cfg: dict, profile: dict, ref_sha: str):
+        self.job = job
+        self.cfg = cfg
+        self.profile = profile
+        self.ref_sha = ref_sha
+        self.checkpoint = None
+        self.client: AsrClient | None = None
+        self.device = str((cfg.get("quality") or {}).get("asr_device") or "cuda")
+        self.disabled = False
+
+    def __call__(self, meta: dict, text: str) -> dict:
+        hit = cached_candidate(self.checkpoint, text, int(meta["seed"]))
+        if hit is not None:
+            return hit["quality"]
+        wav, sr = read_audio(Path(meta["path"]))
+        asr_text = None
+        asr_language = None
+        skipped = self.disabled
+        if not self.disabled:
+            try:
+                result = self._transcribe(str(meta["path"]))
+                asr_text = result.get("text")
+                asr_language = result.get("language")
+            except Exception as exc:
+                print(f"asr unavailable ({exc}); waveform checks still apply")
+                self.disabled = True
+                skipped = True
+        return assess_candidate(
+            to_mono(wav),
+            sr,
+            text,
+            self.profile,
+            asr_text=asr_text,
+            asr_language=asr_language,
+            asr_skipped=skipped,
+            min_speaker_features=int((self.cfg.get("quality") or {}).get("min_speaker_features", 2)),
+        )
+
+    def _transcribe(self, path: str) -> dict:
+        lang = (self.cfg.get("quality") or {}).get("asr_language") or None
+        try:
+            return self._client().transcribe(path, language=lang or "")
+        except Exception:
+            if self.device == "cpu":
+                raise
+            print("asr: CUDA worker failed; retrying on CPU")
+            if self.client is not None:
+                self.client.close()
+            self.client = None
+            self.device = "cpu"
+            return self._client().transcribe(path, language=lang or "")
+
+    def _client(self) -> AsrClient:
+        if self.client is None or self.client.proc is None or self.client.proc.poll() is not None:
+            py = whisper_python(self.cfg["executables"]["whisper"])
+            model = self.cfg["whisper"]["model"]
+            self.client = AsrClient(py, model=model, device=self.device)
+            self.client.start()
+        return self.client
+
+    def close(self) -> None:
+        if self.client is not None:
+            self.client.close()
+            self.client = None
 
 
 def stage_schedule(job: Job, cfg: dict) -> dict:
@@ -405,6 +489,10 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         "reference_text": ref_text,
         "schedule": cfg["schedule"],
         "qwen3": cfg["qwen3"],
+        "quality": cfg.get("quality"),
+        "voice_edge": cfg.get("voice_edge"),
+        "fit_retries": cfg.get("fit_retries"),
+        "revision_limit": revision_limit(cfg),
     })
     summary_path = job.dir / "schedule" / "summary.json"
     if _fp_ok(job, "schedule", fp, ["schedule/summary.json"]):
@@ -413,74 +501,145 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
     cache_dir = job.dir / "cache" / "synth"
     misses = _cache_misses(segments, cfg, cache_dir, ref_sha, ref_text, source_duration)
     backend = None
-    if misses:
-        print(f"synthesize: loading Qwen for {len(misses)} cache misses")
-        backend = QwenBackend(cfg)
+    if shared_backend_loaded():
+        print("synthesize: reusing loaded Qwen and voice prompt")
+        backend = get_shared_backend(cfg)
+    elif misses:
+        print(f"synthesize: {len(misses)} lines are not fully cached")
+        backend = get_shared_backend(cfg)
     else:
         print("synthesize: all required primary lines are cached")
+    ref_wav_audio, ref_sr = read_audio(Path(ref_wav))
+    profile = speaker_profile(to_mono(ref_wav_audio), ref_sr)
+    target_rms = float(profile["rms"]) if profile.get("rms") else None
+    assessor = _LineAssessor(job, cfg, profile, ref_sha)
     prior = read_json(summary_path) if summary_path.is_file() else {"segments": []}
     prior_attempts = {int(s["id"]): list(s.get("attempts") or []) for s in prior.get("segments") or []}
     ordered = sorted(segments, key=lambda s: (float(s["start"]), int(s["id"])))
     scheduled = []
     occupied = 0.0
     needs_repair = []
-    fresh = 0
-    hits = 0
-    for i, seg in enumerate(ordered):
-        nxt = float(ordered[i + 1]["start"]) if i + 1 < len(ordered) else source_duration
-        text = seg["english"]
-        seed = primary_seed(cfg["schedule"]["seed_base"], seg["id"])
-        kind = "compact_revision" if seg.get("revisions") else "primary"
-        if any(r.get("action") == "leave_unresolved" for r in seg.get("revisions") or []):
-            attempts = prior_attempts.get(int(seg["id"]), [])
-            item = _unplaced_from_history(seg, attempts, nxt, source_duration)
-            item["attempts"] = attempts
-            scheduled.append(item)
-            continue
+    stats = {"fresh": 0, "hits": 0}
+    rev_limit = revision_limit(cfg)
+
+    def synthesize(text: str, seed: int) -> dict:
+        nonlocal backend
         if lookup_cache(cache_dir, meta_key(cfg, text, ref_sha, ref_text, seed), text, seed) is None:
             backend = _ensure_backend(backend, cfg)
         meta = synthesize_cached(backend, cache_dir, cfg, text, ref_wav, ref_text, ref_sha, seed)
-        fresh += int(not meta.get("cache_hit"))
-        hits += int(bool(meta.get("cache_hit")))
-        attempt = _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied, nxt, source_duration)
-        attempts = [a for a in prior_attempts.get(int(seg["id"]), []) if not (a.get("kind") == kind and a.get("text") == text)]
-        attempts.append(attempt)
-        chosen = attempt
-        if (not chosen["placed"]) and (not seg.get("revisions")):
-            alt_seed = alternate_seed(cfg["schedule"]["seed_base"], seg["id"], cfg["schedule"]["alternate_seed_offset"])
-            print(f"id {seg['id']}: primary did not fit; alternate seed {alt_seed}")
-            if lookup_cache(cache_dir, meta_key(cfg, text, ref_sha, ref_text, alt_seed), text, alt_seed) is None:
-                backend = _ensure_backend(backend, cfg)
-            alt_meta = synthesize_cached(backend, cache_dir, cfg, text, ref_wav, ref_text, ref_sha, alt_seed)
-            fresh += int(not alt_meta.get("cache_hit"))
-            hits += int(bool(alt_meta.get("cache_hit")))
-            alt = _attempt_from_audio(job, cfg, seg, text, alt_seed, "alternate_seed", alt_meta, occupied, nxt, source_duration)
-            attempts.append(alt)
-            if alt["placed"] or alt["trim_duration_sec"] < chosen["trim_duration_sec"]:
-                chosen = alt
-        if not chosen["placed"] and not seg.get("revisions"):
-            needs_repair.append(int(seg["id"]))
-        item = _scheduled_item(seg, chosen, attempts, source_duration)
-        scheduled.append(item)
-        if item["placed"]:
-            occupied = max(occupied, float(item["placement_end"]))
-        print(
-            f"id {seg['id']}: {item['status']} trim={item['trim_duration_sec']:.3f}s "
-            f"window={item['safe_window_sec']:.3f}s cache={'hit' if chosen['cache_hit'] else 'miss'}"
-        )
-    summary = {
-        "fingerprint": fp,
-        "source_duration_sec": source_duration,
-        "segments": scheduled,
-        "needs_repair": needs_repair,
-        "n_synth_fresh": fresh,
-        "n_synth_cache_hits": hits,
-        "backend_load_seconds": getattr(backend, "load_seconds", 0.0),
-        "prompt_seconds": getattr(backend, "prompt_seconds", 0.0),
-        "load_peak_gpu_gib": getattr(backend, "load_peak_gpu_gib", 0.0),
-        "reference_sha256": ref_sha,
-        "reference_wav": ref_wav,
-    }
+        stats["fresh"] += int(not meta.get("cache_hit"))
+        stats["hits"] += int(bool(meta.get("cache_hit")))
+        return meta
+
+    def attempt_fn(seg, text, seed, kind, meta, occupied_until, next_start, source_dur):
+        return _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, next_start, source_dur)
+
+    try:
+        for i, seg in enumerate(ordered):
+            nxt = float(ordered[i + 1]["start"]) if i + 1 < len(ordered) else source_duration
+            text = seg.get("english") or ""
+            context_before = ordered[i - 1]["spanish"] if i else None
+            context_after = ordered[i + 1]["spanish"] if i + 1 < len(ordered) else None
+            if any(r.get("action") == "leave_unresolved" for r in seg.get("revisions") or []):
+                attempts = prior_attempts.get(int(seg["id"]), [])
+                item = _unplaced_from_history(seg, attempts, nxt, source_duration)
+                item["attempts"] = attempts
+                scheduled.append(item)
+                continue
+            checker = (cfg.get("quality") or {}).get("checker")
+            checkpoint = read_checkpoint(job.dir, int(seg["id"]))
+            assessor.checkpoint = checkpoint if checkpoint_matches(checkpoint, text, ref_sha, checker) else None
+            result = collect_line(
+                seg,
+                occupied=occupied,
+                next_start=nxt,
+                source_duration=source_duration,
+                cfg=cfg,
+                synthesize=synthesize,
+                assess=assessor,
+                attempt_fn=attempt_fn,
+                revision_limit_n=rev_limit,
+            )
+            chosen = result["chosen"]
+            attempts = list(result["attempts"])
+            if chosen is None:
+                raise RuntimeError(f"Segment {seg['id']} produced no candidate")
+            if chosen.get("placed"):
+                chosen = _apply_presentation(job, cfg, seg, chosen, occupied, nxt, source_duration, target_rms)
+            for attempt in attempts:
+                accepted = (
+                    bool(chosen.get("placed"))
+                    and attempt.get("seed") == chosen.get("seed")
+                    and attempt.get("kind") == chosen.get("kind")
+                    and bool((attempt.get("quality") or {}).get("ok"))
+                )
+                append_candidate(job.dir, {
+                    "id": int(seg["id"]),
+                    "spanish": seg.get("spanish"),
+                    "english": attempt.get("text"),
+                    "context_before": context_before,
+                    "context_after": context_after,
+                    "reference_wav": ref_wav,
+                    "reference_id": cfg["reference"]["id"],
+                    "reference_sha256": ref_sha,
+                    "seed": attempt.get("seed"),
+                    "wav": attempt.get("raw_path"),
+                    "duration_sec": attempt.get("raw_duration_sec"),
+                    "trim_duration_sec": attempt.get("trim_duration_sec"),
+                    "placement_window_sec": attempt.get("safe_window_sec"),
+                    "quality": attempt.get("quality"),
+                    "kind": attempt.get("kind"),
+                    "accepted": accepted,
+                    "rejection": None if (attempt.get("quality") or {}).get("ok") else (attempt.get("quality") or {}).get("reasons"),
+                })
+            write_checkpoint(job.dir, int(seg["id"]), {
+                "id": int(seg["id"]),
+                "english": text,
+                "reference_sha256": ref_sha,
+                "checker": (cfg.get("quality") or {}).get("checker"),
+                "candidates": [
+                    {
+                        "text": a.get("text"),
+                        "seed": a.get("seed"),
+                        "wav": a.get("raw_path"),
+                        "quality": a.get("quality"),
+                        "kind": a.get("kind"),
+                    }
+                    for a in attempts
+                ],
+            })
+            if result["needs_repair"]:
+                needs_repair.append(int(seg["id"]))
+            item = _scheduled_item(seg, chosen, attempts, source_duration)
+            scheduled.append(item)
+            if item["placed"]:
+                occupied = max(occupied, float(item["placement_end"]))
+            quality = chosen.get("quality") or {}
+            print(
+                f"id {seg['id']}: {item['status']} trim={float(item['trim_duration_sec']):.3f}s "
+                f"window={float(item['safe_window_sec']):.3f}s "
+                f"quality={'ok' if quality.get('ok') else quality.get('reasons')}"
+            )
+        summary = {
+            "fingerprint": fp,
+            "source_duration_sec": source_duration,
+            "segments": scheduled,
+            "needs_repair": needs_repair,
+            "n_synth_fresh": stats["fresh"],
+            "n_synth_cache_hits": stats["hits"],
+            "n_quality_retries": sum(
+                1 for row in scheduled for attempt in row.get("attempts") or [] if attempt.get("kind") == "quality_retry"
+            ),
+            "backend_load_seconds": getattr(backend, "load_seconds", 0.0),
+            "prompt_seconds": getattr(backend, "prompt_seconds", 0.0),
+            "load_peak_gpu_gib": getattr(backend, "load_peak_gpu_gib", 0.0),
+            "reference_sha256": ref_sha,
+            "reference_wav": ref_wav,
+            "reference_profile": {k: profile.get(k) for k in ("f0", "centroid", "tilt", "rms")},
+            "voice_presentation": bool((cfg.get("voice_edge") or {}).get("enabled", False)),
+        }
+    finally:
+        assessor.close()
     write_json(summary_path, summary)
     if needs_repair:
         job.set_stage("schedule", "awaiting_repair", fp, {"summary": "schedule/summary.json"})
@@ -493,14 +652,70 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
     return summary
 
 
+def _apply_presentation(job, cfg, seg, chosen, occupied, next_start, source_duration, target_rms):
+    edge = cfg.get("voice_edge") or {}
+    if not edge.get("enabled", False) or not chosen.get("placed"):
+        return chosen
+    chosen = dict(chosen)
+    fade_ms = float(edge.get("fade_ms", 12))
+    tempo = float(chosen.get("tempo") or 1.0)
+    if tempo != 1.0:
+        audio, sr = read_audio(Path(chosen["used_path"]))
+        faded, info = safety_fade(to_mono(audio), sr, fade_ms=fade_ms)
+        path = job.dir / "schedule" / "work" / f"segment_{int(seg['id']):03d}_edge.wav"
+        write_wav(path, faded, sr, subtype="FLOAT")
+        chosen["used_path"] = str(path)
+        chosen["edge"] = info
+        chosen["edge_ok"] = bool(faded.size) and abs(float(faded[0])) < 0.05
+        return chosen
+    raw, sr = read_audio(Path(chosen["raw_path"]))
+    core_start = float(chosen.get("placement_start", seg["start"]))
+    core_dur = float(chosen["trim_duration_sec"])
+    lead_ms, tail_ms = margin_budget_ms(
+        core_dur,
+        max(0.0, min(next_start, source_duration) - core_start),
+        float(edge.get("margin_lead_ms", 20)),
+        float(edge.get("margin_tail_ms", 60)),
+        max(0.0, (core_start - occupied) * 1000.0),
+    )
+    piece, info = render_voice_with_margins(
+        to_mono(raw),
+        sr,
+        rms_thr=float(cfg["schedule"]["trim_rms"]),
+        lead_ms=lead_ms,
+        tail_ms=tail_ms,
+        fade_ms=fade_ms,
+        target_rms=target_rms,
+    )
+    if piece.size == 0:
+        chosen["edge_ok"] = False
+        chosen["edge"] = info
+        return chosen
+    lead_sec = float(info.get("lead_ms_used") or 0.0) / 1000.0
+    placement_start = core_start - lead_sec
+    max_dur = min(next_start, source_duration) - placement_start
+    if max_dur > 0 and piece.size / sr > max_dur + 1e-4:
+        piece = piece[:max(1, int(max_dur * sr))].copy()
+    path = job.dir / "schedule" / "work" / f"segment_{int(seg['id']):03d}_present.wav"
+    write_wav(path, piece, sr, subtype="FLOAT")
+    chosen["used_path"] = str(path)
+    chosen["placement_start"] = placement_start
+    chosen["generated_duration_sec"] = piece.size / float(sr)
+    chosen["edge"] = {key: info.get(key) for key in ("edge", "lead_ms_used", "tail_ms_used", "gain", "core_preserved")}
+    chosen["loudness_gain"] = info.get("gain")
+    chosen["edge_ok"] = abs(float(piece[0])) < 0.05
+    return chosen
+
+
 def _scheduled_item(seg: dict, chosen: dict, attempts: list[dict], source_duration: float) -> dict:
     placed = bool(chosen["placed"])
-    start = float(seg["start"])
+    origin = float(seg["start"])
+    start = float(chosen.get("placement_start", origin))
     gen = float(chosen["generated_duration_sec"])
-    used = job_used_copy(chosen["used_path"], seg["id"])
+    used = job_used_copy(chosen["used_path"], seg["id"]) if chosen.get("used_path") else ""
     return {
         "id": int(seg["id"]),
-        "start": start,
+        "start": origin,
         "end": float(seg["end"]),
         "spanish": seg["spanish"],
         "english": chosen["text"],
@@ -521,7 +736,12 @@ def _scheduled_item(seg: dict, chosen: dict, attempts: list[dict], source_durati
         "used_path": used,
         "seed": chosen["seed"],
         "attempts": attempts,
-        "cache_hit": chosen["cache_hit"],
+        "cache_hit": chosen.get("cache_hit"),
+        "quality": chosen.get("quality"),
+        "edge": chosen.get("edge"),
+        "edge_ok": chosen.get("edge_ok"),
+        "loudness_gain": chosen.get("loudness_gain"),
+        "leading_shift_sec": chosen.get("leading_shift_sec") or 0.0,
     }
 
 
@@ -570,8 +790,7 @@ def meta_key(cfg, text, ref_sha, ref_text, seed) -> str:
 
 def _ensure_backend(backend, cfg):
     if backend is None:
-        print("synthesize: loading Qwen")
-        return QwenBackend(cfg)
+        return get_shared_backend(cfg)
     return backend
 
 
@@ -645,7 +864,7 @@ def export_repair(job: Job) -> Path:
     return path
 
 
-def accept_repair(job: Job, response_path: Path) -> None:
+def accept_repair(job: Job, response_path: Path, revision_limit_n: int | None = None) -> None:
     req = read_json(job.dir / "handoff" / "repair_request.json")
     response = read_json(response_path)
     current = {int(s["id"]): s.get("english") or "" for s in _timeline(job)}
@@ -656,8 +875,9 @@ def accept_repair(job: Job, response_path: Path) -> None:
     by_id = {int(s["id"]): s for s in job.data["timeline"]}
     for row in response["segments"]:
         seg = by_id[row["id"]]
-        if seg.get("revisions"):
-            raise RuntimeError(f"Segment {row['id']} already used its one compact-revision budget")
+        limit = revision_limit_n if revision_limit_n is not None else int(job.config()["repair"]["max_compact_revisions"])
+        if len(seg.get("revisions") or []) >= limit:
+            raise RuntimeError(f"Segment {row['id']} already used its compact-revision budget ({limit})")
         if row["id"] not in allowed:
             raise RuntimeError(f"Segment {row['id']} is not in the repair request")
         if row["action"] == "revise":
@@ -713,7 +933,8 @@ def stage_mix(job: Job, cfg: dict, summary: dict) -> dict:
     )
     n_frames = int(aligned.shape[0])
     scheduled = summary["segments"]
-    voice, overlaps = place_voice(scheduled, n_frames, sr, float(cfg["schedule"]["fade_ms"]))
+    fade_ms = 0.0 if summary.get("voice_presentation") else float(cfg["schedule"]["fade_ms"])
+    voice, overlaps = place_voice(scheduled, n_frames, sr, fade_ms)
     if overlaps:
         summary["assembler_overlaps"] = overlaps
     partial = any(not s.get("placed") for s in scheduled)
@@ -802,6 +1023,42 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         if seg["placement_start"] < -1e-6 or seg["placement_end"] > summary["source_duration_sec"] + (2 / 48000):
             bounds_bad.append(seg["id"])
     add("placed_in_windows", not bounds_bad, bounds_bad or "none")
+    placed_ids = [s["id"] for s in summary["segments"] if s.get("placed")]
+    unplaced_ids = [s["id"] for s in summary["segments"] if not s.get("placed")]
+    missing_account = account_lines([s["id"] for s in summary["segments"]], placed_ids, unplaced_ids)
+    blank_reasons = [s["id"] for s in summary["segments"] if not s.get("placed") and not (s.get("timing_error") or "")]
+    add("coverage", not missing_account and not blank_reasons, {"missing": missing_account, "no_reason": blank_reasons} if (missing_account or blank_reasons) else "every line placed or unresolved")
+    quality_failed_placed = [
+        s["id"] for s in summary["segments"]
+        if s.get("placed") and s.get("quality") and not s["quality"].get("ok")
+    ]
+    add("placed_lines_passed_quality", not quality_failed_placed, quality_failed_placed or "none")
+    asr_skipped = [
+        s["id"] for s in summary["segments"]
+        if s.get("placed") and (s.get("quality") or {}).get("asr_skipped")
+    ]
+    add("generated_audio_transcribed", not asr_skipped, asr_skipped or "each placed line")
+    bad_edges = [s["id"] for s in summary["segments"] if s.get("placed") and s.get("edge_ok") is False]
+    add("voice_edges", not bad_edges, bad_edges or "generated-voice margins")
+    aligned_game, _ = align_to_video(
+        read_audio(job.dir / "extract/game_raw.wav")[0],
+        48000,
+        inspected["mapping"]["game"]["start_time"],
+        inspected["described"]["video"]["start_time"],
+        inspected["described"]["video"]["duration"],
+    )
+    n_cmp = min(voice.shape[0], mix.shape[0], aligned_game.shape[0])
+    voice_mono = voice[:n_cmp, 0] if voice.ndim > 1 else voice[:n_cmp]
+    centered = np.stack([voice_mono, voice_mono], axis=1)
+    bed_err = mix[:n_cmp] - aligned_game[:n_cmp] - centered
+    bed_max = float(np.max(np.abs(bed_err))) if bed_err.size else 0.0
+    add("game_bed_continuous", bed_max < 2e-4, f"max abs mix-(game+voice)={bed_max:.3e}")
+    try:
+        src_md5 = bitstream_md5(ffmpeg, str(video))
+        out_md5 = bitstream_md5(ffmpeg, str(en_path))
+        add("video_bitstream_preserved", src_md5 == out_md5, src_md5 if src_md5 == out_md5 else {"source": src_md5, "output": out_md5})
+    except Exception as exc:
+        add("video_bitstream_preserved", False, str(exc))
     docker = docker_status(cfg.get("docker_llm_container", ""))
     add("docker_llm_stopped", "Up" not in docker, docker or "no status")
     changed = []
@@ -828,6 +1085,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         "n_unplaced": n_unplaced,
         "n_tempo": sum(1 for s in summary["segments"] if s.get("status") == "tempo_adjusted"),
         "n_alternate": sum(1 for s in summary["segments"] if any(a.get("kind") == "alternate_seed" for a in s.get("attempts") or [])),
+        "n_quality_retries": summary.get("n_quality_retries", 0),
         "n_revisions": len(repairs),
         "n_synth_fresh": summary.get("n_synth_fresh"),
         "n_synth_cache_hits": summary.get("n_synth_cache_hits"),

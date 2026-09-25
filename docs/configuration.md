@@ -42,6 +42,12 @@ Fixed to the validated call: `Qwen/Qwen3-TTS-12Hz-1.7B-Base`, CUDA device map, b
 
 Whisper segments stay intact (internal pauses are not split). A start in silence moves to the next energy onset within `onset_lookback_sec`. Lines with no energy above RMS 0.005 are dropped and recorded. Voiced gaps with no words are recorded and not given invented text. Adjacent Whisper lines merge only when the silence between energy spans is ≤ `merge_max_silence_sec` (0.12 s). Low probability words are flagged, not rewritten. `anchor_type` is a duration/word-count heuristic.
 
+## Providers
+
+`providers.translation` and `providers.repair` are used only by `bin/aidub auto`. Manual `run` does not call them. `kind` is `unconfigured`, `command`, or `openai_compatible`. A command list may contain `{request}`, `{response}`, and `{role}`. An OpenAI-compatible provider reads its key from `api_key_env` and never from this file. Details and the failure message are in `docs/unattended.md`.
+
+`quality.max_retries` is the number of extra seeds after a candidate fails a speaker, transcript, clipping, or edge check. `fit_retries.max_alternate_seeds` is how many extra seeds are tried when a good candidate does not fit. `voice_edge` keeps a quiet margin around the trimmed core and fades only that margin. The fit trim stays RMS 0.005 / 10 ms / pad 0, and max tempo stays 1.10.
+
 ## Docker
 
 `docker_llm_container` is checked and must not be running. The pipeline never starts it.

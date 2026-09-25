@@ -50,12 +50,15 @@ def translation_request(job_id: str, segments: list[dict], video_duration: float
     }
 
 
+ALLOWED_TRANSLATOR_KINDS = {"agent-assisted", "command", "openai-compatible"}
+
+
 def _translator_errors(block) -> list[str]:
     errors = []
     if not isinstance(block, dict):
         return ["translator must be an object"]
-    if block.get("kind") != "agent-assisted":
-        errors.append("translator.kind must be 'agent-assisted'")
+    if block.get("kind") not in ALLOWED_TRANSLATOR_KINDS:
+        errors.append("translator.kind must be agent-assisted, command, or openai-compatible")
     model = block.get("model", None)
     if model is not None and not isinstance(model, str):
         errors.append("translator.model must be a string or omitted")

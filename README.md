@@ -2,7 +2,7 @@
 
 Local pipeline for an OBS gameplay recording. Spanish microphone commentary is turned into English speech in a cloned voice and mixed with the original game audio. The video picture is stream-copied.
 
-This repository does not install packages, download models, or call a translation API. Whisper and Qwen3-TTS run on the local GPU. Translation and the one compact repair are JSON files you write. There is no web UI and no queue.
+Whisper and Qwen3-TTS run on the local GPU. Manual translation and repair are still JSON files you can write. `bin/aidub auto` can fill those files from a provider named in the config. There is no web UI and no queue. The repository does not install packages or download models, and it does not embed API keys.
 
 `config/default.json` in this checkout contains one workstation's absolute paths. A new clone must replace those paths before `init`. Use `config/example.json` as the template. It has no credentials and no personal paths.
 
@@ -34,9 +34,10 @@ Fit order, unchanged from the tested scheduler:
 2. If the trimmed clip fits the original span, `fit_unchanged`.
 3. If it fits before the next segment start, `spill_into_gap`.
 4. Otherwise speed it up with `atempo` only when the factor is at most 1.10.
-5. If it still does not fit, one extra synthesis at `seed + 100`.
-6. If it still does not fit, stop for one shorter English revision.
-7. If that revision does not fit, the line stays unplaced. Later lines are not moved.
+5. If it still does not fit, extra synthesis at `seed + 100`, then `+ 200`, and so on, up to `fit_retries.max_alternate_seeds`.
+6. If it still does not fit, the line may start earlier in silence the previous line did not occupy. Later lines are not moved.
+7. If it still does not fit, stop for a shorter English revision. A manual job allows one revision. `auto` allows `unattended.max_shorter_translations`.
+8. If that revision does not fit, the line stays unplaced.
 
 The assembler copies the voice to left and right at full amplitude and fades 5 ms. It does not overwrite an earlier placed line. The mix adds that voice to the stereo game bed. Gain stays 1.0 unless the sum peak exceeds 0.99, in which case both channels are scaled and the gain is recorded. Video is stream-copied. `-shortest` is refused.
 
@@ -127,7 +128,7 @@ bin/aidub accept-translation my_clip /absolute/path/response.json
 bin/aidub resume my_clip
 ```
 
-If a line still misses its window after one alternate seed, `resume` stops at `awaiting_repair`. For each id, `revise` to shorter faithful English or `leave_unresolved` with a reason. One decision per id. A second response for the same id is rejected. Example: `examples/repair_response.json`.
+If a line still misses its window after the bounded alternate seeds, `resume` stops at `awaiting_repair`. For each id, `revise` to shorter faithful English or `leave_unresolved` with a reason. A manual job allows one revision per id. Example: `examples/repair_response.json`.
 
 ```bash
 bin/aidub accept-repair my_clip /absolute/path/repair.json
@@ -141,6 +142,17 @@ bin/aidub status my_clip
 bin/aidub export-translation my_clip
 bin/aidub export-repair my_clip
 bin/aidub validate my_clip
+```
+
+### Unattended
+
+`bin/aidub auto` runs init, translation, synthesis, repair, mix, and validation in one process. Qwen stays loaded across the repair pass. Manual `run`, `accept-translation`, and `accept-repair` stay available.
+
+`providers.translation` and `providers.repair` must already be set. If either kind is `unconfigured`, the command stops and prints the expected config. It does not pick another provider. Keys, when a provider needs them, come from the environment variable named in the config. See `docs/unattended.md`.
+
+```bash
+bin/aidub auto /path/to/recording.mp4 --name my_clip \
+  --mic-ordinal MIC --game-ordinal GAME --mixed-ordinal MIXED
 ```
 
 `status` prints the state, each stage, and the next command. It does not rebuild the video. `validate` prints the saved report. It does not rerun the job.

@@ -8,6 +8,35 @@ from .audio import metrics, write_wav
 from .schedule import synth_cache_key
 from .util import read_json, write_json
 
+_SHARED = None
+
+
+def resolve_local_snapshot(model_id: str) -> str:
+    """Use the on-disk Hugging Face snapshot when it is already present.
+
+    The generation settings stay the configured model id. This only avoids a
+    network lookup for a snapshot that is already cached.
+    """
+    cache_root = Path.home() / ".cache/huggingface/hub" / f"models--{model_id.replace('/', '--')}"
+    ref = cache_root / "refs/main"
+    if ref.is_file():
+        snapshot = cache_root / "snapshots" / ref.read_text(encoding="utf-8").strip()
+        if snapshot.is_dir():
+            return str(snapshot)
+    return model_id
+
+
+def shared_backend_loaded() -> bool:
+    return _SHARED is not None
+
+
+def get_shared_backend(cfg: dict) -> "QwenBackend":
+    global _SHARED
+    if _SHARED is None:
+        print("synthesize: loading Qwen")
+        _SHARED = QwenBackend(cfg)
+    return _SHARED
+
 
 class QwenBackend:
     def __init__(self, cfg: dict):
@@ -27,7 +56,7 @@ class QwenBackend:
         torch.cuda.reset_peak_memory_stats()
         t0 = time.perf_counter()
         self.model = Qwen3TTSModel.from_pretrained(
-            q["model_id"],
+            resolve_local_snapshot(q["model_id"]),
             device_map=q["device"],
             dtype=torch.bfloat16,
             attn_implementation=q["attn_implementation"],

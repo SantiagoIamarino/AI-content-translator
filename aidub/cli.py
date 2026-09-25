@@ -5,6 +5,8 @@ from pathlib import Path
 from .config import load_config, require_schedule_defaults, resolve_path
 from .job import Job, JobLock
 from .pipeline import accept_repair, accept_translation, export_repair, export_translation, job_path, next_hint, run_job
+from .providers import ProviderError
+from .unattended import run_unattended
 from .util import read_json
 
 
@@ -68,6 +70,22 @@ def cmd_init(args) -> int:
 def cmd_run(args) -> int:
     cfg = _cfg(args)
     return run_job(_job(cfg, args.job))
+
+
+def cmd_auto(args) -> int:
+    cfg = _cfg(args)
+    try:
+        return run_unattended(
+            cfg,
+            args.video,
+            args.name,
+            mic=args.mic_ordinal,
+            game=args.game_ordinal,
+            mixed=args.mixed_ordinal,
+        )
+    except ProviderError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
 
 def cmd_status(args) -> int:
@@ -167,6 +185,14 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--game-ordinal", type=int)
     init.add_argument("--mixed-ordinal", type=int)
     init.set_defaults(func=cmd_init)
+
+    auto = sub.add_parser("auto", help="unattended init, provider handoffs, resume, and validate")
+    auto.add_argument("video")
+    auto.add_argument("--name", required=True)
+    auto.add_argument("--mic-ordinal", type=int)
+    auto.add_argument("--game-ordinal", type=int)
+    auto.add_argument("--mixed-ordinal", type=int)
+    auto.set_defaults(func=cmd_auto)
 
     run = sub.add_parser("run", help="run ready stages until done or a handoff")
     run.add_argument("job")

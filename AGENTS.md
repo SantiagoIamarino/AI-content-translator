@@ -12,6 +12,10 @@ Use this file to dub a recording without the original conversation.
 - A partial export is not a complete dub. Say so.
 - Technical placement is not perceptual sync, and a complete report is not a voice-quality approval.
 
+## Unattended
+
+`bin/aidub auto VIDEO --name CLIP_NAME --mic-ordinal N --game-ordinal N --mixed-ordinal N` runs the same stages without a person writing the JSON. It calls the configured translation provider and, if needed, the repair provider. If those providers are `unconfigured`, stop and report the missing config. Do not invent a provider or a credential. Manual `run` / `accept-translation` / `accept-repair` remain for debugging.
+
 ## Next recording
 
 ```bash

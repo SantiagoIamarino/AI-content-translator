@@ -17,6 +17,40 @@ def _runs(mask: np.ndarray) -> list[tuple[int, int]]:
     return runs
 
 
+_HALLUCINATIONS = ("gracias por ver", "thanks for watching", "subtítulos", "subtitles by")
+
+
+def review_low_energy(text: str, region: np.ndarray, sr: int, rms_thr: float) -> tuple[bool, str]:
+    """Second look at a line the fixed RMS gate would drop.
+
+    Near-silence and noise-like slices stay dropped, including the usual
+    end-of-video hallucination. A quiet harmonic slice is kept.
+    """
+    mono = np.asarray(region, dtype=np.float32)
+    if mono.ndim > 1:
+        mono = mono.mean(axis=1)
+    lowered = (text or "").lower()
+    if any(phrase in lowered for phrase in _HALLUCINATIONS):
+        return False, "hallucination_phrase"
+    if mono.size == 0 or sr <= 0:
+        return False, "near_silence"
+    rms = float(np.sqrt(np.mean(mono * mono)))
+    if rms < float(rms_thr) * 0.25:
+        return False, "near_silence"
+    window = np.hanning(mono.size).astype(np.float32)
+    spec = np.abs(np.fft.rfft(mono * window))[1:]
+    if spec.size == 0:
+        return False, "near_silence"
+    geometric = float(np.exp(np.mean(np.log(spec + 1e-12))))
+    arithmetic = float(np.mean(spec)) + 1e-12
+    flatness = geometric / arithmetic
+    if flatness > 0.4:
+        return False, "noise_like"
+    if flatness < 0.25:
+        return True, "borderline_harmonic"
+    return False, "below_threshold"
+
+
 def _join_words(words: list[dict]) -> str:
     parts = []
     for word in words:
@@ -50,19 +84,28 @@ def build_segments(whisper: dict, wav: np.ndarray, sr: int, cfg: dict, offset_se
         region_end = min(len(mask), max(we, ws) + tail)
         region = mask[region_start:region_end]
         voiced_count = int(np.count_nonzero(region))
+        borderline = None
         if voiced_count < min_voiced:
-            dropped.append({
-                "text": text,
-                "reason": "no_energy",
-                "whisper_span": [float(raw["start"]), float(raw["end"])],
-            })
-            continue
-        rel = np.flatnonzero(region)
-        start = region_start + int(rel[0])
-        end = region_start + int(rel[-1]) + 1
-        if end <= start:
-            dropped.append({"text": text, "reason": "no_energy", "whisper_span": [float(raw["start"]), float(raw["end"])]})
-            continue
+            slice_wav = wav[max(0, ws):min(len(mask), max(we, ws + 1))]
+            keep, why = review_low_energy(text, slice_wav, sr, float(cfg["energy_rms"]))
+            if not keep:
+                dropped.append({
+                    "text": text,
+                    "reason": "no_energy",
+                    "review": why,
+                    "whisper_span": [float(raw["start"]), float(raw["end"])],
+                })
+                continue
+            borderline = why
+            start = ws
+            end = max(we, ws + 1)
+        else:
+            rel = np.flatnonzero(region)
+            start = region_start + int(rel[0])
+            end = region_start + int(rel[-1]) + 1
+            if end <= start:
+                dropped.append({"text": text, "reason": "no_energy", "review": "empty_span", "whisper_span": [float(raw["start"]), float(raw["end"])]})
+                continue
         low = []
         for word in words:
             prob = word.get("probability")
@@ -76,6 +119,7 @@ def build_segments(whisper: dict, wav: np.ndarray, sr: int, cfg: dict, offset_se
             "whisper_end": float(raw["end"]),
             "uncertain_words": low,
             "merged_from": [text],
+            "borderline": borderline,
         })
         prev_end = end
         uncertain.extend(low)
@@ -121,6 +165,11 @@ def build_segments(whisper: dict, wav: np.ndarray, sr: int, cfg: dict, offset_se
             notes.append(f"Uncertain words: {shown}. Not rewritten.")
         if len(cand["merged_from"]) > 1:
             notes.append("Merged Whisper segments on a short energy gap: " + " | ".join(cand["merged_from"]))
+        if cand.get("borderline"):
+            notes.append(
+                f"Kept after energy review ({cand['borderline']}). "
+                f"The fixed RMS gate was {cfg['energy_rms']}, and the slice was speech-like rather than silence."
+            )
         segments.append({
             "id": index,
             "start": round(start, 6),

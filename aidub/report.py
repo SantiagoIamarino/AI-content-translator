@@ -20,6 +20,7 @@ def validation_markdown(summary: dict) -> str:
         f"- Unplaced: {summary['n_unplaced']}",
         f"- Tempo adjusted: {summary['n_tempo']}",
         f"- Alternate-seed attempts: {summary['n_alternate']}",
+        f"- Quality retries: {summary.get('n_quality_retries', 0)}",
         f"- Compact revisions: {summary['n_revisions']}",
         f"- Fresh synthesis this schedule pass: {summary['n_synth_fresh']}",
         f"- Cache hits this schedule pass: {summary['n_synth_cache_hits']}",

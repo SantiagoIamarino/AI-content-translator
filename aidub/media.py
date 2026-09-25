@@ -99,6 +99,18 @@ def extract_audio_cmd(ffmpeg: str, video: str, ordinal: int, dest: str, sample_r
     ]
 
 
+def bitstream_md5(ffmpeg: str, path: str) -> str:
+    proc = subprocess.run(
+        [ffmpeg, "-v", "error", "-i", path, "-map", "0:v:0", "-c", "copy", "-f", "md5", "-"],
+        check=False, text=True, capture_output=True,
+    )
+    text = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    for line in text.splitlines():
+        if "MD5=" in line:
+            return line.strip().split("MD5=")[-1].strip()
+    raise RuntimeError(f"Could not hash the video bitstream of {path}: {text[-500:]}")
+
+
 def assert_extract_preserves_origin(cmd: list[str]) -> None:
     banned = {"-ss", "-sseof", "-itsoffset", "aresetpts", "asetpts"}
     for part in cmd:

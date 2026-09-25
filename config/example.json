@@ -62,6 +62,31 @@
     "max_alternate_synthesis": 1,
     "max_compact_revisions": 1
   },
+  "quality": {
+    "max_retries": 2,
+    "min_speaker_features": 2,
+    "checker": "f0-and-centroid-v3",
+    "asr_device": "cpu",
+    "asr_language": ""
+  },
+  "fit_retries": {
+    "max_alternate_seeds": 3,
+    "max_leading_shift_sec": 0.4
+  },
+  "voice_edge": {
+    "enabled": true,
+    "margin_lead_ms": 20,
+    "margin_tail_ms": 60,
+    "fade_ms": 12
+  },
+  "unattended": {
+    "enabled": false,
+    "max_shorter_translations": 2
+  },
+  "providers": {
+    "translation": {"kind": "unconfigured"},
+    "repair": {"kind": "unconfigured"}
+  },
   "mix": {
     "limiter": 0.99
   },
