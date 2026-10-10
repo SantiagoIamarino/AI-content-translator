@@ -1,53 +1,25 @@
 # Configuration
 
-`config/default.json` is copied into the job at `init`. Later edits to the default file do not change an existing job. Resume uses `jobs/<name>/config.json`.
+Selection: `--config` > `AIDUB_CONFIG` > ignored `config/local.json` > portable `config/default.json`. The launcher resolves the selected interpreter before importing the CLI. Executable names use PATH; relative paths use the checkout root. Copy the complete example into local config and fill in existing environment, model and reference paths. Config files are complete snapshots, not implicit merges.
 
-## Executables
+New `init` checks executable permissions, reference approval, local source/verification Whisper weights, local Qwen weights, CUDA availability and provider configuration for auto jobs. Preflight makes no provider request and permits no model download. No CPU synthesis fallback or provider fallback exists. Existing jobs keep their config snapshots and legacy synthesis keys; current portable defaults are not imposed on them.
 
-| Key | Role |
+| Group | Settings |
 | --- | --- |
-| `executables.python_qwen` | Interpreter for this CLI and for Qwen. Existing venv only. |
-| `executables.whisper` | Whisper Turbo CLI. Separate venv. |
-| `executables.ffmpeg` / `ffprobe` | Extract, atempo, mux, probe. |
+| `executables` | `python_qwen`, `whisper`, `ffmpeg`, `ffprobe`; Whisper's Python is adjacent to its venv CLI |
+| `models` | `qwen_path` snapshot directory; `whisper_path` .pt file; empty resolves existing local cache only |
+| `reference` | WAV, transcript file, optional `expected_text_sha256`; otherwise reference B's locked transcript applies |
+| `audio_mapping` | Audio ordinals, not absolute indices. Default roles are placeholders until listened to for each source |
+| `transcription` | `chunk_sec=600`, `overlap_sec=2`; words belong to one core window by midpoint |
+| `processing` | `block_frames=65536`, valid 128..1048576; `storage_reserve_bytes` optionally adjusts the disk estimate reserve |
+| `batching` | `max_cues=40`, `max_chars=24000`, including context |
+| `providers` | Explicit command or OpenAI-compatible translation/repair; `timeout_sec=900`, `max_attempts=2` (1..5), `max_response_bytes=1048576` |
+| `timeouts` | Worker startup 180s; candidate ASR 180s; source ASR window 1800s; tempo 180s; probe 1200s; media 10800s |
+| `quality` | Candidate `asr_model`/`asr_model_path`, `asr_language`, `asr_device`; `speaker_proxy_enabled`; bounded retries and checker tag |
+| `segmentation` | Locked RMS/onset/merge settings; `quiet_speech_heuristic`; `untranscribed_energy_policy=partial` or explicit reviewed `warn` |
+| `mix` | `limiter=0.99` voice sum ceiling; `min_voice_gain=0.1`; `headroom_policy=partial` or `fail`. Game gain is always 1 |
+| `export` | `container=mp4` or `mkv`; no picture re-encoding |
 
-`bin/aidub` reads `python_qwen` and refuses to create an environment.
+Qwen model, dtype, attention, English ICL, original trim RMS/window/pad, and tempo 1.10 remain fixed. New jobs freeze the local Qwen snapshot revision and model paths. Legacy jobs do not acquire a new synthesis revision key automatically.
 
-## Streams
-
-`audio_mapping.mic_ordinal`, `game_ordinal`, and `mixed_ordinal` select the Nth audio stream (`ffmpeg -map 0:a:N`). They are not container stream indexes. Defaults match `sample.mp4` after the user listened: 2 mic, 1 game, 0 mixed. Pass the ordinals to `init` for every new recording. The three values must be distinct.
-
-OBS names such as `simple_aac_recording0` do not identify the role. Before trusting a dub, compare a few seconds of each audio ordinal. Mixed minus game should match the microphone, and the microphone should be near silence where the speaker is quiet. `jobs/<name>/inspect/probe.json` records the ordinals that were configured. It does not prove they are the right tracks.
-
-## Reference
-
-`reference.wav` points at `/home/siamarino/audios/04_referencia_ingles_emocion.wav`. The wav is not copied into Git. `references/reference_b.txt` is the user-confirmed transcript, including spoken grammar (`this kind of dogs`, `he bite me`). The loader refuses a different transcript. Do not trim the wav in this project.
-
-## Qwen
-
-Fixed to the validated call: `Qwen/Qwen3-TTS-12Hz-1.7B-Base`, CUDA device map, bfloat16, SDPA, English, ICL `x_vector_only_mode=false`, and the generation dict in the config. The runner refuses other values.
-
-## Schedule and mix
-
-| Setting | Value | Meaning |
-| --- | --- | --- |
-| `seed_base` | 42 | Primary seed is `42 + segment id` |
-| `alternate_seed_offset` | 100 | One extra attempt |
-| `max_tempo` | 1.1 | Hard cap |
-| `trim_rms` / `trim_window_sec` / `trim_pad_ms` | 0.005 / 0.01 / 0 | Validated trim |
-| `fade_ms` | 5 | Edge fade after placement |
-| `output_sr` | 48000 | Extract and mix rate |
-| `mix.limiter` | 0.99 | Gain drops below 1 only above this peak |
-
-## Segmentation
-
-Whisper segments stay intact (internal pauses are not split). A start in silence moves to the next energy onset within `onset_lookback_sec`. Lines with no energy above RMS 0.005 are dropped and recorded. Voiced gaps with no words are recorded and not given invented text. Adjacent Whisper lines merge only when the silence between energy spans is ≤ `merge_max_silence_sec` (0.12 s). Low probability words are flagged, not rewritten. `anchor_type` is a duration/word-count heuristic.
-
-## Providers
-
-`providers.translation` and `providers.repair` are used only by `bin/aidub auto`. Manual `run` does not call them. `kind` is `unconfigured`, `command`, or `openai_compatible`. A command list may contain `{request}`, `{response}`, and `{role}`. An OpenAI-compatible provider reads its key from `api_key_env` and never from this file. Details and the failure message are in `docs/unattended.md`.
-
-`quality.max_retries` is the number of extra seeds after a candidate fails a speaker, transcript, clipping, or edge check. `fit_retries.max_alternate_seeds` is how many extra seeds are tried when a good candidate does not fit. `voice_edge` keeps a quiet margin around the trimmed core and fades only that margin. The fit trim stays RMS 0.005 / 10 ms / pad 0, and max tempo stays 1.10.
-
-## Docker
-
-`docker_llm_container` is checked and must not be running. The pipeline never starts it.
+To alter a stopped existing job, edit its `jobs/NAME/config.json`. Verification-only changes miss quality cache keys but reuse synthesis. Changing source/segmentation inputs can replace the timeline and require new translations. Invalid configurations fail with diagnostics; deleting caches is not a recovery step. See `docs/architecture.md` for checkpoint migration.

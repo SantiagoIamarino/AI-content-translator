@@ -1,0 +1,3 @@
+# Observed CLI/test environment, Python 3.12.14. No model downloads during execution.
+numpy==2.5.3
+soundfile==0.14.0

@@ -1,0 +1,8 @@
+-r requirements-runtime.txt
+qwen-tts==0.1.1
+transformers==4.57.3
+huggingface-hub==0.36.2
+# Provision the matching CUDA wheels first; their availability/driver compatibility
+# on a fresh host was not reverified. These are the observed local wheel versions.
+torch==2.11.0+cu130
+torchaudio==2.11.0+cu130

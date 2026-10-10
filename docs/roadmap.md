@@ -1,17 +1,12 @@
-# Roadmap
+# Remaining validation and development
 
-## This version
+The unattended snapshot now has provider batching/recovery, bounded audio processing, independent synthesis/quality caching and explicit partial policies. See README and hardening-verification.md for current behavior and measured evidence; docs/validation.md describes older runs.
 
-- One local CLI, one job directory, file handoffs for translation and a single compact repair.
-- Whisper Turbo transcription and energy-onset segmentation.
-- Qwen3-TTS reference B, validated scheduler, game-only mix, partial exports.
+Before calling this a reliable long-video release:
 
-## Not in this version
+1. Supply an original recording of at least an hour, listen to its audio track roles, and run the persistent host procedure with interruption/resume.
+2. Review the short sample's six untranscribed-energy spans and four dropped ASR rows. Review long-recording omissions, reactions, names, clicks, timing and voice drift by listening.
+3. Verify fresh-clone provisioning on a second machine. Top-level environment pins do not freeze all dependencies or establish driver compatibility on other machines.
+4. Review real compact-repair behavior. Fake-provider/model regressions exercise it; the real short run required no repair request.
 
-- Listening approval of the 18-minute clip in `docs/validation.md`. That export is partial, not a voice-quality approval.
-- 1–2 hour recordings. The code does not load the video or synthesize the whole transcript at once, but that has not been timed or listened to.
-- Automatic translation, a web UI, a database, or a queue.
-- Word-level forced alignment.
-- More than one compact rewrite, tempo above 1.10, or moving later lines.
-- CosyVoice, WhisperX, pyVideoTrans, or another TTS model.
-- Publishing, subtitles burned into the picture, or loudness normalization beyond the documented limiter.
+Optional future work includes stronger speaker embeddings, better text alignment and speech verification, and reviewed speech recovery for energy gaps. The configurable harmonic and pitch/brightness heuristics remain heuristics. These improvements do not require an agent framework or replacing the working CLI.

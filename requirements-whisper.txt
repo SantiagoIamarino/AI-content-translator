@@ -1,0 +1,5 @@
+# Observed separate Whisper environment, Python 3.11.16.
+openai-whisper==20250625
+numpy==2.4.6
+# Provision this CUDA wheel first. Fresh-host GPU compatibility is unverified.
+torch==2.14.0+cu132

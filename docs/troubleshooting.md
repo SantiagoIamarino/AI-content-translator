@@ -1,37 +1,15 @@
 # Troubleshooting
 
-## Resume
+- Missing executable/model/reference: configure ignored local config before `init`. Select it with `--config`. Model downloads and environment installation are never automatic.
+- CUDA unavailable: verify the host driver and configured environment. Qwen cannot synthesize on CPU. Do not stop other services or replace packages simply to make preflight pass.
+- Wrong audio roles: ordinals count audio streams; labels do not prove their roles. Listen to extracts and create a correctly mapped new job. The pipeline does not separate already-mixed audio.
+- LOCK: another process holds an OS lock. Wait for exit; do not delete the inode while a runner is active. A file left after exit needs no cleanup.
+- Provider failure: `status` exposes a persisted manifest error and resumable handoff. Inspect the identity-bound attempt state/logs under `handoff/batches`. Fix configuration; bounded attempt budgets persist. An explicitly increased `max_attempts` permits another attempt. Missing durable responses can incur another paid call; billing uncertainty is recorded.
+- Worker crash/hang: inspect `transcribe/whisper.log` or `generated_worker.log`. Startup and per-request timeouts are separate; workers are shut down before retry/fallback. Stdout is reserved for JSON.
+- Partial headroom result: game audio was preserved. Inspect per-cue voice gains and `insufficient_game_headroom`, plus source over-ceiling counts. The partial policy does not silently attenuate the game. Choose a recording/voice balance with adequate headroom and listen before changing minimum gain/policy.
+- Missing MKV timing: video packet timestamps are preferred. Container fallback is approximate and cannot justify complete status. Choose a compatible output container; the picture is not re-encoded.
+- Source energy gaps: inspect `transcribe/corrections.json`. Energy is not proof of speech, and the default partial policy is conservative. A reviewed `warn` policy is explicit.
+- Changed checker/model settings: old generated audio is reused where synthesis identity matches, but verification runs again. Legacy quality scores are ignored. Do not delete caches to force recovery.
+- Large jobs: inspect free disk, `stage_metrics.jsonl`, window/provider checkpoints and configurable timeouts. WAVs, two copied video exports and retry caches consume space even though processing RAM is bounded. Source ASR window boundaries and heuristic quality gates still need representative host validation.
 
-`bin/aidub status NAME` prints the state and the next command.
-
-- `awaiting_translation` / `awaiting_repair`: write the response file. Do not rerun Whisper or Qwen by hand.
-- `failed`: the manifest `error` field has the exception. Fix that cause and `bin/aidub resume NAME`. Completed stages with matching fingerprints are kept.
-- `Job is locked`: another process holds `jobs/NAME/LOCK`. Wait for it. Delete `LOCK` only if no `aidub` process is running.
-
-A crash mid-synthesis leaves finished cache files in `jobs/NAME/cache/synth/`. Resume reuses them.
-
-## Paths with spaces
-
-Pass the path as one argument. The runner does not use a shell.
-
-```bash
-bin/aidub init "/home/user/My Videos/clip.mp4" --name clip
-```
-
-## Wrong audio track
-
-If the English voice replaced the game, or the mic was never transcribed, the ordinals are wrong. Do not reuse the job. `init` a new name with the correct `--mic-ordinal` and `--game-ordinal` after checking `ffprobe`.
-
-## Partial dub
-
-`english_PARTIAL.mp4` is playable. Unplaced ids and their English text are in `report/validation.md`. They are omitted from `english.srt` on purpose. Do not tempo them past 1.10 or shift later lines to hide the gap.
-
-## Environment warnings
-
-`SoX could not be found` and `flash-attn is not installed` come from the existing Qwen package. They do not fail the run. Do not install them from this project.
-
-If CUDA is missing, the job fails closed. There is no CPU fallback.
-
-## Protected files
-
-The runner refuses to write into `/home/siamarino/ai-dubbing`. If validation says a protected hash changed, stop and do not "fix" it by rewriting the historical file.
+Use the current output path recorded in the manifest/report. Previous complete/partial files can remain as historical artifacts. `validate` only prints the saved report; `resume` runs ready stages. A technical pass never replaces listening.
