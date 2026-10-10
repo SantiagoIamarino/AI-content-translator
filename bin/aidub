@@ -1,11 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PY="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["executables"]["python_qwen"])' "$ROOT/config/default.json")"
-if [[ ! -x "$PY" ]]; then
-  echo "Qwen Python is not executable: $PY" >&2
-  echo "Fix executables.python_qwen in $ROOT/config/default.json. Do not install a new environment from this script." >&2
-  exit 1
+CONFIG="${AIDUB_CONFIG:-}"
+if [[ -z "$CONFIG" ]]; then
+  if [[ -f "$ROOT/config/local.json" ]]; then CONFIG="$ROOT/config/local.json"; else CONFIG="$ROOT/config/default.json"; fi
 fi
+ARGS=("$@")
+for ((i=0; i<${#ARGS[@]}; i++)); do
+  case "${ARGS[i]}" in
+    --config)
+      if ((i+1 >= ${#ARGS[@]})); then echo '--config requires a path' >&2; exit 1; fi
+      CONFIG="${ARGS[i+1]}" ;;
+    --config=*) CONFIG="${ARGS[i]#--config=}" ;;
+  esac
+done
+PY="$(python3 - "$CONFIG" "$ROOT" <<'PY'
+import json, os, shutil, sys
+from pathlib import Path
+try:
+    cfg = json.loads(Path(sys.argv[1]).expanduser().read_text())
+    value = cfg['executables']['python_qwen']
+    path = shutil.which(value) if '/' not in value else str(Path(value).expanduser() if Path(value).expanduser().is_absolute() else Path(sys.argv[2])/value)
+    if not path or not os.access(path, os.X_OK):
+        raise ValueError(f'Qwen Python is not executable: {value}. Set executables.python_qwen in {sys.argv[1]}')
+    print(path)
+except (OSError, ValueError, KeyError) as exc:
+    sys.exit(str(exc))
+PY
+)"
+export AIDUB_CONFIG="$CONFIG"
 export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
-exec "$PY" -m aidub "$@"
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+exec "$PY" -P -m aidub "$@"

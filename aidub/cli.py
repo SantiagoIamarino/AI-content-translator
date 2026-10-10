@@ -1,8 +1,9 @@
 import argparse
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 
-from .config import load_config, require_schedule_defaults, resolve_path
+from .config import load_config, preflight, require_schedule_defaults, resolve_path
 from .job import Job, JobLock
 from .pipeline import accept_repair, accept_translation, export_repair, export_translation, job_path, next_hint, run_job
 from .providers import ProviderError
@@ -18,25 +19,13 @@ def _job(cfg, name: str) -> Job:
     return Job(job_path(cfg, name))
 
 
-def cmd_init(args) -> int:
-    cfg = _cfg(args)
+def cmd_init(args, *, cfg=None, lock=None) -> int:
+    cfg = cfg if cfg is not None else _cfg(args)
     video = Path(args.video).expanduser().resolve()
     if not video.is_file():
         print(f"Video not found: {video}", file=sys.stderr)
         return 1
-    for key, label in (
-        ("python_qwen", "Qwen Python"),
-        ("whisper", "Whisper"),
-        ("ffmpeg", "ffmpeg"),
-        ("ffprobe", "ffprobe"),
-    ):
-        if not Path(cfg["executables"][key]).is_file():
-            print(f"{label} not found: {cfg['executables'][key]}", file=sys.stderr)
-            return 1
-    ref = resolve_path(cfg, cfg["reference"]["wav"])
-    if not ref.is_file():
-        print(f"Reference wav not found: {ref}", file=sys.stderr)
-        return 1
+    preflight(cfg, providers_needed=bool((cfg.get("unattended") or {}).get("enabled")))
     if args.mic_ordinal is not None:
         cfg["audio_mapping"]["mic_ordinal"] = args.mic_ordinal
     if args.game_ordinal is not None:
@@ -49,7 +38,7 @@ def cmd_init(args) -> int:
         return 1
     try:
         require_schedule_defaults(cfg)
-    except RuntimeError as exc:
+    except (RuntimeError, OSError, ValueError, KeyError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
     name = args.name
@@ -57,11 +46,14 @@ def cmd_init(args) -> int:
         print("Job name must contain only letters, numbers, dot, underscore, or hyphen", file=sys.stderr)
         return 1
     dest = resolve_path(cfg, cfg["jobs_dir"]) / name
-    if dest.exists():
-        print(f"Job already exists: {dest}. Choose another --name or resume it.", file=sys.stderr)
-        return 1
-    cfg["source_video"] = str(video)
-    Job.create(dest, name, str(video), cfg)
+    if lock is not None and not lock.owns(dest):
+        raise RuntimeError("init requires an active lock for this job")
+    with (nullcontext(lock) if lock is not None else JobLock(dest)):
+        if (dest / "manifest.json").exists():
+            print(f"Job already exists: {dest}. Choose another --name or resume it.", file=sys.stderr)
+            return 1
+        cfg["source_video"] = str(video)
+        Job.create(dest, name, str(video), cfg)
     print(f"created {dest}")
     print(f"next: bin/aidub run {name}")
     return 0
@@ -104,6 +96,7 @@ def cmd_export_translation(args) -> int:
     cfg = _cfg(args)
     job = _job(cfg, args.job)
     with JobLock(job.dir):
+        job = Job(job.dir)
         path = export_translation(job, job.config())
     print(path)
     return 0
@@ -117,6 +110,7 @@ def cmd_accept_translation(args) -> int:
         print(f"Response not found: {response}", file=sys.stderr)
         return 1
     with JobLock(job.dir):
+        job = Job(job.dir)
         try:
             accept_translation(job, response)
         except RuntimeError as exc:
@@ -130,6 +124,7 @@ def cmd_export_repair(args) -> int:
     cfg = _cfg(args)
     job = _job(cfg, args.job)
     with JobLock(job.dir):
+        job = Job(job.dir)
         try:
             path = export_repair(job)
         except RuntimeError as exc:
@@ -147,6 +142,7 @@ def cmd_accept_repair(args) -> int:
         print(f"Response not found: {response}", file=sys.stderr)
         return 1
     with JobLock(job.dir):
+        job = Job(job.dir)
         try:
             accept_repair(job, response)
         except RuntimeError as exc:
@@ -166,7 +162,7 @@ def cmd_validate(args) -> int:
     data = read_json(report)
     print(f"STATE {job.state}")
     print(f"ENGLISH_VIDEO {data.get('english_video')}")
-    failed = [c for c in data.get("checks") or [] if not c.get("ok")]
+    failed = [c for c in data.get("checks") or [] if c.get("required", True) and c.get("ok") is not True]
     for row in failed:
         print(f"FAIL {row['name']}: {row['detail']}")
     print(job.dir / "report/validation.md")
@@ -175,7 +171,7 @@ def cmd_validate(args) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="aidub", description="Agent-operated gameplay dubbing")
-    p.add_argument("--config", default="", help="config JSON (default: config/default.json)")
+    p.add_argument("--config", default="", help="config JSON (otherwise AIDUB_CONFIG, local config, portable default)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     init = sub.add_parser("init", help="create a job from a video")
@@ -237,6 +233,6 @@ def main(argv: list[str] | None = None) -> int:
         args.config = None
     try:
         return int(args.func(args))
-    except RuntimeError as exc:
+    except (RuntimeError, OSError, ValueError, KeyError) as exc:
         print(str(exc), file=sys.stderr)
         return 1

@@ -37,6 +37,12 @@ def atomic_write_text(path: Path, text: str) -> None:
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, path)
+    # Persist the rename as well as the file contents across a power loss.
+    fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def write_json(path: Path, data) -> None:
@@ -61,7 +67,4 @@ def assert_write_in_job(path: Path, job_dir: Path) -> Path:
     root = job_dir.resolve()
     if dest_parent != root and not is_relative_to(dest_parent, root):
         raise RuntimeError(f"Refusing to write outside the job directory: {dest}")
-    historical = Path("/home/siamarino/ai-dubbing")
-    if is_relative_to(dest, historical):
-        raise RuntimeError(f"Refusing to write into the historical project: {dest}")
     return dest

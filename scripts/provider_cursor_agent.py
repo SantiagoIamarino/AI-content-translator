@@ -54,14 +54,10 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=900)
     args = parser.parse_args()
     request = json.loads(Path(args.request).read_text(encoding="utf-8"))
-    note = Path(args.request).with_name(Path(args.request).stem + ".retry.txt")
-    extra = ""
-    if note.is_file():
-        extra = "\n\nThe previous response was rejected:\n" + note.read_text(encoding="utf-8")
     cmd = [
         args.agent, "-p", "--mode", "ask", "--trust", "--sandbox", "enabled",
         "--workspace", "/tmp",
-        "--output-format", "text", _prompt(args.role, request) + extra,
+        "--output-format", "text", _prompt(args.role, request),
     ]
     proc = subprocess.run(cmd, check=False, text=True, capture_output=True, timeout=args.timeout)
     if proc.returncode != 0:
@@ -82,7 +78,8 @@ def main() -> int:
                 row.pop("end", None)
                 row.pop("spanish", None)
     data["job_id"] = request.get("job_id")
-    Path(args.response).write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    from aidub.util import write_json
+    write_json(Path(args.response), data)
     return 0
 
 

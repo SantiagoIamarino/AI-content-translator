@@ -1,7 +1,10 @@
 import shutil
+import copy
+import soundfile as sf
 import subprocess
 import time
 import traceback
+from contextlib import nullcontext
 from pathlib import Path
 
 import numpy as np
@@ -19,7 +22,7 @@ from .audio import (
     trim_silence,
     write_wav,
 )
-from .config import jobs_dir, reference_text, require_schedule_defaults, resolve_path
+from .config import jobs_dir, reference_text, require_schedule_defaults, resolve_path, whisper_model_file, verification_model_file
 from .export import decode_ok, mux_english_cmd, mux_spanish_cmd, place_voice, write_bilingual
 from .handoff import (
     repair_request,
@@ -28,21 +31,21 @@ from .handoff import (
     validate_translation_response,
 )
 from .job import Job, JobLock
-from .ledger import append_candidate, cached_candidate, checkpoint_matches, read_checkpoint, write_checkpoint
+from .ledger import append_candidate, write_checkpoint
 from .linework import account_lines, collect_line, revision_limit
-from .media import align_to_video, assert_extract_preserves_origin, bitstream_md5, describe_streams, extract_audio_cmd, probe, resolve_ordinal, run_cmd
+from .media import align_to_video, assert_extract_preserves_origin, bitstream_md5, describe_streams, extract_audio_cmd, probe, resolve_ordinal, run_cmd, validate_container, frame_check, encoded_audio_metrics
 from .report import validation_markdown
 from .quality import assess_candidate, speaker_profile
+from .verification import candidate_quality_key, verification_identity, file_identity
+from .metrics import stage_call, provider_metrics
+from .storage import storage_budget
 from .schedule import alternate_seed, apply_blockers, plan_fit, primary_seed
 from .srt import omitted_lines, render_srt
 from .synth import get_shared_backend, lookup_cache, shared_backend_loaded, synthesize_cached
-from .segment import build_segments
+from .segment import build_segments_file
+from .streaming import alignment_meta, block_frames, stream_mix, validate_audio_files
+from .transcription import transcribe_chunks
 from .util import fingerprint, md5_file, read_json, sha256_file, write_json
-
-PROTECTED = [
-    Path("/home/siamarino/audios/04_referencia_ingles_emocion.wav"),
-    Path("/home/siamarino/ai-dubbing/pipeline/config/default.json"),
-]
 
 
 def job_path(cfg: dict, name: str) -> Path:
@@ -71,6 +74,8 @@ def _hashes(paths: list[Path]) -> list[dict]:
 
 
 def docker_status(name: str) -> str:
+    if not name or name == "unused-do-not-start":
+        return "not configured"
     try:
         proc = subprocess.run(
             ["docker", "ps", "-a", "--filter", f"name=^{name}$", "--format", "{{.Names}} {{.Status}}"],
@@ -78,13 +83,16 @@ def docker_status(name: str) -> str:
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return f"unavailable: {exc}"
-    return (proc.stdout or proc.stderr).strip()
+    return f"unavailable: {proc.stderr.strip()}" if proc.returncode else (proc.stdout or "").strip()
 
 
 def stage_inspect(job: Job, cfg: dict) -> dict:
     video = job.data["video"]
+    source_sha = sha256_file(Path(video))
     fp = fingerprint({
-        "video": sha256_file(Path(video)),
+        "inspect_version": 2,
+        "container": (cfg.get("export") or {}).get("container", "mp4"),
+        "video": source_sha,
         "size": Path(video).stat().st_size,
         "mapping": {
             "mic": cfg["audio_mapping"]["mic_ordinal"],
@@ -95,18 +103,23 @@ def stage_inspect(job: Job, cfg: dict) -> dict:
     if _fp_ok(job, "inspect", fp, ["inspect/probe.json"]):
         print("inspect: unchanged")
         return read_json(job.dir / "inspect/probe.json")
+    prior_path = job.dir / "inspect/probe.json"
+    if prior_path.is_file() and read_json(prior_path).get("video_sha256") != source_sha:
+        raise RuntimeError("Source recording changed since inspect. Use a new job; source identity cannot be silently replaced.")
     print(f"inspect: probing {video}")
-    raw = probe(cfg["executables"]["ffprobe"], video)
+    raw = probe(cfg["executables"]["ffprobe"], video, timeout=float((cfg.get("timeouts") or {}).get("probe_sec", 1200)))
     described = describe_streams(raw)
+    validate_container(described, int(cfg["audio_mapping"]["mixed_ordinal"]), (cfg.get("export") or {}).get("container", "mp4"))
     mapping = cfg["audio_mapping"]
     ordinals = {role: resolve_ordinal(described, int(mapping[f"{role}_ordinal"]), role) for role in ("mic", "game", "mixed")}
     if len({ordinals[r]["audio_ordinal"] for r in ordinals}) < 3:
         raise RuntimeError("mic, game, and mixed audio ordinals must be distinct")
-    if described["video"]["duration"] is None:
+    if described["video"]["duration"] is None or not np.isfinite(described["video"]["duration"]) or described["video"]["duration"] <= 0:
         raise RuntimeError("Video duration is missing. Refusing to guess timing.")
     doc = {
+        "storage_budget": storage_budget(job.dir, Path(video), described, ordinals, cfg),
         "video_path": video,
-        "video_sha256": sha256_file(Path(video)),
+        "video_sha256": source_sha,
         "video_md5": md5_file(Path(video)),
         "described": described,
         "mapping": {
@@ -121,7 +134,7 @@ def stage_inspect(job: Job, cfg: dict) -> dict:
             }
             for role, item in ordinals.items()
         },
-        "protected": _hashes([Path(video), *PROTECTED]),
+        "protected": _hashes([resolve_path(cfg, cfg["reference"]["wav"]), *[Path(p) for p in cfg.get("protected_paths", [])]]),
         "docker_llm": docker_status(cfg.get("docker_llm_container", "")),
     }
     write_json(job.dir / "inspect/probe.json", doc)
@@ -131,12 +144,15 @@ def stage_inspect(job: Job, cfg: dict) -> dict:
 
 def stage_extract(job: Job, cfg: dict, inspected: dict) -> dict:
     mapping = cfg["audio_mapping"]
-    fp = fingerprint({
+    legacy_fp = fingerprint({
         "video": inspected["video_sha256"],
         "mic": mapping["mic_ordinal"],
         "game": mapping["game_ordinal"],
         "sr": cfg["schedule"]["output_sr"],
     })
+    fp = fingerprint({"extract_inputs": legacy_fp, "video": inspected["described"]["video"], "mapping": inspected["mapping"]})
+    legacy_doc = read_json(job.dir / "extract/alignment.json") if (job.dir / "extract/alignment.json").is_file() else {}
+    reuse_legacy = _fp_ok(job, "extract", legacy_fp, ["extract/mic_raw.wav", "extract/game_raw.wav", "extract/alignment.json"])
     files = ["extract/mic_raw.wav", "extract/game_raw.wav", "extract/alignment.json"]
     if _fp_ok(job, "extract", fp, files):
         print("extract: unchanged")
@@ -151,19 +167,26 @@ def stage_extract(job: Job, cfg: dict, inspected: dict) -> dict:
         cmd = extract_audio_cmd(ffmpeg, video, int(mapping[f"{role}_ordinal"]), str(dest), sr)
         assert_extract_preserves_origin(cmd)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        run_cmd(cmd)
+        state_path = job.dir / "extract" / f"{role}_state.json"
+        state = read_json(state_path) if state_path.is_file() else {}
+        valid_track = dest.is_file() and ((state.get("fingerprint") == fp and state.get("sha256") == sha256_file(dest)) or
+                       (reuse_legacy and legacy_doc.get(f"{role}_sha256") == sha256_file(dest)))
+        if not valid_track:
+            temp = dest.with_name(dest.stem + ".tmp.wav")
+            temp_cmd = extract_audio_cmd(ffmpeg, video, int(mapping[f"{role}_ordinal"]), str(temp), sr)
+            run_cmd(temp_cmd, timeout=float((cfg.get("timeouts") or {}).get("media_sec", 10800)))
+            temp.replace(dest)
+            write_json(state_path, {"fingerprint": fp, "sha256": sha256_file(dest)})
         out[role] = str(dest)
-    mic, mic_sr = read_audio(job.dir / "extract/mic_raw.wav")
-    game, game_sr = read_audio(job.dir / "extract/game_raw.wav")
-    if mic_sr != sr or game_sr != sr:
+    mic = sf.info(job.dir / "extract/mic_raw.wav")
+    game = sf.info(job.dir / "extract/game_raw.wav")
+    if mic.samplerate != sr or game.samplerate != sr:
         raise RuntimeError("Extracted sample rate does not match output_sr")
-    if game.shape[1] != 2:
-        raise RuntimeError(f"Game audio is not stereo ({game.shape[1]} ch). Refusing to guess a downmix.")
+    if game.channels != 2:
+        raise RuntimeError("Game audio must be stereo; guessing a downmix is refused")
     video_info = inspected["described"]["video"]
     mic_map = inspected["mapping"]["mic"]
-    aligned, align_meta = align_to_video(
-        game, sr, inspected["mapping"]["game"]["start_time"], video_info["start_time"], video_info["duration"],
-    )
+    align_meta = alignment_meta(game.frames, sr, inspected["mapping"]["game"]["start_time"], video_info["start_time"], video_info["duration"])
     if align_meta["truncated_samples"]:
         raise RuntimeError(
             f"Game audio extends {align_meta['truncated_samples']} samples past the video. Refusing to drop it silently."
@@ -174,9 +197,9 @@ def stage_extract(job: Job, cfg: dict, inspected: dict) -> dict:
         "video_duration": video_info["duration"],
         "video_start": video_info["start_time"],
         "mic_start": mic_map["start_time"],
-        "mic_raw_frames": int(mic.shape[0]),
-        "game_raw_frames": int(game.shape[0]),
-        "aligned_frames": int(aligned.shape[0]),
+        "mic_raw_frames": mic.frames,
+        "game_raw_frames": game.frames,
+        "aligned_frames": align_meta["total_samples"],
         "lead_samples": align_meta["lead_samples"],
         "tail_samples": align_meta["tail_samples"],
         "mic_sha256": sha256_file(job.dir / "extract/mic_raw.wav"),
@@ -193,47 +216,29 @@ def stage_extract(job: Job, cfg: dict, inspected: dict) -> dict:
 
 
 def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
-    fp = fingerprint({
+    segmentation_inputs = {k: v for k, v in cfg["segmentation"].items() if k != "untranscribed_energy_policy"}
+    legacy_fp = fingerprint({
         "mic": alignment["mic_sha256"],
         "offset": alignment["offset_sec"],
         "whisper": cfg["whisper"],
-        "segmentation": cfg["segmentation"],
+        "segmentation": segmentation_inputs,
     })
+    fp = fingerprint({"legacy_inputs": legacy_fp, "transcription": cfg.get("transcription"),
+                      "weights": file_identity(whisper_model_file(cfg)),
+                      "segmentation_version": 2})
     files = ["transcribe/raw.json", "transcribe/segments.json", "transcribe/corrections.json", "timeline.json"]
-    if _fp_ok(job, "transcribe", fp, files):
+    if _fp_ok(job, "transcribe", fp, files) or ("transcription" not in cfg and _fp_ok(job, "transcribe", legacy_fp, files)):
         print("transcribe: unchanged")
         return read_json(job.dir / "transcribe/segments.json")
-    print("transcribe: Whisper turbo on mic-only audio")
-    whisper = cfg["executables"]["whisper"]
+    print("transcribe: checkpointed Whisper windows on mic-only audio")
     out_dir = job.dir / "transcribe"
     out_dir.mkdir(parents=True, exist_ok=True)
     mic = job.dir / "extract/mic_raw.wav"
-    wcfg = cfg["whisper"]
-    cmd = [
-        whisper, str(mic),
-        "--model", wcfg["model"],
-        "--language", wcfg["language"],
-        "--task", wcfg["task"],
-        "--word_timestamps", "True" if wcfg["word_timestamps"] else "False",
-        "--device", wcfg["device"],
-        "--output_dir", str(out_dir),
-        "--output_format", wcfg["output_format"],
-        "--verbose", "True" if wcfg.get("verbose", False) else "False",
-    ]
-    proc = subprocess.run(cmd, check=False, text=True, capture_output=True, timeout=1800)
-    (out_dir / "whisper.log").write_text((proc.stdout or "") + "\n" + (proc.stderr or ""), encoding="utf-8")
-    if proc.returncode != 0:
-        tail = (proc.stderr or proc.stdout or "")[-2000:]
-        raise RuntimeError(f"Whisper failed ({proc.returncode}). See transcribe/whisper.log. {tail}")
-    produced = out_dir / "mic_raw.json"
-    if not produced.is_file():
-        raise RuntimeError("Whisper did not write mic_raw.json")
-    raw = read_json(produced)
+    raw = transcribe_chunks(job, cfg, alignment)
     write_json(out_dir / "raw.json", raw)
-    wav, sr = read_audio(mic)
-    built = build_segments(raw, wav, sr, cfg["segmentation"], offset_sec=float(alignment["offset_sec"]))
-    if not built["segments"]:
-        raise RuntimeError("Transcription kept no segments. Check transcribe/corrections.json before continuing.")
+    energy_key = fingerprint({"mic": alignment["mic_sha256"], "rms": cfg["segmentation"]["energy_rms"], "window": cfg["segmentation"]["energy_window_sec"], "version": 2})
+    built = build_segments_file(raw, mic, cfg["segmentation"], offset_sec=float(alignment["offset_sec"]),
+                                index_path=out_dir / "energy" / f"{energy_key}.sqlite", block_frames=block_frames(cfg))
     for seg in built["segments"]:
         seg["english"] = None
         seg["english_original"] = None
@@ -247,6 +252,8 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
         "untranscribed_energy": built["untranscribed_energy"],
         "dropped": built["dropped"],
     })
+    if not built["segments"]:
+        raise RuntimeError("Transcription kept no segments. Inspect transcribe/corrections.json and stream mapping.")
     write_json(out_dir / "corrected.json", {
         "source_raw": "transcribe/raw.json",
         "word_rewrites": [],
@@ -291,6 +298,11 @@ def restore_translation_if_response_matches(job: Job, segments: list[dict]) -> N
     duration = read_json(probe_path)["described"]["video"]["duration"]
     request = translation_request(job.data["job_id"], segments, duration)
     response = read_json(resp_path)
+    expected = fingerprint(request)
+    if response.get("_aidub_request_identity") != expected:
+        # Legacy responses are trusted only under their original stage fingerprint.
+        if response.get("_aidub_request_identity") is not None or job.stage("translation").get("fingerprint") != translation_fingerprint(segments):
+            return
     if validate_translation_response(request, response):
         return
     by_id = {int(row["id"]): row["english"].strip() for row in response["segments"]}
@@ -327,10 +339,11 @@ def accept_translation(job: Job, response_path: Path) -> None:
         if not seg.get("english_original"):
             seg["english_original"] = seg["english"]
     dest = job.dir / "handoff" / "translation_response.json"
+    response["_aidub_request_identity"] = fingerprint(request)
     write_json(dest, response)
     job.data["translator"] = response.get("translator")
     fp = translation_fingerprint(job.data["timeline"])
-    job.set_stage("translation", "complete", fp, {"response": "handoff/translation_response.json"})
+    job.stage("translation").update(status="complete", fingerprint=fp, outputs={"response": "handoff/translation_response.json"})
     for name in ("schedule", "mix", "validate"):
         job.stage(name)["status"] = "pending"
         job.stage(name)["fingerprint"] = None
@@ -355,7 +368,7 @@ def _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, n
     if status == "needs_tempo":
         applied_tempo = tempo
         tempo_path = work / f"segment_{int(seg['id']):03d}_{kind}_tempo.wav"
-        atempo(cfg["executables"]["ffmpeg"], trim_path, tempo_path, tempo)
+        atempo(cfg["executables"]["ffmpeg"], trim_path, tempo_path, tempo, timeout=float((cfg.get("timeouts") or {}).get("tempo_sec", 180)))
         tw, tsr = read_audio(tempo_path)
         gen_dur = to_mono(tw).size / tsr
         used = tempo_path
@@ -378,7 +391,7 @@ def _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, n
         "trim_leading_samples": lead,
         "trim_trailing_samples": trail,
         "generated_duration_sec": gen_dur,
-        "tempo": applied_tempo if status == "tempo_adjusted" else 1.0,
+        "tempo": applied_tempo,
         "status": status,
         "timing_error": err,
         "placed": status != "unresolved",
@@ -411,29 +424,40 @@ class _LineAssessor:
         self.cfg = cfg
         self.profile = profile
         self.ref_sha = ref_sha
-        self.checkpoint = None
         self.client: AsrClient | None = None
         self.device = str((cfg.get("quality") or {}).get("asr_device") or "cuda")
         self.disabled = False
+        self.identity = verification_identity(cfg, ref_sha)
+        self.last_asr_error = None
+        self.stats = {"asr_calls": 0, "quality_cache_hits": 0}
 
     def __call__(self, meta: dict, text: str) -> dict:
-        hit = cached_candidate(self.checkpoint, text, int(meta["seed"]))
-        if hit is not None:
-            return hit["quality"]
+        key = candidate_quality_key(meta, text, self.identity)
+        path = self.job.dir / "cache/quality" / f"{key}.json"
+        if path.is_file():
+            try:
+                quality = read_json(path)
+                if quality.get("verification_key") == key and not quality.get("asr_skipped"):
+                    self.stats["quality_cache_hits"] += 1
+                    return quality
+            except (ValueError, OSError):
+                pass
         wav, sr = read_audio(Path(meta["path"]))
         asr_text = None
         asr_language = None
         skipped = self.disabled
         if not self.disabled:
             try:
+                self.stats["asr_calls"] += 1
                 result = self._transcribe(str(meta["path"]))
                 asr_text = result.get("text")
                 asr_language = result.get("language")
             except Exception as exc:
                 print(f"asr unavailable ({exc}); waveform checks still apply")
                 self.disabled = True
+                self.last_asr_error = str(exc)
                 skipped = True
-        return assess_candidate(
+        result = assess_candidate(
             to_mono(wav),
             sr,
             text,
@@ -442,7 +466,16 @@ class _LineAssessor:
             asr_language=asr_language,
             asr_skipped=skipped,
             min_speaker_features=int((self.cfg.get("quality") or {}).get("min_speaker_features", 2)),
+            speaker_proxy_enabled=bool((self.cfg.get("quality") or {}).get("speaker_proxy_enabled", True)),
         )
+        key = candidate_quality_key(meta, text, self.identity)
+        path = self.job.dir / "cache/quality" / f"{key}.json"
+        result["verification_key"] = key
+        result["asr_device"] = self.device
+        result["asr_error"] = self.last_asr_error if skipped else None
+        if not result.get("asr_skipped"):
+            write_json(path, result)
+        return result
 
     def _transcribe(self, path: str) -> dict:
         lang = (self.cfg.get("quality") or {}).get("asr_language") or None
@@ -456,13 +489,20 @@ class _LineAssessor:
                 self.client.close()
             self.client = None
             self.device = "cpu"
+            effective = copy.deepcopy(self.cfg)
+            effective.setdefault("quality", {})["asr_device"] = "cpu"
+            self.identity = verification_identity(effective, self.ref_sha)
             return self._client().transcribe(path, language=lang or "")
 
     def _client(self) -> AsrClient:
         if self.client is None or self.client.proc is None or self.client.proc.poll() is not None:
             py = whisper_python(self.cfg["executables"]["whisper"])
-            model = self.cfg["whisper"]["model"]
-            self.client = AsrClient(py, model=model, device=self.device)
+            model = str(verification_model_file(self.cfg))
+            budgets = self.cfg.get("timeouts") or {}
+            self.client = AsrClient(py, model=model, device=self.device,
+                                    log_path=self.job.dir / "transcribe/generated_worker.log",
+                                    startup_timeout=float(budgets.get("worker_startup_sec", 180)),
+                                    request_timeout=float(budgets.get("asr_candidate_sec", 180)))
             self.client.start()
         return self.client
 
@@ -493,11 +533,16 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         "voice_edge": cfg.get("voice_edge"),
         "fit_retries": cfg.get("fit_retries"),
         "revision_limit": revision_limit(cfg),
+        "verification_identity": verification_identity(cfg, ref_sha),
+        "schedule_version": 2,
     })
     summary_path = job.dir / "schedule" / "summary.json"
     if _fp_ok(job, "schedule", fp, ["schedule/summary.json"]):
         print("schedule: unchanged")
-        return read_json(summary_path)
+        saved = read_json(summary_path)
+        if all(not row.get("placed") or (Path(row["used_path"]).is_file() and row.get("used_sha256") == sha256_file(Path(row["used_path"]))) for row in saved["segments"]):
+            return saved
+        print("schedule: placement file missing/changed; rebuilding from synthesis cache")
     cache_dir = job.dir / "cache" / "synth"
     misses = _cache_misses(segments, cfg, cache_dir, ref_sha, ref_text, source_duration)
     backend = None
@@ -546,9 +591,6 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
                 item["attempts"] = attempts
                 scheduled.append(item)
                 continue
-            checker = (cfg.get("quality") or {}).get("checker")
-            checkpoint = read_checkpoint(job.dir, int(seg["id"]))
-            assessor.checkpoint = checkpoint if checkpoint_matches(checkpoint, text, ref_sha, checker) else None
             result = collect_line(
                 seg,
                 occupied=occupied,
@@ -593,6 +635,8 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
                     "rejection": None if (attempt.get("quality") or {}).get("ok") else (attempt.get("quality") or {}).get("reasons"),
                 })
             write_checkpoint(job.dir, int(seg["id"]), {
+                "schema": "aidub.checkpoint.v2",
+                "verification_identity": assessor.identity,
                 "id": int(seg["id"]),
                 "english": text,
                 "reference_sha256": ref_sha,
@@ -627,6 +671,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
             "needs_repair": needs_repair,
             "n_synth_fresh": stats["fresh"],
             "n_synth_cache_hits": stats["hits"],
+            "verification_stats": assessor.stats,
             "n_quality_retries": sum(
                 1 for row in scheduled for attempt in row.get("attempts") or [] if attempt.get("kind") == "quality_retry"
             ),
@@ -666,7 +711,7 @@ def _apply_presentation(job, cfg, seg, chosen, occupied, next_start, source_dura
         write_wav(path, faded, sr, subtype="FLOAT")
         chosen["used_path"] = str(path)
         chosen["edge"] = info
-        chosen["edge_ok"] = bool(faded.size) and abs(float(faded[0])) < 0.05
+        chosen["edge_ok"] = bool(faded.size) and abs(float(faded[0])) < 0.05 and abs(float(faded[-1])) < 0.05
         return chosen
     raw, sr = read_audio(Path(chosen["raw_path"]))
     core_start = float(chosen.get("placement_start", seg["start"]))
@@ -703,7 +748,7 @@ def _apply_presentation(job, cfg, seg, chosen, occupied, next_start, source_dura
     chosen["generated_duration_sec"] = piece.size / float(sr)
     chosen["edge"] = {key: info.get(key) for key in ("edge", "lead_ms_used", "tail_ms_used", "gain", "core_preserved")}
     chosen["loudness_gain"] = info.get("gain")
-    chosen["edge_ok"] = abs(float(piece[0])) < 0.05
+    chosen["edge_ok"] = abs(float(piece[0])) < 0.05 and abs(float(piece[-1])) < 0.05
     return chosen
 
 
@@ -734,6 +779,7 @@ def _scheduled_item(seg: dict, chosen: dict, attempts: list[dict], source_durati
         "placement_start": start,
         "placement_end": start + gen if placed else start,
         "used_path": used,
+        "used_sha256": sha256_file(Path(used)) if placed and used else None,
         "seed": chosen["seed"],
         "attempts": attempts,
         "cache_hit": chosen.get("cache_hit"),
@@ -905,68 +951,50 @@ def accept_repair(job: Job, response_path: Path, revision_limit_n: int | None = 
 
 def stage_mix(job: Job, cfg: dict, summary: dict) -> dict:
     alignment = read_json(job.dir / "extract/alignment.json")
-    fp = fingerprint({
-        "schedule": job.stage("schedule").get("fingerprint"),
-        "game": alignment["game_sha256"],
-        "limiter": cfg["mix"]["limiter"],
-        "needs_repair": summary.get("needs_repair") or [],
-    })
-    if _fp_ok(job, "mix", fp, ["output/english_voice.wav", "output/english_mix.wav", "output/english.srt", "output/spanish_compare.mp4", "mix/gain.json"]):
-        gain_doc = read_json(job.dir / "mix/gain.json")
-        video_name = gain_doc.get("english_video_rel")
-        if video_name and (job.dir / video_name).is_file() and job.stage("mix").get("outputs", {}).get("english_video") == video_name:
+    container = (cfg.get("export") or {}).get("container", "mp4")
+    fp = fingerprint({"version": 3, "schedule": job.stage("schedule").get("fingerprint"),
+                      "game": alignment["game_sha256"], "mix": cfg["mix"], "export": container,
+                      "needs_repair": summary.get("needs_repair") or []})
+    required = ["output/english_voice.wav", "output/english_mix.wav", "output/english.srt",
+                f"output/spanish_compare.{container}", "mix/gain.json", "mix/placed_summary.json"]
+    if _fp_ok(job, "mix", fp, required):
+        gain = read_json(job.dir / "mix/gain.json")
+        name = gain.get("english_video_rel")
+        if name and (job.dir / name).is_file():
+            summary.clear()
+            summary.update(read_json(job.dir / "mix/placed_summary.json"))
             print("mix: unchanged")
-            return gain_doc
+            return gain
     if summary.get("needs_repair"):
         raise RuntimeError("Refusing to mix while repair handoff is unresolved")
-    print("mix: game-only stereo + centered English voice")
-    sr = int(alignment["sample_rate"])
-    game, game_sr = read_audio(job.dir / "extract/game_raw.wav")
-    if game_sr != sr:
-        raise RuntimeError("Game sample rate changed after extract")
+    placed = copy.deepcopy(summary)
     inspected = read_json(job.dir / "inspect/probe.json")
-    aligned, meta = align_to_video(
-        game, sr,
-        inspected["mapping"]["game"]["start_time"],
-        inspected["described"]["video"]["start_time"],
-        inspected["described"]["video"]["duration"],
-    )
-    n_frames = int(aligned.shape[0])
-    scheduled = summary["segments"]
-    fade_ms = 0.0 if summary.get("voice_presentation") else float(cfg["schedule"]["fade_ms"])
-    voice, overlaps = place_voice(scheduled, n_frames, sr, fade_ms)
-    if overlaps:
-        summary["assembler_overlaps"] = overlaps
-    partial = any(not s.get("placed") for s in scheduled)
-    video_name = "output/english_PARTIAL.mp4" if partial else "output/english.mp4"
+    sr = int(alignment["sample_rate"])
+    game_path = job.dir / "extract/game_raw.wav"
+    meta = alignment_meta(sf.info(game_path).frames, sr, inspected["mapping"]["game"]["start_time"],
+                          inspected["described"]["video"]["start_time"], inspected["described"]["video"]["duration"])
     out_dir = job.dir / "output"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    write_wav(out_dir / "english_voice.wav", voice, sr)
-    mixed, gain = mix_game_and_voice(aligned, voice, float(cfg["mix"]["limiter"]))
-    gain["aligned_frames"] = n_frames
+    storage_budget(job.dir, Path(job.data["video"]), inspected["described"], inspected["mapping"], cfg)
+    gain = stream_mix(game_path, placed["segments"], out_dir, sr, meta, cfg,
+                      fade_ms=0 if placed.get("voice_presentation") else float(cfg["schedule"]["fade_ms"]))
+    partial = (any(not row.get("placed") for row in placed["segments"]) or not gain["source_headroom_ok"]
+               or inspected["described"]["video"].get("duration_approximate")
+               or any(row.get("placed") and (not row.get("quality") or row["quality"].get("asr_skipped")) for row in placed["segments"]))
+    video_name = f"output/english{'_PARTIAL' if partial else ''}.{container}"
     gain["english_video_rel"] = video_name
-    write_wav(out_dir / "english_mix.wav", mixed, sr)
+    write_bilingual(out_dir / "bilingual.txt", placed["segments"])
+    (out_dir / "english.srt").write_text(render_srt(placed["segments"]), encoding="utf-8")
+    ffmpeg, video = cfg["executables"]["ffmpeg"], job.data["video"]
+    en_cmd = mux_english_cmd(ffmpeg, video, str(out_dir / "english_mix.wav"), str(job.dir / video_name))
+    es_cmd = mux_spanish_cmd(ffmpeg, video, int(cfg["audio_mapping"]["mixed_ordinal"]), str(out_dir / f"spanish_compare.{container}"))
+    timeout = float((cfg.get("timeouts") or {}).get("media_sec", 10800))
+    run_cmd(en_cmd, timeout=timeout)
+    run_cmd(es_cmd, timeout=timeout)
+    gain.update(english_video=str(job.dir / video_name), commands={"english": en_cmd, "spanish_compare": es_cmd})
     write_json(job.dir / "mix/gain.json", gain)
-    write_bilingual(out_dir / "bilingual.txt", scheduled)
-    (out_dir / "english.srt").write_text(render_srt(scheduled), encoding="utf-8")
-    ffmpeg = cfg["executables"]["ffmpeg"]
-    video = job.data["video"]
-    en_path = job.dir / video_name
-    other = job.dir / ("output/english.mp4" if partial else "output/english_PARTIAL.mp4")
-    if other.is_file():
-        other.unlink()
-    en_cmd = mux_english_cmd(ffmpeg, video, str(out_dir / "english_mix.wav"), str(en_path))
-    if "-shortest" in en_cmd:
-        raise RuntimeError("Refusing -shortest")
-    run_cmd(en_cmd)
-    es_cmd = mux_spanish_cmd(ffmpeg, video, int(cfg["audio_mapping"]["mixed_ordinal"]), str(out_dir / "spanish_compare.mp4"))
-    if "-shortest" in es_cmd:
-        raise RuntimeError("Refusing -shortest")
-    run_cmd(es_cmd)
-    gain["english_video"] = str(en_path)
-    gain["commands"] = {"english": en_cmd, "spanish_compare": es_cmd}
-    write_json(job.dir / "mix/gain.json", gain)
-    write_json(job.dir / "schedule/summary.json", summary)
+    write_json(job.dir / "mix/placed_summary.json", placed)
+    summary.clear()
+    summary.update(placed)
     job.set_stage("mix", "complete", fp, {"english_video": video_name, "gain": "mix/gain.json"})
     return gain
 
@@ -976,53 +1004,83 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     video = Path(job.data["video"])
     en_rel = job.stage("mix")["outputs"]["english_video"]
     en_path = job.dir / en_rel
-    es_path = job.dir / "output/spanish_compare.mp4"
+    container = (cfg.get("export") or {}).get("container", "mp4")
+    es_path = job.dir / f"output/spanish_compare.{container}"
+    timeout = float((cfg.get("timeouts") or {}).get("media_sec", 10800))
     ffprobe = cfg["executables"]["ffprobe"]
     ffmpeg = cfg["executables"]["ffmpeg"]
-    en_probe = describe_streams(probe(ffprobe, str(en_path)))
-    es_probe = describe_streams(probe(ffprobe, str(es_path)))
-    en_ok, en_err = decode_ok(ffmpeg, str(en_path))
-    es_ok, es_err = decode_ok(ffmpeg, str(es_path))
+    probe_timeout = float((cfg.get("timeouts") or {}).get("probe_sec", 1200))
+    source_sha = sha256_file(video)
+    protected_now = {row["path"]: sha256_file(Path(row["path"])) if Path(row["path"]).is_file() else None
+                     for row in inspected.get("protected") or []}
+    artifacts = {"english": en_path, "spanish": es_path, "voice": job.dir / "output/english_voice.wav",
+                 "mix": job.dir / "output/english_mix.wav", "srt": job.dir / "output/english.srt"}
+    corrections_file = job.dir / "transcribe/corrections.json"
+    validate_fp = fingerprint({"version": 4, "source_sha256": source_sha, "protected": protected_now,
+                               "artifacts": {label: sha256_file(path) for label, path in artifacts.items()},
+                               "schedule": job.stage("schedule").get("fingerprint"), "mix": job.stage("mix").get("fingerprint"),
+                               "gains": {k: v for k, v in gain.items() if k not in {"commands", "english_video", "english_video_rel"}},
+                               "placements": summary, "segmentation_policy": cfg["segmentation"].get("untranscribed_energy_policy", "partial"),
+                               "corrections": sha256_file(corrections_file) if corrections_file.is_file() else None,
+                               "validator_code": [sha256_file(Path(__file__)), sha256_file(Path(__file__).with_name("media.py")),
+                                                  sha256_file(Path(__file__).with_name("streaming.py")), sha256_file(Path(__file__).with_name("export.py"))]})
+    if _fp_ok(job, "validate", validate_fp, ["report/validation.json", "report/validation.md"]):
+        saved = read_json(job.dir / "report/validation.json")
+        job.state = saved["status"]
+        job.error = None
+        job.save()
+        print("validate: unchanged (current artifact hashes verified)")
+        return saved
+    en_probe = describe_streams(probe(ffprobe, str(en_path), timeout=probe_timeout))
+    es_probe = describe_streams(probe(ffprobe, str(es_path), timeout=probe_timeout))
+    en_ok, en_err = decode_ok(ffmpeg, str(en_path), timeout=timeout, log_path=job.dir / "report/english_decode.log")
+    es_ok, es_err = decode_ok(ffmpeg, str(es_path), timeout=timeout, log_path=job.dir / "report/spanish_decode.log")
     src_video = inspected["described"]["video"]
-    source_frames = src_video.get("nb_frames")
-    english_frames = en_probe["video"].get("nb_frames")
-    spanish_frames = es_probe["video"].get("nb_frames")
-    # Matroska may omit nb_frames. The exact source/export elementary-stream
-    # identity check below then supplies the source-side equivalence; avoid a
-    # redundant, expensive full decode of the mounted source just to count.
-    frame_reference = source_frames if source_frames is not None else english_frames
-    frame_detail = (
-        f"{english_frames} vs {frame_reference}"
-        if source_frames is not None
-        else f"{english_frames} (source nb_frames absent; source equivalence checked by video bitstream hash)"
-    )
     checks = []
 
-    def add(name, ok, detail):
-        checks.append({"name": name, "ok": bool(ok), "detail": str(detail)})
+    def add(name, ok, detail, *, required=True):
+        checks.append({"name": name, "ok": bool(ok) if ok is not None else None,
+                       "status": "unavailable" if ok is None else "passed" if ok else "failed",
+                       "required": required, "detail": str(detail)})
 
-    add("source_unchanged", sha256_file(video) == inspected["video_sha256"], sha256_file(video))
+    add("source_unchanged", source_sha == inspected["video_sha256"], source_sha)
     add("english_decode", en_ok, en_err or "clean")
     add("spanish_decode", es_ok, es_err or "clean")
-    add("english_video_frames", english_frames is not None and english_frames == frame_reference, frame_detail)
-    add("spanish_video_frames", spanish_frames is not None and spanish_frames == frame_reference, f"{spanish_frames} vs {frame_reference}")
+    for name, output in (("english_video_frames", en_probe["video"]), ("spanish_video_frames", es_probe["video"])):
+        result = frame_check(src_video, output)
+        add(name, result["ok"], result["detail"], required=result["required"])
+    add("video_duration_established", not src_video.get("duration_approximate", False), src_video.get("duration_source", "legacy stream metadata"))
     add("english_duration", abs(float(en_probe["video"]["duration"]) - float(src_video["duration"])) < 0.02, en_probe["video"]["duration"])
     add("english_has_one_audio", len(en_probe["audios"]) == 1, len(en_probe["audios"]))
-    add("no_clipping", gain.get("clipping_samples") == 0, gain.get("clipping_samples"))
-    voice, vsr = read_audio(job.dir / "output/english_voice.wav")
-    mix, msr = read_audio(job.dir / "output/english_mix.wav")
-    expected = int(round(float(summary["source_duration_sec"]) * 48000))
-    add("voice_length", voice.shape[0] == expected and vsr == 48000, f"{voice.shape[0]} vs {expected}")
-    add("mix_stereo", mix.shape == (expected, 2) and msr == 48000, mix.shape)
+    geometry = ("width", "height", "codec_name")
+    add("video_geometry", all(src_video.get(k) == en_probe["video"].get(k) for k in geometry) if all(src_video.get(k) is not None and en_probe["video"].get(k) is not None for k in geometry) else None, "dimensions and codec")
+    add("no_new_pcm_clipping", gain.get("clipping_samples") == 0, gain.get("clipping_samples"))
+    try:
+        encoded = encoded_audio_metrics(ffmpeg, str(en_path), block_frames=block_frames(cfg), timeout=timeout)
+        add("encoded_audio_unclipped", encoded["finite"] and encoded["over_full_scale_samples"] == 0, encoded)
+    except Exception as exc:
+        encoded = {"error": str(exc)}
+        add("encoded_audio_unclipped", False, encoded)
+    expected = int(round(float(summary["source_duration_sec"]) * int(cfg["schedule"]["output_sr"])))
+    voice_info = sf.info(job.dir / "output/english_voice.wav")
+    mix_info = sf.info(job.dir / "output/english_mix.wav")
+    add("voice_length", voice_info.frames == expected and voice_info.samplerate == cfg["schedule"]["output_sr"], f"{voice_info.frames} vs {expected}")
+    add("mix_stereo", mix_info.frames == expected and mix_info.channels == 2 and mix_info.samplerate == voice_info.samplerate, str(mix_info))
+    add("source_game_headroom", gain.get("source_headroom_ok", False), {"source_peak": gain.get("game_peak"), "policy": cfg["mix"].get("headroom_policy", "partial")})
     lang = (en_probe["audios"][0].get("tags") or {}).get("language") if en_probe["audios"] else None
     default_audio = (en_probe["audios"][0].get("disposition") or {}).get("default") if en_probe["audios"] else None
     add("english_default_audio", lang == "eng" and default_audio in {1, "1"}, {"language": lang, "default": default_audio})
     srt = (job.dir / "output/english.srt").read_text(encoding="utf-8")
     omitted = omitted_lines(summary["segments"])
-    leaked = [row["english"] for row in omitted if row.get("english") and row["english"] in srt]
-    add("srt_omits_unplaced", not leaked, leaked or "none")
+    add("srt_omits_unplaced", srt == render_srt(summary["segments"]), "subtitles exactly match placed cue IDs/text")
     missing_en = [s["id"] for s in _timeline(job) if not (s.get("english") or "").strip()]
     add("no_missing_translation", not missing_en, missing_en or "none")
+    corrections_path = job.dir / "transcribe/corrections.json"
+    corrections = read_json(corrections_path) if corrections_path.is_file() else None
+    gaps = (corrections or {}).get("untranscribed_energy") or []
+    add("source_energy_accounted", not gaps if corrections is not None else None,
+        gaps or "no untranscribed energy" if corrections is not None else "transcription corrections unavailable",
+        required=cfg["segmentation"].get("untranscribed_energy_policy", "partial") != "warn")
     placed = [s for s in summary["segments"] if s.get("placed")]
     bounds_bad = []
     ordered = summary["segments"]
@@ -1037,53 +1095,52 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     add("placed_in_windows", not bounds_bad, bounds_bad or "none")
     placed_ids = [s["id"] for s in summary["segments"] if s.get("placed")]
     unplaced_ids = [s["id"] for s in summary["segments"] if not s.get("placed")]
-    missing_account = account_lines([s["id"] for s in summary["segments"]], placed_ids, unplaced_ids)
+    missing_account = account_lines([s["id"] for s in _timeline(job)], placed_ids, unplaced_ids)
     blank_reasons = [s["id"] for s in summary["segments"] if not s.get("placed") and not (s.get("timing_error") or "")]
     add("coverage", not missing_account and not blank_reasons, {"missing": missing_account, "no_reason": blank_reasons} if (missing_account or blank_reasons) else "every line placed or unresolved")
     quality_failed_placed = [
         s["id"] for s in summary["segments"]
-        if s.get("placed") and s.get("quality") and not s["quality"].get("ok")
+        if s.get("placed") and not (s.get("quality") or {}).get("ok")
     ]
     add("placed_lines_passed_quality", not quality_failed_placed, quality_failed_placed or "none")
     asr_skipped = [
         s["id"] for s in summary["segments"]
-        if s.get("placed") and (s.get("quality") or {}).get("asr_skipped")
+        if s.get("placed") and ((s.get("quality") or {}).get("asr_skipped") or (s.get("quality") or {}).get("asr_text") is None)
     ]
     add("generated_audio_transcribed", not asr_skipped, asr_skipped or "each placed line")
-    bad_edges = [s["id"] for s in summary["segments"] if s.get("placed") and s.get("edge_ok") is False]
+    bad_edges = [s["id"] for s in summary["segments"] if s.get("placed") and summary.get("voice_presentation") and s.get("edge_ok") is not True]
     add("voice_edges", not bad_edges, bad_edges or "generated-voice margins")
-    aligned_game, _ = align_to_video(
-        read_audio(job.dir / "extract/game_raw.wav")[0],
-        48000,
-        inspected["mapping"]["game"]["start_time"],
-        inspected["described"]["video"]["start_time"],
-        inspected["described"]["video"]["duration"],
-    )
-    n_cmp = min(voice.shape[0], mix.shape[0], aligned_game.shape[0])
-    voice_mono = voice[:n_cmp, 0] if voice.ndim > 1 else voice[:n_cmp]
-    centered = np.stack([voice_mono, voice_mono], axis=1)
-    bed_err = mix[:n_cmp] - aligned_game[:n_cmp] - centered
-    bed_max = float(np.max(np.abs(bed_err))) if bed_err.size else 0.0
-    add("game_bed_continuous", bed_max < 2e-4, f"max abs mix-(game+voice)={bed_max:.3e}")
+    sr = int(cfg["schedule"]["output_sr"])
+    game_path = job.dir / "extract/game_raw.wav"
+    meta = alignment_meta(sf.info(game_path).frames, sr, inspected["mapping"]["game"]["start_time"], src_video["start_time"], src_video["duration"])
+    actual = validate_audio_files(game_path, job.dir / "output/english_voice.wav", job.dir / "output/english_mix.wav", sr, meta, cfg)
+    add("game_bed_continuous", actual["shape_ok"] and actual["game_bed_error"] < 2e-4, f"max abs mix-(game+actual voice)={actual['game_bed_error']:.3e}")
     try:
-        src_md5 = bitstream_md5(ffmpeg, str(video))
-        out_md5 = bitstream_md5(ffmpeg, str(en_path))
+        src_md5 = bitstream_md5(ffmpeg, str(video), timeout=timeout)
+        out_md5 = bitstream_md5(ffmpeg, str(en_path), timeout=timeout)
         add("video_bitstream_preserved", src_md5 == out_md5, src_md5 if src_md5 == out_md5 else {"source": src_md5, "output": out_md5})
     except Exception as exc:
         add("video_bitstream_preserved", False, str(exc))
     docker = docker_status(cfg.get("docker_llm_container", ""))
-    add("docker_llm_stopped", "Up" not in docker, docker or "no status")
+    add("docker_llm_stopped", None if not docker or docker.startswith(("unavailable", "not configured")) else "Up" not in docker, docker or "unavailable", required=False)
     changed = []
     for row in inspected.get("protected") or []:
         path = Path(row["path"])
-        if path.is_file() and sha256_file(path) != row["sha256"]:
+        if not path.is_file() or sha256_file(path) != row["sha256"]:
             changed.append(row["path"])
     add("protected_files_unchanged", not changed, changed or "unchanged")
     n_placed = sum(1 for s in summary["segments"] if s.get("placed"))
     n_unplaced = len(summary["segments"]) - n_placed
-    status = "complete" if n_unplaced == 0 and all(c["ok"] for c in checks) else "partial"
-    if any(not c["ok"] for c in checks if c["name"] in {"source_unchanged", "english_decode", "english_video_frames", "no_missing_translation", "protected_files_unchanged"}):
+    status = "complete" if n_unplaced == 0 and all(c["ok"] is True for c in checks if c.get("required", True)) else "partial"
+    if any(c["ok"] is False for c in checks if c["name"] in {"source_unchanged", "english_decode", "english_video_frames", "video_bitstream_preserved", "no_missing_translation", "protected_files_unchanged"}):
         status = "failed"
+    if status == "partial" and "_PARTIAL" not in en_path.stem:
+        en_path = en_path.with_name("english_PARTIAL" + en_path.suffix)
+        (job.dir / en_rel).replace(en_path)
+        en_rel = str(en_path.relative_to(job.dir))
+        job.stage("mix")["outputs"]["english_video"] = en_rel
+        gain.update(english_video=str(en_path), english_video_rel=en_rel)
+        write_json(job.dir / "mix/gain.json", gain)
     repairs = []
     for seg in _timeline(job):
         for rev in seg.get("revisions") or []:
@@ -1118,6 +1175,11 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         "reference_sha256": summary.get("reference_sha256"),
         "translator": job.data.get("translator"),
         "timestamp_status": "approximate_not_forced_alignment",
+        "encoded_audio": encoded,
+        "provider_totals": provider_metrics(job.dir),
+        "verification_stats": summary.get("verification_stats"),
+        "transcription_drops": (corrections or {}).get("dropped", []),
+        "untranscribed_energy": gaps,
     }
     write_json(job.dir / "report/validation.json", report)
     (job.dir / "report").mkdir(parents=True, exist_ok=True)
@@ -1129,12 +1191,13 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     else:
         job.state = "complete" if status == "complete" else "partial"
         job.error = None
-        job.set_stage("validate", "complete", fingerprint({"status": status, "video": sha256_file(en_path)}), {"report": "report/validation.md"})
+        job.set_stage("validate", "complete", validate_fp, {"report": "report/validation.md"})
     job.save()
     print(f"validate: {status}")
     for row in checks:
-        if not row["ok"]:
-            print(f"  FAIL {row['name']}: {row['detail']}")
+        if row["ok"] is not True:
+            label = "UNAVAILABLE" if row["ok"] is None else "FAIL"
+            print(f"  {label} {row['name']}: {row['detail']}")
     return report
 
 
@@ -1159,17 +1222,21 @@ def next_hint(job: Job) -> str:
     return f"bin/aidub run {name}"
 
 
-def run_job(job: Job) -> int:
-    cfg = job.config()
-    require_schedule_defaults(cfg)
-    with JobLock(job.dir):
+def run_job(job: Job, *, lock: JobLock | None = None) -> int:
+    if lock is not None and not lock.owns(job.dir):
+        raise RuntimeError("run_job requires an active lock for this job")
+    with (nullcontext(lock) if lock is not None else JobLock(job.dir)):
+        # Read mutable state after acquiring the lock, never before waiting for it.
+        job = Job(job.dir)
+        cfg = job.config()
         job.state = "running"
         job.error = None
         job.save()
         try:
-            inspected = stage_inspect(job, cfg)
-            alignment = stage_extract(job, cfg, inspected)
-            stage_transcribe(job, cfg, alignment)
+            require_schedule_defaults(cfg)
+            inspected = stage_call(job, "inspect", stage_inspect, job, cfg)
+            alignment = stage_call(job, "extract", stage_extract, job, cfg, inspected)
+            stage_call(job, "transcribe", stage_transcribe, job, cfg, alignment)
             segments = _timeline(job)
             restore_translation_if_response_matches(job, segments)
             if any(not (s.get("english") or "").strip() for s in segments) or job.stage("translation")["status"] != "complete":
@@ -1189,7 +1256,7 @@ def run_job(job: Job) -> int:
                 print(f"REQUEST {path}")
                 print("Translation fingerprint changed. Accept an updated response.")
                 return 2
-            summary = stage_schedule(job, cfg)
+            summary = stage_call(job, "schedule", stage_schedule, job, cfg)
             if summary.get("needs_repair"):
                 path = export_repair(job)
                 job.state = "awaiting_repair"
@@ -1198,8 +1265,8 @@ def run_job(job: Job) -> int:
                 print(f"REQUEST {path}")
                 print(next_hint(job))
                 return 2
-            gain = stage_mix(job, cfg, summary)
-            report = stage_validate(job, cfg, summary, gain)
+            gain = stage_call(job, "mix", stage_mix, job, cfg, summary)
+            report = stage_call(job, "validate", stage_validate, job, cfg, summary, gain)
             print(f"STATE {job.state}")
             print(f"ENGLISH_VIDEO {report['english_video']}")
             print(next_hint(job))
@@ -1208,6 +1275,11 @@ def run_job(job: Job) -> int:
             if job.state == "partial":
                 return 3
             return 1
+        except KeyboardInterrupt:
+            job.state = "failed"
+            job.error = "Interrupted by SIGINT; completed synthesis, verification and provider checkpoints are retained. Resume the same job."
+            job.save()
+            raise
         except Exception as exc:
             job.state = "failed"
             job.error = f"{type(exc).__name__}: {exc}"

@@ -8,7 +8,7 @@ from .placement import Interval, clamp_interval, collisions
 
 
 def mux_english_cmd(ffmpeg: str, video: str, mix_wav: str, dest: str) -> list[str]:
-    return [
+    cmd = [
         ffmpeg, "-hide_banner", "-y",
         "-i", video,
         "-i", mix_wav,
@@ -17,11 +17,13 @@ def mux_english_cmd(ffmpeg: str, video: str, mix_wav: str, dest: str) -> list[st
         "-c:v", "copy",
         "-c:a", "aac",
         "-b:a", "192k",
-        "-movflags", "+faststart",
         "-metadata:s:a:0", "language=eng",
         "-disposition:a:0", "default",
         dest,
     ]
+    if Path(dest).suffix == ".mp4":
+        cmd[-1:-1] = ["-movflags", "+faststart"]
+    return cmd
 
 
 def mux_spanish_cmd(ffmpeg: str, video: str, mixed_ordinal: int, dest: str) -> list[str]:
@@ -112,12 +114,20 @@ def write_bilingual(path: Path, scheduled: list[dict]) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def decode_ok(ffmpeg: str, path: str) -> tuple[bool, str]:
-    proc = run_cmd_allow_fail([ffmpeg, "-v", "error", "-i", path, "-f", "null", "-"])
-    err = (proc.stderr or "").strip()
-    return proc.returncode == 0 and not err, err
-
-
-def run_cmd_allow_fail(cmd: list[str]):
+def decode_ok(ffmpeg: str, path: str, timeout: float = 10800, log_path: Path | None = None) -> tuple[bool, str]:
     import subprocess
-    return subprocess.run(cmd, check=False, text=True, capture_output=True)
+    import tempfile
+    if log_path:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = log_path.open("w+b") if log_path else tempfile.TemporaryFile()
+    with handle as errors:
+        try:
+            proc = subprocess.run([ffmpeg, "-v", "error", "-i", path, "-f", "null", "-"],
+                                  stdout=subprocess.DEVNULL, stderr=errors, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return False, f"Decode exceeded {timeout}s. Log: {log_path}"
+        errors.seek(0, 2)
+        size = errors.tell()
+        errors.seek(max(0, size - 8000))
+        detail = errors.read().decode("utf-8", "replace").strip()
+        return proc.returncode == 0 and size == 0, detail

@@ -13,6 +13,8 @@ import numpy as np
 
 from .audio import speech_bounds, to_mono
 
+CHECKER_VERSION = "waveform-text-v4"
+
 STOPWORDS = {
     "a", "an", "the", "i", "it", "to", "of", "and", "or", "uh", "um", "okay", "ok",
     "so", "we", "you", "is", "am", "are",
@@ -194,8 +196,11 @@ def assess_candidate(
     asr_language: str | None = None,
     asr_skipped: bool = False,
     min_speaker_features: int = 2,
+    speaker_proxy_enabled: bool = True,
 ) -> dict:
     result = assess_waveform(wav, sr, reference, min_speaker_features=min_speaker_features)
+    if not speaker_proxy_enabled:
+        result["reasons"] = [r for r in result["reasons"] if r != "wrong_speaker"]
     extra = text_issues(text, asr_text, asr_language)
     reasons = list(result["reasons"])
     for item in extra:

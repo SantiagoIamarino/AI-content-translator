@@ -15,3 +15,13 @@ jobs/*
 .cache/
 *.log
 .DS_Store
+
+# Workstation paths and provider commands belong outside published config.
+config/local.json
+config/*.local.json
+.env
+.env.*
+
+# Host verification logs/media are job artifacts, never publication inputs.
+runs/hardening/
+*.safetensors

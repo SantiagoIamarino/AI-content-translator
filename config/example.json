@@ -1,6 +1,6 @@
 {
   "executables": {
-    "python_qwen": "/path/to/qwen3-tts/.venv/bin/python",
+    "python_qwen": "python3",
     "whisper": "/path/to/whisper/.venv/bin/whisper",
     "ffmpeg": "/usr/bin/ffmpeg",
     "ffprobe": "/usr/bin/ffprobe"
@@ -67,7 +67,10 @@
     "min_speaker_features": 2,
     "checker": "f0-and-centroid-v3",
     "asr_device": "cpu",
-    "asr_language": ""
+    "asr_language": "",
+    "speaker_proxy_enabled": true,
+    "asr_model": "turbo",
+    "asr_model_path": ""
   },
   "fit_retries": {
     "max_alternate_seeds": 3,
@@ -84,11 +87,17 @@
     "max_shorter_translations": 2
   },
   "providers": {
-    "translation": {"kind": "unconfigured"},
-    "repair": {"kind": "unconfigured"}
+    "translation": {
+      "kind": "unconfigured"
+    },
+    "repair": {
+      "kind": "unconfigured"
+    }
   },
   "mix": {
-    "limiter": 0.99
+    "limiter": 0.99,
+    "headroom_policy": "partial",
+    "min_voice_gain": 0.1
   },
   "segmentation": {
     "energy_rms": 0.005,
@@ -97,7 +106,35 @@
     "end_tail_sec": 0.2,
     "merge_max_silence_sec": 0.12,
     "min_voiced_sec": 0.04,
-    "uncertain_probability": 0.5
+    "uncertain_probability": 0.5,
+    "quiet_speech_heuristic": true,
+    "untranscribed_energy_policy": "partial"
   },
-  "docker_llm_container": "unused-do-not-start"
+  "docker_llm_container": "unused-do-not-start",
+  "models": {
+    "qwen_path": "",
+    "whisper_path": ""
+  },
+  "batching": {
+    "max_cues": 40,
+    "max_chars": 24000
+  },
+  "transcription": {
+    "chunk_sec": 600,
+    "overlap_sec": 2
+  },
+  "timeouts": {
+    "worker_startup_sec": 180,
+    "asr_candidate_sec": 180,
+    "asr_chunk_sec": 1800,
+    "media_sec": 10800,
+    "probe_sec": 1200,
+    "tempo_sec": 180
+  },
+  "processing": {
+    "block_frames": 65536
+  },
+  "export": {
+    "container": "mp4"
+  }
 }

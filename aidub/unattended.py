@@ -5,8 +5,8 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from .config import require_schedule_defaults
-from .job import Job
+from .config import require_schedule_defaults, require_synthesis_ready
+from .job import Job, JobLock
 from .pipeline import (
     accept_repair,
     accept_translation,
@@ -15,7 +15,8 @@ from .pipeline import (
     job_path,
     run_job,
 )
-from .providers import ProviderError, invoke_checked, require_provider
+from .providers import ProviderError, require_provider, validate_provider_config
+from .batches import invoke_batches
 from .util import read_json, write_json
 
 
@@ -29,108 +30,78 @@ def _ordinals(cfg: dict, mic, game, mixed) -> None:
 
 
 def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=None) -> int:
-    require_schedule_defaults(cfg)
-    providers = cfg.get("providers") or {}
-    require_provider(providers.get("translation"), "translation")
-    require_provider(providers.get("repair"), "repair")
     cfg = json_copy(cfg)
-    cfg.setdefault("unattended", {})
-    cfg["unattended"]["enabled"] = True
     _ordinals(cfg, mic, game, mixed)
+    if not name.replace(".", "").replace("_", "").replace("-", "").isalnum():
+        raise RuntimeError("Invalid job name")
     from .config import resolve_path
-
     dest = resolve_path(cfg, cfg["jobs_dir"]) / name
     timings = []
-    if not (dest / "manifest.json").is_file():
-        t0 = time.perf_counter()
-        code = _init(cfg, video, name)
-        timings.append({"stage": "init", "seconds": round(time.perf_counter() - t0, 3), "exit": code})
-        if code != 0:
-            return code
-    job = Job(job_path(cfg, name))
-    # A job created by manual init does not have unattended enabled. Turn it on
-    # in the snapshot so repair may use the configured shorter-translation budget.
-    stored = job.config()
-    stored.setdefault("unattended", {})
-    stored["unattended"]["enabled"] = True
-    if "providers" not in stored:
-        stored["providers"] = providers
-    write_json(job.dir / "config.json", {k: v for k, v in stored.items() if not str(k).startswith("_")})
     rounds = {"translation": 0, "repair": 0}
-    limit = int(cfg["unattended"].get("max_shorter_translations", 2))
-    for _ in range(12):
-        t0 = time.perf_counter()
-        code = run_job(job)
-        job = Job(job.dir)
-        timings.append({"stage": f"run:{job.state}", "seconds": round(time.perf_counter() - t0, 3), "exit": code})
-        if code in {0, 3}:
-            _write_timings(job, timings, rounds)
-            return code
-        if code == 1:
-            _write_timings(job, timings, rounds)
-            return 1
-        if job.state == "awaiting_translation":
-            rounds["translation"] += 1
-            _handoff(job, "translation", providers["translation"], None)
-            continue
-        if job.state == "awaiting_repair":
-            rounds["repair"] += 1
-            if rounds["repair"] > limit:
-                raise ProviderError(f"Repair provider was called more than {limit} times.")
-            current = {int(s["id"]): s.get("english") or "" for s in job.data["timeline"]}
-            _handoff(job, "repair", providers["repair"], current)
-            continue
-        _write_timings(job, timings, rounds)
-        return code
-    raise ProviderError("Unattended run exceeded its handoff rounds.")
-
-
-def _init(cfg: dict, video: str, name: str) -> int:
-    import argparse
-    from .cli import cmd_init
-
-    args = argparse.Namespace(
-        config=None,
-        video=video,
-        name=name,
-        mic_ordinal=cfg["audio_mapping"]["mic_ordinal"],
-        game_ordinal=cfg["audio_mapping"]["game_ordinal"],
-        mixed_ordinal=cfg["audio_mapping"]["mixed_ordinal"],
-    )
-    # cmd_init reloads config from disk. Write a temporary snapshot and pass it.
-    root = Path(cfg["_project_root"])
-    snap = root / "jobs" / f".{name}.init-config.json"
-    snap.parent.mkdir(parents=True, exist_ok=True)
-    payload = {k: v for k, v in cfg.items() if not str(k).startswith("_")}
-    payload["unattended"] = dict(payload.get("unattended") or {})
-    payload["unattended"]["enabled"] = True
-    write_json(snap, payload)
-    args.config = str(snap)
-    from .config import load_config
-
-    loaded = load_config(snap)
-    loaded["source_video"] = str(Path(video).expanduser().resolve())
-    # Call the same checks as cmd_init by delegating.
-    args.config = str(snap)
-    code = cmd_init(args)
-    return code
+    with JobLock(dest) as lock:
+        if not (dest / "manifest.json").is_file():
+            from .cli import cmd_init
+            import argparse
+            args = argparse.Namespace(video=video, name=name, mic_ordinal=mic, game_ordinal=game, mixed_ordinal=mixed)
+            cfg.setdefault("unattended", {})["enabled"] = True
+            code = cmd_init(args, cfg=cfg, lock=lock)
+            if code:
+                return code
+        job = Job(dest)
+        if Path(video).expanduser().resolve() != Path(job.data["video"]).resolve():
+            raise RuntimeError("This job belongs to a different source video. Use its original path or a new job name.")
+        stored = job.config()
+        require_schedule_defaults(stored)
+        stored.setdefault("unattended", {})["enabled"] = True
+        providers = stored.get("providers") or cfg.get("providers") or {}
+        stored["providers"] = providers
+        write_json(job.dir / "config.json", {k: v for k, v in stored.items() if not str(k).startswith("_")})
+        try:
+            for role in ("translation", "repair"):
+                validate_provider_config(require_provider(providers.get(role), role))
+            for _ in range(int(stored["unattended"].get("max_handoff_rounds", 12))):
+                t0 = time.perf_counter()
+                code = run_job(job, lock=lock)
+                job = Job(dest)
+                timings.append({"stage": f"run:{job.state}", "seconds": round(time.perf_counter() - t0, 3), "exit": code})
+                if code in {0, 1, 3}:
+                    return code
+                role = "translation" if job.state == "awaiting_translation" else "repair" if job.state == "awaiting_repair" else None
+                if role is None:
+                    return code
+                rounds[role] += 1
+                current = {int(s["id"]): s.get("english") or "" for s in job.data["timeline"]} if role == "repair" else None
+                _handoff(job, role, providers[role], current)
+            raise ProviderError("Unattended run exceeded configured max_handoff_rounds. Check job diagnostics.")
+        except KeyboardInterrupt:
+            job = Job(dest)
+            if job.state in {"awaiting_translation", "awaiting_repair"}:
+                job.error = "Interrupted during provider handoff; a call without a durable response has uncertain external completion/billing. Resume to recover matching responses."
+                job.save()
+            raise
+        except ProviderError as exc:
+            # Keep the handoff resumable while recording the failure durably.
+            job.error = str(exc)
+            job.data["provider_error"] = {"state": job.state, "message": str(exc), "time": time.time()}
+            job.save()
+            raise
+        finally:
+            _write_timings(Job(dest), timings, rounds)
 
 
 def _handoff(job: Job, role: str, spec: dict, current: dict | None) -> None:
     t0 = time.perf_counter()
-    if role == "translation":
-        request = export_translation(job, job.config())
-    else:
-        request = export_repair(job)
+    request = export_translation(job, job.config()) if role == "translation" else export_repair(job)
+    cfg = job.config()
+    invoke_batches(spec, read_json(request), job.dir / "handoff", role, current, cfg,
+                   before_invoke=lambda: require_synthesis_ready(cfg))
     response = job.dir / "handoff" / f"{role}_provider_response.json"
-    data = invoke_checked(spec, request, response, role, current)
     if role == "translation":
         accept_translation(job, response)
     else:
         accept_repair(job, response, revision_limit_n=int((job.config().get("unattended") or {}).get("max_shorter_translations", 2)))
-    log = job.dir / "handoff" / "provider.log"
-    with log.open("a", encoding="utf-8") as handle:
-        handle.write(f"{role} ok in {time.perf_counter() - t0:.1f}s ids={len(data.get('segments') or [])}\n")
+    with (job.dir / "handoff/provider.log").open("a", encoding="utf-8") as handle:
+        handle.write(f"{role} accepted in {time.perf_counter() - t0:.1f}s ids={len(read_json(response)['segments'])}\n")
 
 
 def _write_timings(job: Job, timings: list[dict], rounds: dict) -> None:
@@ -138,7 +109,9 @@ def _write_timings(job: Job, timings: list[dict], rounds: dict) -> None:
     path = job.dir / "report" / "timings.json"
     if path.is_file():
         stored = read_json(path).get("stages") or []
-    write_json(path, {"stages": stored + timings, "provider_rounds": rounds})
+    from .metrics import provider_metrics
+    write_json(path, {"stages": stored + timings, "provider_rounds_this_process": rounds,
+                      "provider_totals": provider_metrics(job.dir)})
 
 
 def json_copy(cfg: dict) -> dict:

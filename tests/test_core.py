@@ -240,7 +240,9 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(info["gain"], 1.0)
         hot = np.ones((4, 2), dtype=np.float32)
         loud, info = mix_game_and_voice(hot, np.ones(4), 0.99)
-        self.assertLessEqual(info["mix_peak"], 0.99 + 1e-6)
+        self.assertTrue(np.array_equal(loud, hot))
+        self.assertFalse(info["source_headroom_ok"])
+        self.assertEqual(info["voice_gain"], 0.0)
         self.assertEqual(info["clipping_samples"], 0)
 
     def test_place_does_not_overwrite_earlier_line(self):

@@ -24,7 +24,7 @@ def validation_markdown(summary: dict) -> str:
         f"- Compact revisions: {summary['n_revisions']}",
         f"- Fresh synthesis this schedule pass: {summary['n_synth_fresh']}",
         f"- Cache hits this schedule pass: {summary['n_synth_cache_hits']}",
-        f"- Mix gain: {summary['mix']['gain']}",
+        f"- Game gain: {summary['mix']['gain']}",
         f"- Mix peak: {summary['mix']['mix_peak']}",
         f"- Clipping samples: {summary['mix']['clipping_samples']}",
         "",
@@ -55,7 +55,7 @@ def validation_markdown(summary: dict) -> str:
         lines.append(f"- {key}: `{value}`")
     lines += ["", "## Checks", ""]
     for row in summary.get("checks") or []:
-        flag = "ok" if row["ok"] else "FAIL"
+        flag = "unavailable" if row["ok"] is None else "ok" if row["ok"] else "FAIL"
         lines.append(f"- [{flag}] {row['name']}: {row['detail']}")
     lines += [
         "",
@@ -63,7 +63,7 @@ def validation_markdown(summary: dict) -> str:
         "",
         "- Timestamps are approximate Whisper times plus energy onset, not forced alignment.",
         "- A complete status means every segment was placed under the scheduling rules. It is not a listening approval.",
-        "- This job does not validate 1–2 hour recordings or any later recording.",
+        "- This job alone does not establish reliability across future 1–2 hour recordings.",
         "",
     ]
     return "\n".join(lines)

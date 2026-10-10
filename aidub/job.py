@@ -50,9 +50,13 @@ class JobLock:
         except BlockingIOError as exc:
             self.fd.close()
             raise RuntimeError(
-                f"Job is locked ({self.path}). Another run is active. Wait, or remove a stale LOCK only if no process holds it."
+                f"Job is locked ({self.path}). Another run is active. Wait for it to exit. "
+                "The OS releases this advisory lock on exit; do not delete the LOCK file."
             ) from exc
         return self
+
+    def owns(self, directory: Path) -> bool:
+        return self.fd is not None and not self.fd.closed and self.path.parent.resolve() == directory.resolve()
 
     def __exit__(self, exc_type, exc, tb):
         if self.fd is not None:
@@ -70,7 +74,7 @@ class Job:
     @classmethod
     def create(cls, directory: Path, job_id: str, video: str, config: dict) -> "Job":
         directory.mkdir(parents=True, exist_ok=True)
-        if any(directory.iterdir()):
+        if any(p.name != "LOCK" for p in directory.iterdir()):
             raise RuntimeError(f"Job directory already exists and is not empty: {directory}")
         atomic_write_text(directory / "config.json", json.dumps(config, ensure_ascii=False, indent=2) + "\n")
         atomic_write_text(
@@ -91,6 +95,14 @@ class Job:
         if value not in STATES:
             raise ValueError(value)
         self.data["state"] = value
+
+    @property
+    def error(self) -> str | None:
+        return self.data.get("error")
+
+    @error.setter
+    def error(self, value: str | None) -> None:
+        self.data["error"] = value
 
     def stage(self, name: str) -> dict:
         return self.data["stages"][name]

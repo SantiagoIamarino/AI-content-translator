@@ -1,20 +1,10 @@
 import numpy as np
 
-from .audio import voiced_mask
-
-
-def _runs(mask: np.ndarray) -> list[tuple[int, int]]:
-    runs = []
-    start = None
-    for i, voiced in enumerate(mask):
-        if voiced and start is None:
-            start = i
-        elif not voiced and start is not None:
-            runs.append((start, i))
-            start = None
-    if start is not None:
-        runs.append((start, len(mask)))
-    return runs
+from .audio import to_mono
+from .energy import EnergyIndex
+from .util import fingerprint
+from pathlib import Path
+import soundfile as sf
 
 
 _HALLUCINATIONS = ("gracias por ver", "thanks for watching", "subtítulos", "subtitles by")
@@ -61,7 +51,29 @@ def _join_words(words: list[dict]) -> str:
 
 
 def build_segments(whisper: dict, wav: np.ndarray, sr: int, cfg: dict, offset_sec: float = 0.0) -> dict:
-    mask = voiced_mask(wav, sr, float(cfg["energy_rms"]), float(cfg["energy_window_sec"]))
+    def reader(start, count):
+        return to_mono(wav[start:start + count])
+    energy = EnergyIndex.build(reader, len(wav), sr, float(cfg["energy_rms"]), float(cfg["energy_window_sec"]))
+    try:
+        return _build_segments(whisper, reader, energy, sr, cfg, offset_sec)
+    finally:
+        energy.close()
+
+
+def build_segments_file(whisper: dict, path: Path, cfg: dict, *, offset_sec=0.0, index_path=None, block_frames=65536) -> dict:
+    with sf.SoundFile(path) as handle:
+        def reader(start, count):
+            handle.seek(start)
+            return to_mono(handle.read(count, dtype="float32", always_2d=True))
+        energy = EnergyIndex.build(reader, handle.frames, handle.samplerate, float(cfg["energy_rms"]),
+                                   float(cfg["energy_window_sec"]), block_frames, index_path)
+        try:
+            return _build_segments(whisper, reader, energy, handle.samplerate, cfg, offset_sec)
+        finally:
+            energy.close()
+
+
+def _build_segments(whisper, reader, energy, sr, cfg, offset_sec):
     lookback = int(round(float(cfg["onset_lookback_sec"]) * sr))
     tail = int(round(float(cfg["end_tail_sec"]) * sr))
     min_voiced = int(round(float(cfg["min_voiced_sec"]) * sr))
@@ -81,13 +93,18 @@ def build_segments(whisper: dict, wav: np.ndarray, sr: int, cfg: dict, offset_se
         ws = int(round(float(raw["start"]) * sr))
         we = int(round(float(raw["end"]) * sr))
         region_start = max(prev_end, ws - lookback, 0)
-        region_end = min(len(mask), max(we, ws) + tail)
-        region = mask[region_start:region_end]
-        voiced_count = int(np.count_nonzero(region))
+        region_end = min(energy.total, max(we, ws) + tail)
+        voiced_count = energy.count(region_start, region_end)
         borderline = None
         if voiced_count < min_voiced:
-            slice_wav = wav[max(0, ws):min(len(mask), max(we, ws + 1))]
-            keep, why = review_low_energy(text, slice_wav, sr, float(cfg["energy_rms"]))
+            length = min(energy.total, max(we, ws + 1)) - max(0, ws)
+            if not cfg.get("quiet_speech_heuristic", True):
+                keep, why = False, "quiet_speech_heuristic_disabled"
+            elif length > int(sr * float(cfg.get("max_quiet_review_sec", 30))):
+                keep, why = False, "quiet_review_window_too_long"
+            else:
+                slice_wav = reader(max(0, ws), max(0, length))
+                keep, why = review_low_energy(text, slice_wav, sr, float(cfg["energy_rms"]))
             if not keep:
                 dropped.append({
                     "text": text,
@@ -100,9 +117,7 @@ def build_segments(whisper: dict, wav: np.ndarray, sr: int, cfg: dict, offset_se
             start = ws
             end = max(we, ws + 1)
         else:
-            rel = np.flatnonzero(region)
-            start = region_start + int(rel[0])
-            end = region_start + int(rel[-1]) + 1
+            start, end = energy.bounds(region_start, region_end)
             if end <= start:
                 dropped.append({"text": text, "reason": "no_energy", "review": "empty_span", "whisper_span": [float(raw["start"]), float(raw["end"])]})
                 continue
@@ -131,8 +146,7 @@ def build_segments(whisper: dict, wav: np.ndarray, sr: int, cfg: dict, offset_se
             continue
         gap_start = merged[-1]["end_sample"]
         gap_end = cand["start_sample"]
-        gap = mask[gap_start:gap_end]
-        silence = int(gap.size - np.count_nonzero(gap)) if gap.size else 0
+        silence = max(0, gap_end - gap_start) - energy.count(gap_start, gap_end)
         if gap_end >= gap_start and silence <= merge_silence:
             merges.append({
                 "kept": merged[-1]["text"],
@@ -186,16 +200,25 @@ def build_segments(whisper: dict, wav: np.ndarray, sr: int, cfg: dict, offset_se
             "revisions": [],
         })
 
-    covered = np.zeros(len(mask), dtype=bool)
-    for cand in merged:
-        covered[cand["start_sample"]:cand["end_sample"]] = True
+    covered = sorted((cand["start_sample"], cand["end_sample"]) for cand in merged)
     untranscribed = []
-    for run_start, run_end in _runs(mask):
-        if int(np.count_nonzero(~covered[run_start:run_end])) >= min_voiced and int(np.count_nonzero(mask[run_start:run_end] & ~covered[run_start:run_end])) >= min_voiced:
-            untranscribed.append({
-                "span": [round(run_start / sr + offset_sec, 6), round(run_end / sr + offset_sec, 6)],
-                "reason": "Voiced energy with no kept Whisper text. Not invented as dialogue.",
-            })
+    cursor = 0
+    for run_start, run_end in energy.runs():
+        while cursor < len(covered) and covered[cursor][1] <= run_start:
+            cursor += 1
+        uncovered = run_end - run_start
+        last = run_start
+        for j in range(cursor, len(covered)):
+            lo, hi = covered[j]
+            if lo >= run_end:
+                break
+            left, right = max(last, lo, run_start), min(hi, run_end)
+            if right > left:
+                uncovered -= right - left
+                last = right
+        if uncovered >= min_voiced:
+            untranscribed.append({"span": [round(run_start / sr + offset_sec, 6), round(run_end / sr + offset_sec, 6)],
+                                  "reason": "Voiced energy with no kept Whisper text. Not invented as dialogue."})
     return {
         "timestamp_status": "whisper_segments_plus_energy_onset_approximate_not_forced_alignment",
         "segments": segments,

@@ -1,7 +1,9 @@
-"""Per-line candidate ledger and checkpoints.
+"""Candidate ledger and per-line checkpoint metadata.
 
-A checkpoint is valid only for the same English text and reference recording.
-Resume reuses it instead of synthesizing that candidate again.
+Production quality reuse uses independent waveform-bound cache/quality records.
+These helpers preserve inspection of old checkpoints; callers wishing to trust
+v2 metadata must provide its verification identity. Legacy scores are not used
+by the pipeline for acceptance.
 """
 
 from __future__ import annotations
@@ -35,11 +37,16 @@ def read_checkpoint(job_dir: Path, seg_id: int) -> dict | None:
     path = checkpoint_path(job_dir, seg_id)
     if not path.is_file():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return None
 
 
-def checkpoint_matches(record: dict | None, english: str, reference_sha256: str, checker: str | None = None) -> bool:
+def checkpoint_matches(record: dict | None, english: str, reference_sha256: str, checker: str | None = None, *, verification_identity: str | None = None) -> bool:
     if not record:
+        return False
+    if verification_identity is not None and (record.get("schema") != "aidub.checkpoint.v2" or record.get("verification_identity") != verification_identity):
         return False
     if (record.get("english") or "") != (english or ""):
         return False

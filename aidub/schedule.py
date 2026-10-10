@@ -24,7 +24,7 @@ def apply_blockers(status: str, timing_error: str, start: float, duration: float
 
 
 def synth_cache_key(text: str, reference_sha256: str, reference_text: str, seed: int, qwen: dict) -> str:
-    return fingerprint({
+    inputs = {
         "text": text,
         "reference_sha256": reference_sha256,
         "reference_text": reference_text,
@@ -35,7 +35,10 @@ def synth_cache_key(text: str, reference_sha256: str, reference_text: str, seed:
         "language": qwen["language"],
         "x_vector_only_mode": qwen["x_vector_only_mode"],
         "generation": qwen["generation"],
-    })
+    }
+    if qwen.get("model_revision"):
+        inputs["model_revision"] = qwen["model_revision"]
+    return fingerprint(inputs)
 
 
 def primary_seed(seed_base: int, seg_id: int) -> int:

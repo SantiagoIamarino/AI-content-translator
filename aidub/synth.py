@@ -1,12 +1,14 @@
 import json
 import time
+import os
+import copy
 from pathlib import Path
 
 import numpy as np
 
 from .audio import metrics, write_wav
 from .schedule import synth_cache_key
-from .util import read_json, write_json
+from .util import read_json, write_json, sha256_file
 
 _SHARED = None
 
@@ -17,13 +19,11 @@ def resolve_local_snapshot(model_id: str) -> str:
     The generation settings stay the configured model id. This only avoids a
     network lookup for a snapshot that is already cached.
     """
-    cache_root = Path.home() / ".cache/huggingface/hub" / f"models--{model_id.replace('/', '--')}"
-    ref = cache_root / "refs/main"
-    if ref.is_file():
-        snapshot = cache_root / "snapshots" / ref.read_text(encoding="utf-8").strip()
-        if snapshot.is_dir():
-            return str(snapshot)
-    return model_id
+    from huggingface_hub import snapshot_download
+    try:
+        return snapshot_download(repo_id=model_id, local_files_only=True)
+    except Exception as exc:
+        raise RuntimeError(f"Missing local Qwen snapshot for {model_id}; downloads are disabled. Set models.qwen_path.") from exc
 
 
 def shared_backend_loaded() -> bool:
@@ -32,6 +32,8 @@ def shared_backend_loaded() -> bool:
 
 def get_shared_backend(cfg: dict) -> "QwenBackend":
     global _SHARED
+    if _SHARED is not None and _SHARED.settings != cfg["qwen3"]:
+        raise RuntimeError("Qwen settings changed in a running process. Restart to load the configured backend.")
     if _SHARED is None:
         print("synthesize: loading Qwen")
         _SHARED = QwenBackend(cfg)
@@ -40,6 +42,7 @@ def get_shared_backend(cfg: dict) -> "QwenBackend":
 
 class QwenBackend:
     def __init__(self, cfg: dict):
+        from .config import qwen_snapshot
         import torch
         from qwen_tts import Qwen3TTSModel
 
@@ -48,6 +51,7 @@ class QwenBackend:
         q = cfg["qwen3"]
         if q["x_vector_only_mode"] is not False:
             raise RuntimeError("x_vector_only_mode must be false.")
+        self.settings = copy.deepcopy(q)
         self.torch = torch
         self.generation = dict(q["generation"])
         self.language = q["language"]
@@ -56,7 +60,8 @@ class QwenBackend:
         torch.cuda.reset_peak_memory_stats()
         t0 = time.perf_counter()
         self.model = Qwen3TTSModel.from_pretrained(
-            resolve_local_snapshot(q["model_id"]),
+            qwen_snapshot(cfg),
+            local_files_only=True,
             device_map=q["device"],
             dtype=torch.bfloat16,
             attn_implementation=q["attn_implementation"],
@@ -75,7 +80,8 @@ class QwenBackend:
         self.prompt_seconds = 0.0
 
     def voice_prompt(self, reference_audio: str, reference_text: str):
-        key = (str(reference_audio), reference_text)
+        from .util import sha256_file
+        key = (sha256_file(Path(reference_audio)), reference_text)
         if self.prompt is not None and self.prompt_key == key:
             return self.prompt
         t0 = time.perf_counter()
@@ -112,11 +118,16 @@ class QwenBackend:
         wav = np.asarray(wavs[0], dtype=np.float32)
         if wav.ndim > 1:
             wav = wav.mean(axis=1).astype(np.float32)
-        write_wav(out, wav, int(sr), subtype="FLOAT")
         info = metrics(wav)
         if not info["finite"] or info["silent"]:
             raise RuntimeError(f"Synthesis unusable for {text!r}: {info}")
+        temp = out.with_name(out.stem + f".{os.getpid()}.tmp.wav")
+        write_wav(temp, wav, int(sr), subtype="FLOAT")
+        with temp.open("rb") as handle:
+            os.fsync(handle.fileno())
+        os.replace(temp, out)
         meta = {
+            "waveform_sha256": sha256_file(out),
             "path": str(out),
             "text": text,
             "reference_audio": str(reference_audio),
@@ -144,7 +155,12 @@ def lookup_cache(cache_dir: Path, key: str, text: str, seed: int) -> dict | None
     wav, meta_path = cache_paths(cache_dir, key)
     if not wav.is_file() or not meta_path.is_file():
         return None
-    meta = read_json(meta_path)
+    try:
+        meta = read_json(meta_path)
+        if meta.get("waveform_sha256") and meta["waveform_sha256"] != sha256_file(wav):
+            return None
+    except (ValueError, OSError):
+        return None
     if meta.get("text") != text or int(meta.get("seed", -1)) != int(seed):
         return None
     if not meta.get("finite", True) or meta.get("silent", False):

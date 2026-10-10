@@ -73,7 +73,7 @@ def resample_audio(wav: np.ndarray, src_sr: int, dst_sr: int) -> np.ndarray:
     return out.squeeze(0).numpy().astype(np.float32)
 
 
-def atempo(ffmpeg: str, src: Path, dst: Path, tempo: float) -> None:
+def atempo(ffmpeg: str, src: Path, dst: Path, tempo: float, timeout: float = 180) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
@@ -81,7 +81,8 @@ def atempo(ffmpeg: str, src: Path, dst: Path, tempo: float) -> None:
         "-filter:a", f"atempo={tempo:.6f}",
         str(dst),
     ]
-    subprocess.run(cmd, check=True)
+    from .media import run_cmd
+    run_cmd(cmd, timeout=timeout)
 
 
 def speech_bounds(wav: np.ndarray, sr: int, rms_thr: float = 0.005, win_sec: float = 0.01) -> tuple[int, int] | None:
@@ -210,25 +211,35 @@ def margin_budget_ms(core_sec: float, window_sec: float, lead_ms: float, tail_ms
     return lead, tail
 
 
+def voice_gain_bound(game: np.ndarray, voice: np.ndarray, ceiling: float) -> float:
+    """Largest gain in [0,1] that adds voice without increasing peaks past ceiling.
+
+    Existing game overshoots cannot be removed without changing the bed. They are
+    reported separately; an aligned voice of the same sign gets zero headroom.
+    """
+    limits = []
+    for channel in range(2):
+        positive, negative = voice > 1e-12, voice < -1e-12
+        if np.any(positive):
+            limits.append(float(np.min((ceiling - game[positive, channel]) / voice[positive])))
+        if np.any(negative):
+            limits.append(float(np.min((-ceiling - game[negative, channel]) / voice[negative])))
+    return float(np.clip(min(limits, default=1.0), 0.0, 1.0))
+
+
 def mix_game_and_voice(game: np.ndarray, voice_mono: np.ndarray, limiter: float = 0.99) -> tuple[np.ndarray, dict]:
-    if game.ndim != 2 or game.shape[1] != 2:
-        raise RuntimeError(f"Game audio must be stereo, got {getattr(game, 'shape', None)}")
-    if voice_mono.shape[0] != game.shape[0]:
-        raise RuntimeError("Voice and game lengths differ; refusing to trim gameplay to the voice.")
-    centered = np.stack([voice_mono, voice_mono], axis=1)
-    raw = game.astype(np.float32) + centered.astype(np.float32)
-    peak = float(np.max(np.abs(raw))) if raw.size else 0.0
-    gain = 1.0
-    if peak > limiter:
-        gain = limiter / peak
-    mixed = raw * gain
-    info = {
+    if game.ndim != 2 or game.shape[1] != 2 or voice_mono.shape[0] != game.shape[0]:
+        raise RuntimeError("Game must be stereo and match the voice timeline")
+    gain = voice_gain_bound(game, voice_mono, limiter)
+    actual_voice = voice_mono * gain
+    mixed = game + actual_voice[:, None]
+    return mixed, {
+        "gain": 1.0, "game_gain": 1.0, "voice_gain": gain,
         "game_peak": float(np.max(np.abs(game))) if game.size else 0.0,
-        "voice_peak": float(np.max(np.abs(voice_mono))) if voice_mono.size else 0.0,
-        "sum_peak_before_gain": peak,
-        "gain": gain,
+        "voice_peak": float(np.max(np.abs(actual_voice))) if actual_voice.size else 0.0,
+        "sum_peak_before_gain": float(np.max(np.abs(game + voice_mono[:, None]))) if game.size else 0.0,
         "mix_peak": float(np.max(np.abs(mixed))) if mixed.size else 0.0,
-        "clipping_samples": int(np.sum(np.abs(mixed) >= 0.999)),
-        "voice_placement": "copied to L and R at full amplitude, not attenuated by 1/sqrt(2)",
+        "clipping_samples": int(np.count_nonzero((np.abs(mixed) >= 0.999) & (np.abs(game) < 0.999))),
+        "source_headroom_ok": not np.any(np.abs(game) > limiter),
+        "voice_placement": "voice gain only; game unchanged",
     }
-    return mixed.astype(np.float32), info

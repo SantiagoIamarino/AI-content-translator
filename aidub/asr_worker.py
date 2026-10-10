@@ -1,45 +1,41 @@
-"""Whisper Turbo worker. Launch with the Whisper interpreter, not the Qwen one.
-
-Stdin and stdout are JSON lines. The model stays loaded until shutdown.
-"""
-
+"""Only protocol JSON goes to stdout; library chatter and errors go to stderr."""
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
+import traceback
+from pathlib import Path
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="turbo")
+    parser.add_argument("--model", required=True)
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args()
-    import whisper
-
-    model = whisper.load_model(args.model, device=args.device)
-    sys.stdout.write(json.dumps({"ready": True, "device": args.device, "model": args.model}) + "\n")
-    sys.stdout.flush()
+    if not Path(args.model).is_file():
+        raise RuntimeError("Whisper requires a pre-existing local weights file; downloads are disabled.")
+    with contextlib.redirect_stdout(sys.stderr):
+        import whisper
+        model = whisper.load_model(args.model, device=args.device)
+    def emit(data):
+        sys.stdout.write(json.dumps(data, ensure_ascii=False) + "\n")
+        sys.stdout.flush()
+    emit({"ready": True, "model": args.model, "device": args.device})
     for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
         msg = json.loads(line)
         if msg.get("cmd") == "shutdown":
             break
-        path = msg["path"]
-        language = msg.get("language") or None
         try:
-            kwargs = {"fp16": args.device.startswith("cuda"), "verbose": False}
-            if language:
-                kwargs["language"] = language
-            result = model.transcribe(path, **kwargs)
-            text = (result.get("text") or "").strip()
-            payload = {"text": text, "language": result.get("language") or language}
+            with contextlib.redirect_stdout(sys.stderr):
+                result = model.transcribe(msg["path"], fp16=args.device.startswith("cuda"), verbose=False,
+                                          language=msg.get("language") or None,
+                                          word_timestamps=bool(msg.get("word_timestamps")))
+            emit(result if msg.get("full_result") else {"text": (result.get("text") or "").strip(), "language": result.get("language")})
         except Exception as exc:
-            payload = {"error": f"{type(exc).__name__}: {exc}"}
-        sys.stdout.write(json.dumps(payload) + "\n")
-        sys.stdout.flush()
+            traceback.print_exc(file=sys.stderr)
+            emit({"error": f"{type(exc).__name__}: {exc}"})
     return 0
 
 

@@ -1,6 +1,9 @@
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
-from .util import read_json
+from .util import read_json, sha256_bytes
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CONFIRMED_REFERENCE_TEXT = (
@@ -11,7 +14,10 @@ CONFIRMED_REFERENCE_TEXT = (
 
 
 def load_config(path: Path | None = None) -> dict:
-    cfg_path = path or (PROJECT_ROOT / "config" / "default.json")
+    cfg_path = path or (Path(os.environ["AIDUB_CONFIG"]) if os.environ.get("AIDUB_CONFIG") else
+                        PROJECT_ROOT / "config" / "local.json" if (PROJECT_ROOT / "config/local.json").is_file() else
+                        PROJECT_ROOT / "config" / "default.json")
+    cfg_path = Path(cfg_path).expanduser()
     cfg = read_json(cfg_path)
     cfg["_config_path"] = str(cfg_path.resolve())
     cfg["_project_root"] = str(PROJECT_ROOT)
@@ -19,7 +25,7 @@ def load_config(path: Path | None = None) -> dict:
 
 
 def resolve_path(cfg: dict, value: str) -> Path:
-    path = Path(value)
+    path = Path(value).expanduser()
     if path.is_absolute():
         return path
     return Path(cfg["_project_root"]) / path
@@ -50,5 +56,102 @@ def require_schedule_defaults(cfg: dict) -> None:
         raise RuntimeError("Refusing to change Qwen dtype or attention.")
     if q["language"] != "English" or q["x_vector_only_mode"] is not False:
         raise RuntimeError("Qwen must stay English ICL with x_vector_only_mode false.")
-    if reference_text(cfg) != CONFIRMED_REFERENCE_TEXT:
+    expected_hash = cfg["reference"].get("expected_text_sha256")
+    matches = sha256_bytes(reference_text(cfg).encode()) == expected_hash if expected_hash else reference_text(cfg) == CONFIRMED_REFERENCE_TEXT
+    if not matches:
         raise RuntimeError("Reference transcript does not match the user-confirmed text.")
+
+
+def executable(cfg: dict, key: str) -> str:
+    value = cfg["executables"].get(key) or ""
+    path = shutil.which(value) if "/" not in value else str(resolve_path(cfg, value))
+    if not path or not Path(path).is_file() or not os.access(path, os.X_OK):
+        raise RuntimeError(f"Missing executable {key}: {value!r}. Set executables.{key} in your local config.")
+    return path
+
+
+def whisper_model_file(cfg: dict) -> Path:
+    explicit = (cfg.get("models") or {}).get("whisper_path")
+    if explicit:
+        path = resolve_path(cfg, explicit)
+    else:
+        model = cfg["whisper"]["model"]
+        if Path(model).is_file():
+            path = Path(model)
+        else:
+            name = {"turbo": "large-v3-turbo", "large": "large-v3"}.get(model, model)
+            root = Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "whisper"
+            path = root / f"{name}.pt"
+    if not path.is_file():
+        raise RuntimeError(f"Missing local Whisper weights: {path}. Configure models.whisper_path; aidub will not download them.")
+    return path
+
+
+def qwen_snapshot(cfg: dict) -> str:
+    explicit = (cfg.get("models") or {}).get("qwen_path")
+    if explicit:
+        path = resolve_path(cfg, explicit)
+    else:
+        from .synth import resolve_local_snapshot
+        path = Path(resolve_local_snapshot(cfg["qwen3"]["model_id"]))
+    index = path / "model.safetensors.index.json"
+    weights = [path / p for p in set(read_json(index).get("weight_map", {}).values())] if index.is_file() else [path / "model.safetensors"]
+    if not (path / "config.json").is_file() or not weights or not all(p.is_file() and p.stat().st_size for p in weights):
+        raise RuntimeError(f"Incomplete Qwen snapshot: {path}. Expected config.json and every required safetensors weight file.")
+    return str(path)
+
+
+def require_synthesis_ready(cfg: dict) -> None:
+    """Check paid-call prerequisites without changing a legacy job's identities."""
+    if not resolve_path(cfg, cfg["reference"]["wav"]).is_file():
+        raise RuntimeError("Missing reference.wav; no provider call was made")
+    qwen_snapshot(cfg)
+    verification_model_file(cfg)
+    python = executable(cfg, "python_qwen")
+    check = subprocess.run([python, "-c", "import torch; print(torch.cuda.is_available())"],
+                           text=True, capture_output=True, timeout=60)
+    if check.returncode or check.stdout.strip() != "True":
+        raise RuntimeError(f"CUDA is unavailable in the configured Qwen environment. No provider call was made. {check.stderr[-1000:]}")
+
+
+def preflight(cfg: dict, *, providers_needed: bool = False) -> None:
+    for key in ("python_qwen", "whisper", "ffmpeg", "ffprobe"):
+        cfg["executables"][key] = executable(cfg, key)
+    if not resolve_path(cfg, cfg["reference"]["wav"]).is_file():
+        raise RuntimeError("Missing reference.wav. Configure a local voice reference; audio is not included in Git.")
+    require_schedule_defaults(cfg)
+    whisper_model_file(cfg)
+    verification_model_file(cfg)
+    snapshot = Path(qwen_snapshot(cfg))
+    # Freeze the local snapshot for new jobs; legacy job cache keys stay valid.
+    cfg.setdefault("models", {})["qwen_path"] = str(snapshot)
+    cfg["models"]["whisper_path"] = str(whisper_model_file(cfg))
+    if "model_revision" not in cfg["qwen3"]:
+        if len(snapshot.name) == 40 and all(c in "0123456789abcdef" for c in snapshot.name):
+            revision = snapshot.name
+        else:
+            from .verification import file_identity
+            from .util import fingerprint
+            revision = fingerprint([file_identity(p) for p in sorted(snapshot.glob("*.safetensors"))] + [file_identity(snapshot / "config.json")])
+        cfg["qwen3"]["model_revision"] = revision
+    require_synthesis_ready(cfg)
+    from .streaming import block_frames
+    block_frames(cfg)
+    if providers_needed:
+        from .providers import require_provider, validate_provider_config
+        for role in ("translation", "repair"):
+            validate_provider_config(require_provider((cfg.get("providers") or {}).get(role), role))
+
+
+def verification_model_file(cfg: dict) -> Path:
+    quality = cfg.get("quality") or {}
+    effective = dict(cfg)
+    effective["whisper"] = dict(cfg["whisper"])
+    effective["models"] = dict(cfg.get("models") or {})
+    if quality.get("asr_model"):
+        effective["whisper"]["model"] = quality["asr_model"]
+        if quality["asr_model"] != cfg["whisper"]["model"]:
+            effective["models"].pop("whisper_path", None)
+    if quality.get("asr_model_path"):
+        effective["models"]["whisper_path"] = quality["asr_model_path"]
+    return whisper_model_file(effective)
