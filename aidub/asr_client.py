@@ -26,7 +26,11 @@ class AsrClient:
             [self.python, "-m", "aidub.asr_worker", "--model", self.model, "--device", self.device],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            # Whisper can emit progress updates for each candidate even with
+            # verbose=False. This stream is intentionally not consumed by the
+            # JSON-lines client, so piping it can eventually fill the OS pipe
+            # and deadlock the worker while the parent waits for JSON on stdout.
+            stderr=subprocess.DEVNULL,
             text=True,
             env=env,
         )

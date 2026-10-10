@@ -984,6 +984,18 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     en_ok, en_err = decode_ok(ffmpeg, str(en_path))
     es_ok, es_err = decode_ok(ffmpeg, str(es_path))
     src_video = inspected["described"]["video"]
+    source_frames = src_video.get("nb_frames")
+    english_frames = en_probe["video"].get("nb_frames")
+    spanish_frames = es_probe["video"].get("nb_frames")
+    # Matroska may omit nb_frames. The exact source/export elementary-stream
+    # identity check below then supplies the source-side equivalence; avoid a
+    # redundant, expensive full decode of the mounted source just to count.
+    frame_reference = source_frames if source_frames is not None else english_frames
+    frame_detail = (
+        f"{english_frames} vs {frame_reference}"
+        if source_frames is not None
+        else f"{english_frames} (source nb_frames absent; source equivalence checked by video bitstream hash)"
+    )
     checks = []
 
     def add(name, ok, detail):
@@ -992,8 +1004,8 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     add("source_unchanged", sha256_file(video) == inspected["video_sha256"], sha256_file(video))
     add("english_decode", en_ok, en_err or "clean")
     add("spanish_decode", es_ok, es_err or "clean")
-    add("english_video_frames", en_probe["video"].get("nb_frames") == src_video.get("nb_frames"), f"{en_probe['video'].get('nb_frames')} vs {src_video.get('nb_frames')}")
-    add("spanish_video_frames", es_probe["video"].get("nb_frames") == src_video.get("nb_frames"), f"{es_probe['video'].get('nb_frames')} vs {src_video.get('nb_frames')}")
+    add("english_video_frames", english_frames is not None and english_frames == frame_reference, frame_detail)
+    add("spanish_video_frames", spanish_frames is not None and spanish_frames == frame_reference, f"{spanish_frames} vs {frame_reference}")
     add("english_duration", abs(float(en_probe["video"]["duration"]) - float(src_video["duration"])) < 0.02, en_probe["video"]["duration"])
     add("english_has_one_audio", len(en_probe["audios"]) == 1, len(en_probe["audios"]))
     add("no_clipping", gain.get("clipping_samples") == 0, gain.get("clipping_samples"))

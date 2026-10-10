@@ -33,6 +33,11 @@ def _rate(value: str | None) -> float | None:
 
 def describe_streams(probe_doc: dict) -> dict:
     streams = probe_doc.get("streams") or []
+    format_duration = (probe_doc.get("format") or {}).get("duration")
+    if format_duration not in (None, "N/A"):
+        format_duration = float(format_duration)
+    else:
+        format_duration = None
     videos = []
     audios = []
     for stream in streams:
@@ -44,6 +49,8 @@ def describe_streams(probe_doc: dict) -> dict:
             nb_frames = int(nb) if nb and nb != "N/A" else None
             if duration is None and nb_frames and fps:
                 duration = nb_frames / fps
+            if duration is None:
+                duration = format_duration
             videos.append({
                 "absolute_index": int(stream["index"]),
                 "codec_name": stream.get("codec_name"),
