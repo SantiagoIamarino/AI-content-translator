@@ -64,6 +64,19 @@ def _kind(spec: dict | None) -> str:
     return str(spec.get("kind") or "unconfigured")
 
 
+def resolve_role(providers: dict, role: str) -> dict | None:
+    """An explicit {"kind": "same_as", "role": OTHER} entry reuses that configured provider."""
+    spec = (providers or {}).get(role)
+    seen = {role}
+    while isinstance(spec, dict) and spec.get("kind") == "same_as":
+        target = str(spec.get("role") or "")
+        if target in seen:
+            raise ProviderError(f"Provider alias cycle for role {role}")
+        seen.add(target)
+        spec = (providers or {}).get(target)
+    return spec
+
+
 def require_provider(spec: dict | None, role: str) -> dict:
     kind = _kind(spec)
     if kind in {"", "unconfigured", "none"}:
@@ -247,6 +260,15 @@ def response_errors(request: dict, response: dict, role: str, current: dict | No
         return ["response must be an object"]
     if role == "repair":
         return validate_repair_response(request, response, current or {})
+    if role == "context":
+        from .context import validate_context_response
+        return validate_context_response(request, response)
+    if role == "review":
+        from .review import validate_review_response
+        return validate_review_response(request, response, current or {})
+    if role == "back_translation":
+        from .review import validate_back_translation_response
+        return validate_back_translation_response(request, response)
     return validate_translation_response(request, response)
 
 

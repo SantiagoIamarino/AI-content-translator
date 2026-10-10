@@ -203,6 +203,42 @@ def safety_fade(wav: np.ndarray, sr: int, fade_ms: float = 8.0, guard: float = 0
     return x * env, {"edge": "safety_fade", "fade_ms": fade_ms}
 
 
+def adaptive_margins(mono: np.ndarray, sr: int, bounds: tuple[int, int], *, base_lead_ms: float, base_tail_ms: float,
+                     floor_rms: float, max_lead_ms: float, max_tail_ms: float, win_sec: float = 0.01) -> tuple[float, float, dict]:
+    """Extend the quiet margins while sound stays above a low floor, so soft onsets and decays stay whole.
+
+    The fixed RMS core is unchanged; this only decides how much of the quieter
+    surrounding signal is kept. A zero floor or maximum keeps the base margins.
+    """
+    first, last = bounds
+    lead, tail = float(base_lead_ms), float(base_tail_ms)
+    info = {"lead_extension_ms": 0.0, "tail_extension_ms": 0.0}
+    if floor_rms <= 0 or (max_lead_ms <= base_lead_ms and max_tail_ms <= base_tail_ms):
+        return lead, tail, info
+    win = max(1, int(sr * win_sec))
+    lo = max(0, first - int(sr * max_lead_ms / 1000.0) - win)
+    hi = min(mono.size, last + int(sr * max_tail_ms / 1000.0) + win)
+    region = mono[lo:hi].astype(np.float64)
+    energy = np.convolve(region * region, np.ones(win) / win, mode="same")
+    above = energy > floor_rms ** 2
+    k = first - lo
+    limit = max(0, k - int(sr * max_lead_ms / 1000.0))
+    while k > limit and above[k - 1]:
+        k -= 1
+    measured_lead = (first - lo - k) * 1000.0 / sr
+    k = last - lo
+    limit = min(above.size, k + int(sr * max_tail_ms / 1000.0))
+    while k < limit and above[k]:
+        k += 1
+    measured_tail = (k - (last - lo)) * 1000.0 / sr
+    lead = max(lead, min(float(max_lead_ms), measured_lead))
+    tail = max(tail, min(float(max_tail_ms), measured_tail))
+    info = {"lead_extension_ms": round(max(0.0, lead - base_lead_ms), 2),
+            "tail_extension_ms": round(max(0.0, tail - base_tail_ms), 2),
+            "measured_lead_ms": round(measured_lead, 2), "measured_tail_ms": round(measured_tail, 2)}
+    return lead, tail, info
+
+
 def margin_budget_ms(core_sec: float, window_sec: float, lead_ms: float, tail_ms: float, lead_room_ms: float) -> tuple[float, float]:
     """Fit quiet margins into leftover time. Tail is dropped before the lead."""
     tail_room_ms = max(0.0, (window_sec - core_sec) * 1000.0)

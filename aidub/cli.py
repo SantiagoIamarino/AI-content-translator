@@ -3,7 +3,7 @@ import sys
 from contextlib import nullcontext
 from pathlib import Path
 
-from .config import load_config, preflight, require_schedule_defaults, resolve_path
+from .config import apply_preset, load_config, load_preset, preflight, require_schedule_defaults, resolve_path
 from .job import Job, JobLock
 from .pipeline import accept_repair, accept_translation, export_repair, export_translation, job_path, next_hint, run_job
 from .providers import ProviderError
@@ -21,6 +21,8 @@ def _job(cfg, name: str) -> Job:
 
 def cmd_init(args, *, cfg=None, lock=None) -> int:
     cfg = cfg if cfg is not None else _cfg(args)
+    if getattr(args, "preset", None):
+        cfg = apply_preset(cfg, load_preset(args.preset))
     video = Path(args.video).expanduser().resolve()
     if not video.is_file():
         print(f"Video not found: {video}", file=sys.stderr)
@@ -74,6 +76,7 @@ def cmd_auto(args) -> int:
             mic=args.mic_ordinal,
             game=args.game_ordinal,
             mixed=args.mixed_ordinal,
+            preset=args.preset,
         )
     except ProviderError as exc:
         print(str(exc), file=sys.stderr)
@@ -152,6 +155,17 @@ def cmd_accept_repair(args) -> int:
     return 0
 
 
+def cmd_asr_compare(args) -> int:
+    from .asr_compare import compare_models
+    cfg = _cfg(args)
+    job = _job(cfg, args.job)
+    with JobLock(job.dir):
+        job = Job(job.dir)
+        path = compare_models(job, job.config(), [m.strip() for m in args.models.split(",") if m.strip()])
+    print(path)
+    return 0
+
+
 def cmd_validate(args) -> int:
     cfg = _cfg(args)
     job = _job(cfg, args.job)
@@ -180,6 +194,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--mic-ordinal", type=int)
     init.add_argument("--game-ordinal", type=int)
     init.add_argument("--mixed-ordinal", type=int)
+    init.add_argument("--preset", default=None, help="overlay config/presets/NAME.json when creating the job (e.g. quality)")
     init.set_defaults(func=cmd_init)
 
     auto = sub.add_parser("auto", help="unattended init, provider handoffs, resume, and validate")
@@ -188,7 +203,13 @@ def build_parser() -> argparse.ArgumentParser:
     auto.add_argument("--mic-ordinal", type=int)
     auto.add_argument("--game-ordinal", type=int)
     auto.add_argument("--mixed-ordinal", type=int)
+    auto.add_argument("--preset", default=None, help="overlay config/presets/NAME.json when creating the job (e.g. quality)")
     auto.set_defaults(func=cmd_auto)
+
+    asr = sub.add_parser("asr-compare", help="compare Whisper models on a job's cues and second-pass spans")
+    asr.add_argument("job")
+    asr.add_argument("--models", default="turbo,large-v3")
+    asr.set_defaults(func=cmd_asr_compare)
 
     run = sub.add_parser("run", help="run ready stages until done or a handoff")
     run.add_argument("job")

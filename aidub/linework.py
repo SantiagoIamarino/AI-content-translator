@@ -132,5 +132,73 @@ def collect_line(
     return {"chosen": chosen, "attempts": attempts, "needs_repair": needs_repair, "skip": None}
 
 
+def collect_line_best_of_n(
+    seg: dict,
+    *,
+    occupied: float,
+    next_start: float,
+    source_duration: float,
+    cfg: dict,
+    synthesize,
+    assess,
+    attempt_fn,
+    revision_limit_n: int,
+    score,
+    candidates: int,
+    max_extra: int,
+) -> dict:
+    """Generate N valid takes (extra seeds replace failures), score every valid take, then choose.
+
+    Placeable takes are preferred; among them the lowest evidence score wins.
+    """
+    revisions = seg.get("revisions") or []
+    if any(r.get("action") == "leave_unresolved" for r in revisions):
+        return {"skip": "leave_unresolved", "attempts": [], "needs_repair": False, "chosen": None}
+    text = seg["english"]
+    primary = primary_seed(cfg["schedule"]["seed_base"], seg["id"])
+    base_kind = "compact_revision" if revisions else "primary"
+    attempts, valid = [], []
+    budget = int(candidates) + int(max_extra)
+    for index in range(budget):
+        if len(valid) >= int(candidates):
+            break
+        seed = int(primary) + 1000 * index
+        meta = synthesize(text, seed)
+        quality = assess(meta, text)
+        kind = base_kind if index == 0 else "candidate"
+        attempt = attempt_fn(seg, text, seed, kind, meta, occupied, next_start, source_duration)
+        attempt["quality"] = quality
+        attempts.append(attempt)
+        if quality.get("ok"):
+            attempt["selection"] = score(attempt)
+            valid.append(attempt)
+    summary = {"generated": len(attempts), "valid": len(valid), "requested": int(candidates)}
+    if not valid:
+        failed = _quality_failure(attempts[-1] if attempts else {"quality": {"reasons": ["quality_rejected"]}})
+        failed["selection_summary"] = summary
+        return {"chosen": failed, "attempts": attempts, "needs_repair": False, "skip": None}
+    from .selection import choose
+    chosen = dict(choose(valid))
+    if not chosen["placed"]:
+        shortest = min(valid, key=lambda a: float(a["generated_duration_sec"]))
+        shift = leading_shift(float(seg["start"]), float(shortest["generated_duration_sec"]), occupied, next_start,
+                              float((cfg.get("fit_retries") or {}).get("max_leading_shift_sec", 0.4)))
+        if shift > 0:
+            chosen = dict(shortest)
+            chosen["placement_start"] = float(seg["start"]) - shift
+            chosen["placed"] = True
+            chosen["status"] = "spill_into_leading_silence"
+            chosen["timing_error"] = ""
+            chosen["leading_shift_sec"] = shift
+    ranked = sorted(valid, key=lambda a: a["selection"]["score"])
+    summary["chosen"] = dict(chosen["selection"], seed=chosen["seed"], kind=chosen["kind"])
+    summary["ranking"] = [{"seed": a["seed"], "score": a["selection"]["score"], "placed": a["placed"],
+                           "tempo": a.get("tempo")} for a in ranked]
+    summary["margin_to_next"] = round(ranked[1]["selection"]["score"] - ranked[0]["selection"]["score"], 4) if len(ranked) > 1 else None
+    chosen["selection_summary"] = summary
+    needs_repair = (not chosen["placed"]) and len(revisions) < int(revision_limit_n)
+    return {"chosen": chosen, "attempts": attempts, "needs_repair": needs_repair, "skip": None}
+
+
 def seed_is_alternate(seed_base: int, seg_id: int, offset: int, seed: int) -> bool:
     return int(seed) == alternate_seed(seed_base, seg_id, offset)

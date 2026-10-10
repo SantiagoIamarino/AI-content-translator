@@ -9,6 +9,17 @@ import traceback
 from pathlib import Path
 
 
+DECODE_OPTIONS = {"condition_on_previous_text", "beam_size", "best_of", "temperature", "initial_prompt", "patience",
+                  "no_speech_threshold", "compression_ratio_threshold", "logprob_threshold", "hallucination_silence_threshold"}
+
+
+def decode_options(raw) -> dict:
+    options = {k: v for k, v in (raw or {}).items() if k in DECODE_OPTIONS}
+    if isinstance(options.get("temperature"), list):
+        options["temperature"] = tuple(float(t) for t in options["temperature"])
+    return options
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
@@ -31,7 +42,8 @@ def main() -> int:
             with contextlib.redirect_stdout(sys.stderr):
                 result = model.transcribe(msg["path"], fp16=args.device.startswith("cuda"), verbose=False,
                                           language=msg.get("language") or None,
-                                          word_timestamps=bool(msg.get("word_timestamps")))
+                                          word_timestamps=bool(msg.get("word_timestamps")),
+                                          **decode_options(msg.get("options")))
             emit(result if msg.get("full_result") else {"text": (result.get("text") or "").strip(), "language": result.get("language")})
         except Exception as exc:
             traceback.print_exc(file=sys.stderr)

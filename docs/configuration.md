@@ -19,6 +19,16 @@ New `init` checks executable permissions, reference approval, local source/verif
 | `segmentation` | Locked RMS/onset/merge settings; `quiet_speech_heuristic`; `untranscribed_energy_policy=partial` or explicit reviewed `warn` |
 | `mix` | `limiter=0.99` voice sum ceiling; `min_voice_gain=0.1`; `headroom_policy=partial` or `fail`. Game gain is always 1 |
 | `export` | `container=mp4` or `mkv`; no picture re-encoding |
+| `whisper.decode_options` | Optional source-ASR decoding (`condition_on_previous_text`, `beam_size`, `best_of`, `temperature`, `initial_prompt`, ...). Absent means the previous Whisper defaults |
+| `asr_second_pass` | Quality preset: `enabled`, `model`/`model_path` (local weights only), `device`, padding and acceptance thresholds, decoding `options` |
+| `translation_quality` | Quality preset: `english_syllables_per_sec`, context size, neighbours, utterance grouping, `join` (short-pause takes), `review` (`max_rounds` 1..4, `back_translation=disputed` or `off`) |
+| `voice_selection` | Quality preset: best-of-N `candidates` (1..8), `max_extra_attempts` (0..8), pacing bands, score weights |
+| `voice_edge.presentation_version` | `2` applies margins, loudness, tempo and window bound identically to every take; `adaptive` margin floor/maxima; `source_loudness` slope and ±dB bound. Absent keeps the legacy path for old snapshots |
+| `quality.text_checker` | `sequence-v1` for sequence-aware synthesized-text checks; `second_verification` re-hears disputed takes once |
+| `risk_report` | `enabled`, number of `excerpts`, `previews` |
+| `providers.context/review/back_translation` | Full specs or explicit `{"kind": "same_as", "role": "translation"}` aliases |
+
+Presets live in `config/presets/`. `init`/`auto --preset NAME` merges each preset group one level deep into the selected config before the snapshot is written; a preset given for an existing job is ignored with a notice.
 
 Qwen model, dtype, attention, English ICL, original trim RMS/window/pad, and tempo 1.10 remain fixed. New jobs freeze the local Qwen snapshot revision and model paths. Legacy jobs do not acquire a new synthesis revision key automatically.
 

@@ -197,11 +197,26 @@ def assess_candidate(
     asr_skipped: bool = False,
     min_speaker_features: int = 2,
     speaker_proxy_enabled: bool = True,
+    text_checker: str = "",
+    names: list[str] | None = None,
+    pacing_opts: dict | None = None,
 ) -> dict:
     result = assess_waveform(wav, sr, reference, min_speaker_features=min_speaker_features)
     if not speaker_proxy_enabled:
         result["reasons"] = [r for r in result["reasons"] if r != "wrong_speaker"]
-    extra = text_issues(text, asr_text, asr_language)
+    if text_checker == "sequence-v1":
+        from .textnorm import sequence_check
+        check = sequence_check(text, asr_text, language=asr_language, names=names)
+        result["text_check"] = check
+        result["disputed"] = bool(check["soft"]) and not check["hard"]
+        extra = list(check["hard"])
+    else:
+        extra = text_issues(text, asr_text, asr_language)
+    if pacing_opts is not None:
+        from .selection import pacing, pacing_issues
+        mono = to_mono(wav) if np.asarray(wav).ndim > 1 else np.asarray(wav, dtype=np.float32)
+        result["pacing"] = pacing(mono, sr, text)
+        extra += pacing_issues(result["pacing"], pacing_opts)
     reasons = list(result["reasons"])
     for item in extra:
         if item not in reasons:

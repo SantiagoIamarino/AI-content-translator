@@ -122,6 +122,8 @@ def preflight(cfg: dict, *, providers_needed: bool = False) -> None:
     require_schedule_defaults(cfg)
     whisper_model_file(cfg)
     verification_model_file(cfg)
+    if (cfg.get("asr_second_pass") or {}).get("enabled"):
+        second_pass_model_file(cfg)
     snapshot = Path(qwen_snapshot(cfg))
     # Freeze the local snapshot for new jobs; legacy job cache keys stay valid.
     cfg.setdefault("models", {})["qwen_path"] = str(snapshot)
@@ -141,6 +143,46 @@ def preflight(cfg: dict, *, providers_needed: bool = False) -> None:
         from .providers import require_provider, validate_provider_config
         for role in ("translation", "repair"):
             validate_provider_config(require_provider((cfg.get("providers") or {}).get(role), role))
+
+
+def named_whisper_model_file(cfg: dict, model: str, model_path: str = "") -> Path:
+    effective = dict(cfg)
+    effective["whisper"] = dict(cfg["whisper"], model=model or cfg["whisper"]["model"])
+    effective["models"] = {k: v for k, v in (cfg.get("models") or {}).items() if k != "whisper_path"}
+    if model_path:
+        effective["models"]["whisper_path"] = model_path
+    elif not model or model == cfg["whisper"]["model"]:
+        return whisper_model_file(cfg)
+    return whisper_model_file(effective)
+
+
+def second_pass_model_file(cfg: dict) -> Path:
+    block = cfg.get("asr_second_pass") or {}
+    return named_whisper_model_file(cfg, block.get("model") or "", block.get("model_path") or "")
+
+
+def load_preset(name: str) -> dict:
+    path = PROJECT_ROOT / "config" / "presets" / f"{name}.json"
+    if not path.is_file():
+        available = sorted(p.stem for p in (PROJECT_ROOT / "config/presets").glob("*.json"))
+        raise RuntimeError(f"Unknown preset {name!r}. Available: {available}")
+    return read_json(path)
+
+
+def apply_preset(cfg: dict, preset: dict) -> dict:
+    """Overlay preset groups onto the selected config. Nested objects merge one level deep."""
+    out = dict(cfg)
+    for key, value in preset.items():
+        if key.startswith("_"):
+            continue
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            merged = dict(out[key])
+            merged.update(value)
+            out[key] = merged
+        else:
+            out[key] = value
+    out["preset"] = preset.get("_name") or "custom"
+    return out
 
 
 def verification_model_file(cfg: dict) -> Path:

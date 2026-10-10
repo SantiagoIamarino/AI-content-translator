@@ -17,6 +17,8 @@ from .pipeline import (
 )
 from .providers import ProviderError, require_provider, validate_provider_config
 from .batches import invoke_batches
+from .context import settings as quality_settings
+from .quality_flow import translate_with_review, validate_quality_providers
 from .util import read_json, write_json
 
 
@@ -29,8 +31,11 @@ def _ordinals(cfg: dict, mic, game, mixed) -> None:
         cfg["audio_mapping"]["mixed_ordinal"] = mixed
 
 
-def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=None) -> int:
+def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=None, preset: str | None = None) -> int:
     cfg = json_copy(cfg)
+    if preset:
+        from .config import apply_preset, load_preset
+        cfg = apply_preset(cfg, load_preset(preset))
     _ordinals(cfg, mic, game, mixed)
     if not name.replace(".", "").replace("_", "").replace("-", "").isalnum():
         raise RuntimeError("Invalid job name")
@@ -51,6 +56,8 @@ def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=
         if Path(video).expanduser().resolve() != Path(job.data["video"]).resolve():
             raise RuntimeError("This job belongs to a different source video. Use its original path or a new job name.")
         stored = job.config()
+        if preset and stored.get("preset") != preset:
+            print(f"preset {preset!r} is applied only when a job is created; this job keeps its configuration snapshot")
         require_schedule_defaults(stored)
         stored.setdefault("unattended", {})["enabled"] = True
         providers = stored.get("providers") or cfg.get("providers") or {}
@@ -59,6 +66,7 @@ def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=
         try:
             for role in ("translation", "repair"):
                 validate_provider_config(require_provider(providers.get(role), role))
+            validate_quality_providers(stored, providers)
             for _ in range(int(stored["unattended"].get("max_handoff_rounds", 12))):
                 t0 = time.perf_counter()
                 code = run_job(job, lock=lock)
@@ -71,7 +79,7 @@ def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=
                     return code
                 rounds[role] += 1
                 current = {int(s["id"]): s.get("english") or "" for s in job.data["timeline"]} if role == "repair" else None
-                _handoff(job, role, providers[role], current)
+                _handoff(job, role, providers, current)
             raise ProviderError("Unattended run exceeded configured max_handoff_rounds. Check job diagnostics.")
         except KeyboardInterrupt:
             job = Job(dest)
@@ -89,13 +97,16 @@ def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=
             _write_timings(Job(dest), timings, rounds)
 
 
-def _handoff(job: Job, role: str, spec: dict, current: dict | None) -> None:
+def _handoff(job: Job, role: str, providers: dict, current: dict | None) -> None:
     t0 = time.perf_counter()
-    request = export_translation(job, job.config()) if role == "translation" else export_repair(job)
     cfg = job.config()
-    invoke_batches(spec, read_json(request), job.dir / "handoff", role, current, cfg,
-                   before_invoke=lambda: require_synthesis_ready(cfg))
-    response = job.dir / "handoff" / f"{role}_provider_response.json"
+    ready = lambda: require_synthesis_ready(cfg)
+    if role == "translation" and quality_settings(cfg):
+        response = translate_with_review(job, cfg, providers, export_translation, before_invoke=ready)
+    else:
+        request = export_translation(job, cfg) if role == "translation" else export_repair(job)
+        invoke_batches(providers[role], read_json(request), job.dir / "handoff", role, current, cfg, before_invoke=ready)
+        response = job.dir / "handoff" / f"{role}_provider_response.json"
     if role == "translation":
         accept_translation(job, response)
     else:

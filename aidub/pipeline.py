@@ -11,7 +11,9 @@ import numpy as np
 
 from .asr_client import AsrClient, whisper_python
 from .audio import (
+    adaptive_margins,
     atempo,
+    speech_bounds,
     margin_budget_ms,
     metrics,
     mix_game_and_voice,
@@ -22,7 +24,11 @@ from .audio import (
     trim_silence,
     write_wav,
 )
-from .config import jobs_dir, reference_text, require_schedule_defaults, resolve_path, whisper_model_file, verification_model_file
+from .config import jobs_dir, reference_text, require_schedule_defaults, resolve_path, second_pass_model_file, whisper_model_file, verification_model_file
+from .context import glossary_names, join_short_pauses, quality_translation_request, settings as quality_translation_settings, syllable_report
+from .second_pass import run_second_pass, settings as second_pass_settings, unreviewed_gaps
+from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
+from .textnorm import content_tokens, normalize_tokens
 from .export import decode_ok, mux_english_cmd, mux_spanish_cmd, place_voice, write_bilingual
 from .handoff import (
     repair_request,
@@ -32,7 +38,8 @@ from .handoff import (
 )
 from .job import Job, JobLock
 from .ledger import append_candidate, write_checkpoint
-from .linework import account_lines, collect_line, revision_limit
+from .linework import account_lines, collect_line, collect_line_best_of_n, revision_limit
+from .quality_flow import load_context as load_context_for
 from .media import align_to_video, assert_extract_preserves_origin, bitstream_md5, describe_streams, extract_audio_cmd, probe, resolve_ordinal, run_cmd, validate_container, frame_check, encoded_audio_metrics
 from .report import validation_markdown
 from .quality import assess_candidate, speaker_profile
@@ -223,9 +230,18 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
         "whisper": cfg["whisper"],
         "segmentation": segmentation_inputs,
     })
-    fp = fingerprint({"legacy_inputs": legacy_fp, "transcription": cfg.get("transcription"),
-                      "weights": file_identity(whisper_model_file(cfg)),
-                      "segmentation_version": 2})
+    fp_inputs = {"legacy_inputs": legacy_fp, "transcription": cfg.get("transcription"),
+                 "weights": file_identity(whisper_model_file(cfg)),
+                 "segmentation_version": 2}
+    second = second_pass_settings(cfg)
+    join = (quality_translation_settings(cfg).get("join") or {})
+    if second:
+        fp_inputs["second_pass"] = {"settings": second, "model": (cfg.get("asr_second_pass") or {}).get("model"),
+                                    "device": (cfg.get("asr_second_pass") or {}).get("device"),
+                                    "weights": file_identity(second_pass_model_file(cfg)), "version": 1}
+    if join.get("enabled"):
+        fp_inputs["utterance_join"] = join
+    fp = fingerprint(fp_inputs)
     files = ["transcribe/raw.json", "transcribe/segments.json", "transcribe/corrections.json", "timeline.json"]
     if _fp_ok(job, "transcribe", fp, files) or ("transcription" not in cfg and _fp_ok(job, "transcribe", legacy_fp, files)):
         print("transcribe: unchanged")
@@ -239,6 +255,23 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
     energy_key = fingerprint({"mic": alignment["mic_sha256"], "rms": cfg["segmentation"]["energy_rms"], "window": cfg["segmentation"]["energy_window_sec"], "version": 2})
     built = build_segments_file(raw, mic, cfg["segmentation"], offset_sec=float(alignment["offset_sec"]),
                                 index_path=out_dir / "energy" / f"{energy_key}.sqlite", block_frames=block_frames(cfg))
+    if second:
+        hearing = _SecondHearing(job, cfg)
+        try:
+            built = run_second_pass(job.dir, built, mic, float(alignment["offset_sec"]), cfg, hearing,
+                                    mic_sha=alignment["mic_sha256"])
+        finally:
+            hearing.close()
+    if join.get("enabled"):
+        joined, join_audit = join_short_pauses(
+            built["segments"], max_gap_sec=float(join.get("max_gap_sec", 0.35)),
+            open_gap_sec=float(join.get("open_gap_sec", 0.7)), max_duration_sec=float(join.get("max_duration_sec", 10.0)),
+            max_parts=int(join.get("max_parts", 3)))
+        for index, seg in enumerate(joined, start=1):
+            seg["id"] = index
+        built["segments"] = joined
+        built["merges"] = list(built.get("merges") or []) + join_audit
+        built["corrections"] = list(built.get("corrections") or []) + join_audit
     for seg in built["segments"]:
         seg["english"] = None
         seg["english_original"] = None
@@ -251,6 +284,7 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
         "uncertain": built["uncertain"],
         "untranscribed_energy": built["untranscribed_energy"],
         "dropped": built["dropped"],
+        **({"second_pass": "transcribe/second_pass.json"} if second else {}),
     })
     if not built["segments"]:
         raise RuntimeError("Transcription kept no segments. Inspect transcribe/corrections.json and stream mapping.")
@@ -267,6 +301,30 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
     job.save()
     print(f"transcribe: {len(built['segments'])} segments, {len(built['dropped'])} dropped, {len(built['uncertain'])} uncertain words")
     return built
+
+
+class _SecondHearing:
+    """One second-pass Whisper worker per transcribe stage, started on first use."""
+
+    def __init__(self, job: Job, cfg: dict):
+        self.job, self.cfg, self.client = job, cfg, None
+
+    def __call__(self, path: str, options: dict) -> dict:
+        if self.client is None:
+            block = self.cfg.get("asr_second_pass") or {}
+            budgets = self.cfg.get("timeouts") or {}
+            self.client = AsrClient(whisper_python(self.cfg["executables"]["whisper"]), model=str(second_pass_model_file(self.cfg)),
+                                    device=str(block.get("device") or self.cfg["whisper"]["device"]),
+                                    log_path=self.job.dir / "transcribe/second_pass_worker.log",
+                                    startup_timeout=float(budgets.get("worker_startup_sec", 180)),
+                                    request_timeout=float(budgets.get("asr_candidate_sec", 180)))
+        return self.client.transcribe(path, language=self.cfg["whisper"]["language"], word_timestamps=True,
+                                      full_result=True, options=options)
+
+    def close(self) -> None:
+        if self.client is not None:
+            self.client.close()
+            self.client = None
 
 
 def _timeline(job: Job) -> list[dict]:
@@ -290,13 +348,20 @@ def translation_fingerprint(segments: list[dict]) -> str:
     ])
 
 
-def restore_translation_if_response_matches(job: Job, segments: list[dict]) -> None:
+def build_translation_request(job: Job, cfg: dict | None, segments: list[dict], duration: float) -> dict:
+    if cfg is not None and quality_translation_settings(cfg):
+        from .quality_flow import load_context
+        return quality_translation_request(job.data["job_id"], segments, duration, cfg, load_context(job, cfg, segments))
+    return translation_request(job.data["job_id"], segments, duration)
+
+
+def restore_translation_if_response_matches(job: Job, segments: list[dict], cfg: dict | None = None) -> None:
     resp_path = job.dir / "handoff" / "translation_response.json"
     probe_path = job.dir / "inspect" / "probe.json"
     if not resp_path.is_file() or not probe_path.is_file() or not segments:
         return
     duration = read_json(probe_path)["described"]["video"]["duration"]
-    request = translation_request(job.data["job_id"], segments, duration)
+    request = build_translation_request(job, cfg, segments, duration)
     response = read_json(resp_path)
     expected = fingerprint(request)
     if response.get("_aidub_request_identity") != expected:
@@ -318,7 +383,7 @@ def export_translation(job: Job, cfg: dict) -> Path:
         raise RuntimeError("No transcript yet. Run the job until it reaches awaiting_translation.")
     inspected = read_json(job.dir / "inspect/probe.json")
     duration = inspected["described"]["video"]["duration"]
-    req = translation_request(job.data["job_id"], _timeline(job), duration)
+    req = build_translation_request(job, cfg, _timeline(job), duration)
     path = job.dir / "handoff" / "translation_request.json"
     write_json(path, req)
     return path
@@ -334,10 +399,20 @@ def accept_translation(job: Job, response_path: Path) -> None:
     if errors:
         raise RuntimeError("Translation response rejected:\n- " + "\n- ".join(errors))
     by_id = {row["id"]: row["english"].strip() for row in response["segments"]}
+    rows = {int(r["id"]): r for r in request["segments"]}
+    audit_path = job.dir / "handoff" / "translation_audit.json"
+    audit = read_json(audit_path) if audit_path.is_file() else {}
+    audit_lines = audit.get("lines") or {} if audit.get("request_identity") == fingerprint(request) else {}
     for seg in job.data["timeline"]:
         seg["english"] = by_id[int(seg["id"])]
         if not seg.get("english_original"):
             seg["english_original"] = seg["english"]
+        if "target_syllables" in rows[int(seg["id"])]:
+            seg["syllable_budget"] = syllable_report(seg["english"], rows[int(seg["id"])])
+        line = audit_lines.get(str(seg["id"]))
+        if line:
+            seg["translation_review"] = {"status": line.get("status"), "draft": line.get("draft"),
+                                         "issues": sorted({i for r in line.get("rounds") or [] for i in r.get("issues") or []})}
     dest = job.dir / "handoff" / "translation_response.json"
     response["_aidub_request_identity"] = fingerprint(request)
     write_json(dest, response)
@@ -356,7 +431,7 @@ def _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, n
     mono = to_mono(wav)
     trimmed, lead, trail = trim_silence(mono, sr, float(cfg["schedule"]["trim_rms"]), float(cfg["schedule"]["trim_pad_ms"]))
     work = job.dir / "schedule" / "work"
-    trim_path = work / f"segment_{int(seg['id']):03d}_{kind}_trim.wav"
+    trim_path = work / f"segment_{int(seg['id']):03d}_{kind}_{int(seed)}_trim.wav"
     write_wav(trim_path, trimmed, sr, subtype="FLOAT")
     trim_dur = trimmed.size / sr if sr else 0.0
     orig_avail = float(seg["end"]) - float(seg["start"])
@@ -367,7 +442,7 @@ def _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, n
     applied_tempo = 1.0
     if status == "needs_tempo":
         applied_tempo = tempo
-        tempo_path = work / f"segment_{int(seg['id']):03d}_{kind}_tempo.wav"
+        tempo_path = work / f"segment_{int(seg['id']):03d}_{kind}_{int(seed)}_tempo.wav"
         atempo(cfg["executables"]["ffmpeg"], trim_path, tempo_path, tempo, timeout=float((cfg.get("timeouts") or {}).get("tempo_sec", 180)))
         tw, tsr = read_audio(tempo_path)
         gen_dur = to_mono(tw).size / tsr
@@ -429,7 +504,18 @@ class _LineAssessor:
         self.disabled = False
         self.identity = verification_identity(cfg, ref_sha)
         self.last_asr_error = None
-        self.stats = {"asr_calls": 0, "quality_cache_hits": 0}
+        self.stats = {"asr_calls": 0, "quality_cache_hits": 0, "second_verifications": 0}
+        quality_cfg = cfg.get("quality") or {}
+        self.text_checker = str(quality_cfg.get("text_checker") or "")
+        self.second_verification = bool(quality_cfg.get("second_verification")) and self.text_checker == "sequence-v1"
+        selection = voice_selection_settings(cfg)
+        self.pacing_opts = selection or None
+        self.names: list[str] = []
+
+    def set_names(self, names: list[str]) -> None:
+        self.names = sorted(set(names))
+        if self.names:
+            self.identity = fingerprint({"verification": self.identity, "names": self.names})
 
     def __call__(self, meta: dict, text: str) -> dict:
         key = candidate_quality_key(meta, text, self.identity)
@@ -445,6 +531,7 @@ class _LineAssessor:
         wav, sr = read_audio(Path(meta["path"]))
         asr_text = None
         asr_language = None
+        asr_probability = None
         skipped = self.disabled
         if not self.disabled:
             try:
@@ -452,22 +539,41 @@ class _LineAssessor:
                 result = self._transcribe(str(meta["path"]))
                 asr_text = result.get("text")
                 asr_language = result.get("language")
+                asr_probability = result.get("mean_probability")
             except Exception as exc:
                 print(f"asr unavailable ({exc}); waveform checks still apply")
                 self.disabled = True
                 self.last_asr_error = str(exc)
                 skipped = True
-        result = assess_candidate(
-            to_mono(wav),
-            sr,
-            text,
-            self.profile,
-            asr_text=asr_text,
-            asr_language=asr_language,
-            asr_skipped=skipped,
+        kwargs = dict(
             min_speaker_features=int((self.cfg.get("quality") or {}).get("min_speaker_features", 2)),
             speaker_proxy_enabled=bool((self.cfg.get("quality") or {}).get("speaker_proxy_enabled", True)),
+            text_checker=self.text_checker, names=self.names, pacing_opts=self.pacing_opts,
         )
+        result = assess_candidate(to_mono(wav), sr, text, self.profile, asr_text=asr_text, asr_language=asr_language,
+                                  asr_skipped=skipped, **kwargs)
+        result["asr_mean_probability"] = asr_probability
+        if self.second_verification and result.get("disputed") and result.get("ok") and not self.disabled:
+            try:
+                self.stats["second_verifications"] += 1
+                again = self._transcribe(str(meta["path"]), second=True)
+                second = assess_candidate(to_mono(wav), sr, text, self.profile, asr_text=again.get("text"),
+                                          asr_language=again.get("language"), **kwargs)
+                result["second_verification"] = {"asr_text": again.get("text"), "text_check": second.get("text_check"),
+                                                 "mean_probability": again.get("mean_probability")}
+                hard = (second.get("text_check") or {}).get("hard") or []
+                if hard:
+                    result["reasons"] = list(result["reasons"]) + [f"second_{h}" for h in hard]
+                    result["ok"] = False
+                elif not (second.get("text_check") or {}).get("soft"):
+                    result["disputed"] = False
+                    result["text_check"] = dict(second["text_check"], first_hearing=result.get("text_check"))
+                elif len(content_tokens(normalize_tokens(text))) <= 2:
+                    result["short_phrase_unverified"] = True
+                else:
+                    result["text_disputed"] = True
+            except Exception as exc:
+                result["second_verification"] = {"error": str(exc)}
         key = candidate_quality_key(meta, text, self.identity)
         path = self.job.dir / "cache/quality" / f"{key}.json"
         result["verification_key"] = key
@@ -477,10 +583,24 @@ class _LineAssessor:
             write_json(path, result)
         return result
 
-    def _transcribe(self, path: str) -> dict:
+    def _transcribe(self, path: str, second: bool = False) -> dict:
         lang = (self.cfg.get("quality") or {}).get("asr_language") or None
+        if self.text_checker == "sequence-v1":
+            options = {"condition_on_previous_text": False}
+            if second:
+                lang = "en"
+                options.update(beam_size=5, best_of=5, temperature=0.0)
+            raw = self._call(path, lang, options)
+            words = [w for seg in raw.get("segments") or [] for w in seg.get("words") or []]
+            probs = [float(w.get("probability") or 0.0) for w in words]
+            return {"text": (raw.get("text") or "").strip(), "language": raw.get("language"),
+                    "mean_probability": round(sum(probs) / len(probs), 4) if probs else None}
+        return self._call(path, lang, None)
+
+    def _call(self, path: str, lang: str | None, options: dict | None) -> dict:
+        full = options is not None
         try:
-            return self._client().transcribe(path, language=lang or "")
+            return self._client().transcribe(path, language=lang or "", word_timestamps=full, full_result=full, options=options)
         except Exception:
             if self.device == "cpu":
                 raise
@@ -492,7 +612,7 @@ class _LineAssessor:
             effective = copy.deepcopy(self.cfg)
             effective.setdefault("quality", {})["asr_device"] = "cpu"
             self.identity = verification_identity(effective, self.ref_sha)
-            return self._client().transcribe(path, language=lang or "")
+            return self._client().transcribe(path, language=lang or "", word_timestamps=full, full_result=full, options=options)
 
     def _client(self) -> AsrClient:
         if self.client is None or self.client.proc is None or self.client.proc.poll() is not None:
@@ -535,6 +655,9 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         "revision_limit": revision_limit(cfg),
         "verification_identity": verification_identity(cfg, ref_sha),
         "schedule_version": 2,
+        **({"voice_selection": voice_selection_settings(cfg), "selection_code": sha256_file(Path(__file__).with_name("selection.py"))}
+           if voice_selection_settings(cfg) else {}),
+        **({"context": (load_context_for(job, cfg, segments) or {}).get("identity")} if quality_translation_settings(cfg) else {}),
     })
     summary_path = job.dir / "schedule" / "summary.json"
     if _fp_ok(job, "schedule", fp, ["schedule/summary.json"]):
@@ -558,6 +681,16 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
     profile = speaker_profile(to_mono(ref_wav_audio), ref_sr)
     target_rms = float(profile["rms"]) if profile.get("rms") else None
     assessor = _LineAssessor(job, cfg, profile, ref_sha)
+    if quality_translation_settings(cfg):
+        assessor.set_names(glossary_names(load_context_for(job, cfg, segments)))
+    selection = voice_selection_settings(cfg)
+    chosen_profiles: list[dict] = []
+    loudness = source_loudness(job, cfg, segments)
+
+    def score(attempt: dict) -> dict:
+        raw, raw_sr = read_audio(Path(attempt["raw_path"]))
+        pace = take_pacing(to_mono(raw), raw_sr, attempt["text"], float(cfg["schedule"]["trim_rms"]), float(attempt.get("tempo") or 1.0))
+        return score_take(attempt, pace, profile, running_profile(chosen_profiles), selection)
     prior = read_json(summary_path) if summary_path.is_file() else {"segments": []}
     prior_attempts = {int(s["id"]): list(s.get("attempts") or []) for s in prior.get("segments") or []}
     ordered = sorted(segments, key=lambda s: (float(s["start"]), int(s["id"])))
@@ -591,23 +724,25 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
                 item["attempts"] = attempts
                 scheduled.append(item)
                 continue
-            result = collect_line(
-                seg,
-                occupied=occupied,
-                next_start=nxt,
-                source_duration=source_duration,
-                cfg=cfg,
-                synthesize=synthesize,
-                assess=assessor,
-                attempt_fn=attempt_fn,
-                revision_limit_n=rev_limit,
-            )
+            line_args = dict(occupied=occupied, next_start=nxt, source_duration=source_duration, cfg=cfg,
+                             synthesize=synthesize, assess=assessor, attempt_fn=attempt_fn, revision_limit_n=rev_limit)
+            if selection:
+                result = collect_line_best_of_n(seg, **line_args, score=score, candidates=selection["candidates"],
+                                                max_extra=selection["max_extra_attempts"])
+            else:
+                result = collect_line(seg, **line_args)
             chosen = result["chosen"]
             attempts = list(result["attempts"])
             if chosen is None:
                 raise RuntimeError(f"Segment {seg['id']} produced no candidate")
             if chosen.get("placed"):
-                chosen = _apply_presentation(job, cfg, seg, chosen, occupied, nxt, source_duration, target_rms)
+                cue = loudness.get(int(seg["id"])) or {}
+                line_rms = target_rms * 10 ** (float(cue["expressive_db"]) / 20.0) if target_rms and cue else target_rms
+                chosen = _apply_presentation(job, cfg, seg, chosen, occupied, nxt, source_duration, line_rms)
+                if cue:
+                    chosen["source_loudness"] = cue
+                if selection:
+                    chosen_profiles.append((chosen.get("quality") or {}).get("speaker") or {})
             for attempt in attempts:
                 accepted = (
                     bool(chosen.get("placed"))
@@ -682,6 +817,8 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
             "reference_wav": ref_wav,
             "reference_profile": {k: profile.get(k) for k in ("f0", "centroid", "tilt", "rms")},
             "voice_presentation": bool((cfg.get("voice_edge") or {}).get("enabled", False)),
+            "presentation_version": int((cfg.get("voice_edge") or {}).get("presentation_version", 1)),
+            "voice_selection": bool(selection),
         }
     finally:
         assessor.close()
@@ -697,10 +834,112 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
     return summary
 
 
+def source_loudness(job: Job, cfg: dict, segments: list[dict]) -> dict[int, dict]:
+    """Bounded expressive level per cue from the Spanish mic, relative to the job median.
+
+    Only voiced 20 ms frames count, the difference is compressed by `slope`, and
+    the result is clipped to +/- max_db, so raw mic RMS and noise do not drive gain.
+    """
+    block = (cfg.get("voice_edge") or {}).get("source_loudness") or {}
+    if not block.get("enabled"):
+        return {}
+    alignment = read_json(job.dir / "extract/alignment.json")
+    offset = float(alignment["offset_sec"])
+    threshold = float(cfg["segmentation"]["energy_rms"])
+    levels = {}
+    with sf.SoundFile(job.dir / "extract/mic_raw.wav") as handle:
+        sr = handle.samplerate
+        for seg in segments:
+            lo = max(0, int(round((float(seg["start"]) - offset) * sr)))
+            hi = min(handle.frames, int(round((float(seg["end"]) - offset) * sr)))
+            if hi - lo < sr // 20:
+                continue
+            handle.seek(lo)
+            mono = to_mono(handle.read(hi - lo, dtype="float32", always_2d=True))
+            win = int(sr * 0.02)
+            n = mono.size // win
+            rms = np.sqrt(np.mean(mono[:n * win].reshape(n, win) ** 2, axis=1)) if n else np.zeros(0)
+            voiced = rms[rms > threshold]
+            if voiced.size >= 3:
+                levels[int(seg["id"])] = 20.0 * float(np.log10(np.sqrt(np.mean(voiced ** 2))))
+    if not levels:
+        return {}
+    median = float(np.median(list(levels.values())))
+    slope, max_db = float(block.get("slope", 0.5)), float(block.get("max_db", 3.0))
+    out = {sid: {"source_db": round(level, 2), "relative_db": round(level - median, 2),
+                 "expressive_db": round(float(np.clip(slope * (level - median), -max_db, max_db)), 2)}
+           for sid, level in levels.items()}
+    write_json(job.dir / "schedule/source_loudness.json", {"median_db": round(median, 2), "slope": slope, "max_db": max_db,
+                                                           "lines": {str(k): v for k, v in out.items()},
+                                                           "note": "Bounded expressive cue only; voiced frames, compressed and clipped."})
+    return out
+
+
+def _present_v2(job, cfg, seg, chosen, occupied, next_start, source_duration, target_rms, edge):
+    """One presentation path for every selected take: margins, loudness, then tempo, then window bound."""
+    chosen = dict(chosen)
+    raw, sr = read_audio(Path(chosen["raw_path"]))
+    mono = to_mono(raw)
+    rms_thr = float(cfg["schedule"]["trim_rms"])
+    tempo = float(chosen.get("tempo") or 1.0)
+    bounds = speech_bounds(mono, sr, rms_thr)
+    if bounds is None:
+        chosen["edge_ok"] = False
+        return chosen
+    fade_ms = float(edge.get("fade_ms", 12))
+    core_start = float(chosen.get("placement_start", seg["start"]))
+    core_out = (bounds[1] - bounds[0]) / sr / tempo
+    window_end = min(next_start, source_duration)
+    lead_room_ms = max(0.0, (core_start - occupied) * 1000.0)
+    tail_room_ms = max(0.0, (window_end - core_start - core_out) * 1000.0)
+    adaptive = edge.get("adaptive") or {}
+    want_lead, want_tail, extension = adaptive_margins(
+        mono, sr, bounds, base_lead_ms=float(edge.get("margin_lead_ms", 20)), base_tail_ms=float(edge.get("margin_tail_ms", 60)),
+        floor_rms=float(adaptive.get("floor_rms", 0.0)), max_lead_ms=float(adaptive.get("max_lead_ms", 0.0)),
+        max_tail_ms=float(adaptive.get("max_tail_ms", 0.0)))
+    lead_ms = min(want_lead, lead_room_ms * tempo)
+    tail_ms = min(want_tail, tail_room_ms * tempo)
+    piece, info = render_voice_with_margins(mono, sr, rms_thr=rms_thr, lead_ms=lead_ms, tail_ms=tail_ms,
+                                            fade_ms=fade_ms, target_rms=target_rms)
+    if piece.size == 0:
+        chosen["edge_ok"] = False
+        chosen["edge"] = info
+        return chosen
+    work = job.dir / "schedule" / "work"
+    path = work / f"segment_{int(seg['id']):03d}_present.wav"
+    if abs(tempo - 1.0) > 1e-9:
+        pre = work / f"segment_{int(seg['id']):03d}_present_pre_tempo.wav"
+        write_wav(pre, piece, sr, subtype="FLOAT")
+        atempo(cfg["executables"]["ffmpeg"], pre, path, tempo, timeout=float((cfg.get("timeouts") or {}).get("tempo_sec", 180)))
+        stretched, stretched_sr = read_audio(path)
+        piece, sr = to_mono(stretched), stretched_sr
+    placement_start = core_start - float(info.get("lead_ms_used") or 0.0) / 1000.0 / tempo
+    max_dur = window_end - placement_start
+    truncated = False
+    if max_dur > 0 and piece.size / sr > max_dur + 1e-4:
+        piece = piece[:max(1, int(max_dur * sr))].copy()
+        ramp = min(piece.size, int(sr * 0.005))
+        piece[-ramp:] *= np.linspace(1.0, 0.0, ramp, dtype=np.float32)
+        truncated = True
+    write_wav(path, piece, sr, subtype="FLOAT")
+    chosen["used_path"] = str(path)
+    chosen["placement_start"] = placement_start
+    chosen["generated_duration_sec"] = piece.size / float(sr)
+    chosen["edge"] = {key: info.get(key) for key in ("edge", "lead_ms_used", "tail_ms_used", "gain", "core_preserved")}
+    chosen["loudness_gain"] = info.get("gain")
+    chosen["edge_ok"] = abs(float(piece[0])) < 0.05 and abs(float(piece[-1])) < 0.05
+    chosen["presentation"] = {"version": 2, "tempo": tempo, "lead_ms": round(lead_ms, 2), "tail_ms": round(tail_ms, 2),
+                              "adaptive_extension_ms": extension, "truncated_to_window": truncated,
+                              "target_rms": target_rms, "loudness_gain": info.get("gain")}
+    return chosen
+
+
 def _apply_presentation(job, cfg, seg, chosen, occupied, next_start, source_duration, target_rms):
     edge = cfg.get("voice_edge") or {}
     if not edge.get("enabled", False) or not chosen.get("placed"):
         return chosen
+    if int(edge.get("presentation_version", 1)) >= 2:
+        return _present_v2(job, cfg, seg, chosen, occupied, next_start, source_duration, target_rms, edge)
     chosen = dict(chosen)
     fade_ms = float(edge.get("fade_ms", 12))
     tempo = float(chosen.get("tempo") or 1.0)
@@ -788,6 +1027,7 @@ def _scheduled_item(seg: dict, chosen: dict, attempts: list[dict], source_durati
         "edge_ok": chosen.get("edge_ok"),
         "loudness_gain": chosen.get("loudness_gain"),
         "leading_shift_sec": chosen.get("leading_shift_sec") or 0.0,
+        **{key: chosen[key] for key in ("selection_summary", "presentation", "source_loudness") if key in chosen},
     }
 
 
@@ -1078,9 +1318,27 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     corrections_path = job.dir / "transcribe/corrections.json"
     corrections = read_json(corrections_path) if corrections_path.is_file() else None
     gaps = (corrections or {}).get("untranscribed_energy") or []
-    add("source_energy_accounted", not gaps if corrections is not None else None,
-        gaps or "no untranscribed energy" if corrections is not None else "transcription corrections unavailable",
-        required=cfg["segmentation"].get("untranscribed_energy_policy", "partial") != "warn")
+    energy_policy = cfg["segmentation"].get("untranscribed_energy_policy", "partial")
+    if energy_policy == "reviewed":
+        open_gaps = unreviewed_gaps(gaps)
+        outcomes = {}
+        for gap in gaps:
+            outcome = (gap.get("second_pass") or {}).get("outcome", "unreviewed")
+            outcomes[outcome] = outcomes.get(outcome, 0) + 1
+        add("source_energy_accounted", not open_gaps if corrections is not None else None,
+            {"unreviewed": open_gaps, "second_pass_outcomes": outcomes,
+             "note": "Reviewed gaps without confident words are not voiced; see report/risk.md"} if gaps else "no untranscribed energy")
+    else:
+        add("source_energy_accounted", not gaps if corrections is not None else None,
+            gaps or "no untranscribed energy" if corrections is not None else "transcription corrections unavailable",
+            required=energy_policy != "warn")
+    if quality_translation_settings(cfg) and (quality_translation_settings(cfg).get("review") or {}).get("enabled", True):
+        unreviewed = [s["id"] for s in _timeline(job) if not (s.get("translation_review") or {}).get("status")]
+        add("translation_reviewed", not unreviewed, unreviewed or "every line has a bilingual review record")
+    if int(summary.get("presentation_version", 1)) >= 2:
+        inconsistent = [s["id"] for s in summary["segments"] if s.get("placed")
+                        and ((s.get("presentation") or {}).get("version") != 2 or s.get("loudness_gain") is None)]
+        add("presentation_consistent", not inconsistent, inconsistent or "every placed take: margins, loudness, tempo, window bound")
     placed = [s for s in summary["segments"] if s.get("placed")]
     bounds_bad = []
     ordered = summary["segments"]
@@ -1201,6 +1459,26 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     return report
 
 
+def _risk_report(job: Job, cfg: dict) -> None:
+    block = cfg.get("risk_report") or {}
+    if not block.get("enabled") or job.state not in {"complete", "partial"}:
+        return
+    from .risk import build_risk_report, risk_fingerprint
+    fp = risk_fingerprint(job.dir)
+    if job.data.get("risk_report_fingerprint") == fp and (job.dir / "report/risk.md").is_file():
+        print("risk report: unchanged")
+        return
+    try:
+        build_risk_report(job.dir, cfg, limit=int(block.get("excerpts", 12)), previews=bool(block.get("previews", True)))
+        job.data["risk_report_fingerprint"] = fp
+        job.data.pop("risk_report_error", None)
+        print(f"RISK_REPORT {job.dir / 'report/risk.md'}")
+    except Exception as exc:
+        job.data["risk_report_error"] = f"{type(exc).__name__}: {exc}"
+        print(f"risk report failed: {exc}")
+    job.save()
+
+
 def next_hint(job: Job) -> str:
     state = job.state
     name = job.data["job_id"]
@@ -1238,7 +1516,7 @@ def run_job(job: Job, *, lock: JobLock | None = None) -> int:
             alignment = stage_call(job, "extract", stage_extract, job, cfg, inspected)
             stage_call(job, "transcribe", stage_transcribe, job, cfg, alignment)
             segments = _timeline(job)
-            restore_translation_if_response_matches(job, segments)
+            restore_translation_if_response_matches(job, segments, cfg)
             if any(not (s.get("english") or "").strip() for s in segments) or job.stage("translation")["status"] != "complete":
                 path = export_translation(job, cfg)
                 job.state = "awaiting_translation"
@@ -1267,6 +1545,7 @@ def run_job(job: Job, *, lock: JobLock | None = None) -> int:
                 return 2
             gain = stage_call(job, "mix", stage_mix, job, cfg, summary)
             report = stage_call(job, "validate", stage_validate, job, cfg, summary, gain)
+            _risk_report(job, cfg)
             print(f"STATE {job.state}")
             print(f"ENGLISH_VIDEO {report['english_video']}")
             print(next_hint(job))

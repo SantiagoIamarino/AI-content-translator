@@ -100,11 +100,13 @@ class AsrClient:
             raise RuntimeError(f"Invalid worker JSON protocol: {line[:500]}. {self._diagnostic()}") from exc
 
     def transcribe(self, path: str, language: str = "", *, word_timestamps=False,
-                   full_result=False, timeout: float | None = None) -> dict:
+                   full_result=False, timeout: float | None = None, options: dict | None = None) -> dict:
         if self.proc is None or self.proc.poll() is not None:
             self.start()
         payload = {"cmd": "transcribe", "path": path, "language": language or None,
                    "word_timestamps": word_timestamps, "full_result": full_result}
+        if options:
+            payload["options"] = options
         try:
             self.proc.stdin.write(json.dumps(payload) + "\n")
             self.proc.stdin.flush()

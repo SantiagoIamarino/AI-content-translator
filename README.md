@@ -16,6 +16,17 @@ This development branch has regression tests, controlled media fixtures and a co
 | Mix | Bounded PCM blocks and one cue at a time. Quiet generated margins/fades apply only to voice. Peak management changes each cue's voice gain; game samples are not scaled, gated, faded, or time-stretched. |
 | Export / validate | Source video copy, one English AAC track, Spanish comparison by stream copy, SRT for placed cues only. Decode, video bitstream identity, timing/length, voice verification, headroom and PCM game-bed checks are recorded separately. Missing frame counts are reported as unavailable. |
 
+## Quality preset
+
+For new jobs where correct, natural English matters more than runtime, add `--preset quality`:
+
+```bash
+bin/aidub auto /absolute/path/recording.mp4 --name recording_en \
+  --mic-ordinal 2 --game-ordinal 1 --mixed-ordinal 0 --preset quality
+```
+
+It adds a second ASR hearing for doubtful speech and voiced gaps, whole-transcript context with a glossary, utterance-aware translation with soft syllable budgets, a separate bilingual review with an audit trail, best-of-N voice takes with sequence-aware text checks, one consistent presentation path for every take (including tempo-adjusted ones), and a risk-ranked listening report. Qwen generation, ICL, reference B, trim and max tempo 1.10 are unchanged. Existing jobs keep their snapshots. See [docs/quality.md](docs/quality.md); short-sample evidence is in [runs/quality/REPORT.md](runs/quality/REPORT.md).
+
 ## Fresh clone setup
 
 Use Linux, FFmpeg/FFprobe, and a compatible NVIDIA CUDA environment. Qwen synthesis refuses CPU fallback. This repository does not install anything or download models on execution. Provision the environments and weights yourself before running it.

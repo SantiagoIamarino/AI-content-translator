@@ -29,7 +29,10 @@ def _whisper_version(python):
 
 
 def verification_identity(cfg: dict, ref_sha: str) -> str:
-    return fingerprint({"version": CHECKER_VERSION, "reference_sha256": ref_sha,
+    extra = {}
+    if (cfg.get("quality") or {}).get("text_checker") or (cfg.get("voice_selection") or {}).get("enabled"):
+        extra = {name: sha256_file(Path(__file__).with_name(name)) for name in ("textnorm.py", "selection.py")}
+    return fingerprint({"version": CHECKER_VERSION, "reference_sha256": ref_sha, **extra,
                         "quality": cfg.get("quality") or {}, "asr_model": (cfg.get("quality") or {}).get("asr_model") or cfg["whisper"]["model"],
                         "asr_weights": file_identity(verification_model_file(cfg)),
                         "whisper_version": _whisper_version(whisper_python(cfg["executables"]["whisper"])),

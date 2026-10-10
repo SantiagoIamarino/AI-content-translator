@@ -89,7 +89,7 @@ def transcribe_chunks(job, cfg, alignment, *, client_factory=None):
                                             request_timeout=float(budgets.get('asr_chunk_sec', 1800)))
                 started = time.perf_counter()
                 result = client.transcribe(str(audio_path), language=cfg['whisper']['language'], word_timestamps=True,
-                                           full_result=True)
+                                           full_result=True, options=cfg['whisper'].get('decode_options'))
                 runtime = time.perf_counter() - started
                 seconds_total += runtime
                 calls += 1

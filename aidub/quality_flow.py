@@ -1,0 +1,109 @@
+"""Unattended quality translation: global context, contextual translation, bilingual review."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from .batches import invoke_batches
+from .context import (
+    context_identity,
+    context_parts,
+    context_request,
+    merge_glossary,
+    settings as quality_settings,
+)
+from .job import Job
+from .providers import invoke_checked, require_provider, resolve_role, validate_provider_config
+from .review import run_review, settings as review_settings
+from .util import fingerprint, read_json, write_json
+
+QUALITY_ROLES = ("context", "review", "back_translation")
+
+
+def required_roles(cfg: dict) -> list[str]:
+    if not quality_settings(cfg):
+        return []
+    roles = ["context"]
+    if review_settings(cfg):
+        roles.append("review")
+        if str(review_settings(cfg).get("back_translation", "disputed")) == "disputed":
+            roles.append("back_translation")
+    return roles
+
+
+def validate_quality_providers(cfg: dict, providers: dict) -> None:
+    for role in required_roles(cfg):
+        validate_provider_config(require_provider(resolve_role(providers, role), role))
+
+
+def load_context(job: Job, cfg: dict, segments: list[dict]) -> dict | None:
+    path = job.dir / "handoff/context/context.json"
+    if not quality_settings(cfg) or not path.is_file():
+        return None
+    data = read_json(path)
+    return data if data.get("identity") == context_identity(job.data["job_id"], segments, cfg) else None
+
+
+def ensure_context(job: Job, cfg: dict, segments: list[dict], providers: dict, before_invoke=None) -> dict:
+    existing = load_context(job, cfg, segments)
+    if existing is not None:
+        print("context: reusing transcript context and glossary")
+        return existing
+    opts = quality_settings(cfg)
+    max_chars = int(opts.get("context_max_chars", 60000))
+    identity = context_identity(job.data["job_id"], segments, cfg)
+    spec = require_provider(resolve_role(providers, "context"), "context")
+    spec = dict(spec, max_request_chars=max_chars + 24000)
+    parts = context_parts(segments, max_chars)
+    previous, conflicts, translator = None, [], None
+    for index, lines in enumerate(parts):
+        directory = job.dir / "handoff/context" / identity[:16] / f"part_{index:03d}"
+        request = context_request(job.data["job_id"], lines, index, len(parts), previous)
+        write_json(directory / "request.json", request)
+        print(f"provider context: part {index + 1}/{len(parts)} lines={len(lines)}")
+        response = invoke_checked(spec, directory / "request.json", directory / "response.json", "context", None,
+                                  before_invoke=before_invoke)
+        glossary, found = merge_glossary(list((previous or {}).get("glossary") or []) + list(response["glossary"]))
+        conflicts.extend(found)
+        previous = {"summary": response["summary"].strip(), "speaker_register": response["speaker_register"].strip(),
+                    "glossary": glossary, "style_notes": [n.strip() for n in response["style_notes"] if n.strip()]}
+        translator = response.get("translator")
+    context = {"schema": "aidub.context.v1", "identity": identity, **previous, "glossary_conflicts": conflicts,
+               "parts": len(parts), "translator": translator,
+               "note": "Derived from the Spanish transcript only; not from the picture."}
+    write_json(job.dir / "handoff/context/context.json", context)
+    return context
+
+
+def translate_with_review(job: Job, cfg: dict, providers: dict, export_translation, before_invoke=None) -> Path:
+    """Returns the final translation response path, ready for accept_translation."""
+    from .pipeline import _timeline
+
+    segments = _timeline(job)
+    ensure_context(job, cfg, segments, providers, before_invoke)
+    request_path = export_translation(job, cfg)
+    request = read_json(request_path)
+    root = job.dir / "handoff"
+
+    def invoke(role: str, req: dict, current: dict | None) -> dict:
+        spec = require_provider(resolve_role(providers, role), role)
+        return invoke_batches(spec, req, root, role, current, cfg, before_invoke=before_invoke)
+
+    draft = invoke("translation", request, None)
+    english = {int(row["id"]): row["english"].strip() for row in draft["segments"]}
+    audit = None
+    if review_settings(cfg):
+        english, audit = run_review(job.data["job_id"], request, english, invoke, cfg)
+    final = {
+        "schema": draft["schema"],
+        "job_id": request["job_id"],
+        "translator": draft["translator"],
+        "segments": [{"id": int(row["id"]), "english": english[int(row["id"])]} for row in request["segments"]],
+    }
+    if audit is not None:
+        audit["request_identity"] = fingerprint(request)
+        audit["context_identity"] = (read_json(job.dir / "handoff/context/context.json") or {}).get("identity")
+        write_json(root / "translation_audit.json", audit)
+    path = root / "translation_reviewed_response.json"
+    write_json(path, final)
+    return path

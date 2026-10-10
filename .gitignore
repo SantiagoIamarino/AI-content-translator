@@ -24,4 +24,6 @@ config/*.local.json
 
 # Host verification logs/media are job artifacts, never publication inputs.
 runs/hardening/
+runs/quality/*
+!runs/quality/REPORT.md
 *.safetensors
