@@ -107,6 +107,16 @@ def validate_provider_config(spec: dict) -> None:
         if any(str(part).endswith("provider_cursor_agent.py") for part in command):
             if "--agent" not in command or command.index("--agent") + 1 >= len(command) or not shutil.which(str(command[command.index("--agent") + 1])):
                 raise ProviderError("Cursor provider --agent executable is missing; configure the installed host binary")
+        if any(str(part).endswith("provider_codex_exec.py") for part in command):
+            def _flag(name: str) -> str:
+                if name not in command or command.index(name) + 1 >= len(command):
+                    return ""
+                return str(command[command.index(name) + 1])
+            binary = _flag("--codex")
+            if not binary or not shutil.which(binary):
+                raise ProviderError("Codex provider --codex executable is missing; configure a versioned Codex CLI binary")
+            if not _flag("--model") or not _flag("--reasoning") or not _flag("--expect-version"):
+                raise ProviderError("Codex provider command must include --model, --reasoning, and --expect-version")
     else:
         env = spec.get("api_key_env") or "AIDUB_API_KEY"
         if not os.environ.get(env):

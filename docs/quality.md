@@ -41,6 +41,8 @@ The preset maps the new roles explicitly onto configured providers:
 
 Replace an alias with a full provider spec to use a different model for review. There is no implicit fallback; an alias to an unconfigured role fails before any call. Each role has its own schema validator, bounded attempts and saved request/response under `handoff/batches/<role>/` or `handoff/context/`.
 
+The same aliases apply when translation and repair are pointed at the Codex CLI adapter. Keep that command in an ignored local config so the Cursor command in `config/local.json` stays available. Setup, the pinned CLI version, and the read-only execution limits are in [codex-provider.md](codex-provider.md). Changing the translator does not change Qwen's voice, delivery, or the fixed synthesis settings.
+
 ## Whisper models
 
 `asr_second_pass.model` defaults to `turbo`, the only Whisper weights present on the development workstation. `large-v3` is configurable (`asr_second_pass.model` or `model_path`) but is not assumed to be better. Compare on a finished job:

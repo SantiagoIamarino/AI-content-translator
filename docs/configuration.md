@@ -28,6 +28,8 @@ New `init` checks executable permissions, reference approval, local source/verif
 | `risk_report` | `enabled`, number of `excerpts`, `previews` |
 | `providers.context/review/back_translation` | Full specs or explicit `{"kind": "same_as", "role": "translation"}` aliases |
 
+A Codex CLI translation provider is an optional command adapter, selected with a separate ignored config such as `config/codex-luna.local.json`. It does not replace `config/local.json`. See [codex-provider.md](codex-provider.md).
+
 Presets live in `config/presets/`. `init`/`auto --preset NAME` merges each preset group one level deep into the selected config before the snapshot is written; a preset given for an existing job is ignored with a notice.
 
 Qwen model, dtype, attention, English ICL, original trim RMS/window/pad, and tempo 1.10 remain fixed. New jobs freeze the local Qwen snapshot revision and model paths. Legacy jobs do not acquire a new synthesis revision key automatically.
