@@ -6,6 +6,7 @@ Original jobs remain locked for reads. Media/configuration stay in ignored outpu
 """
 import argparse
 import copy
+import difflib
 import html
 import json
 import shutil
@@ -30,9 +31,10 @@ def crop(src, dst, start, duration):
 
 
 def prepare(args):
-    baseline=args.baseline.resolve(); out=args.output.resolve(); out.mkdir(parents=True,exist_ok=True)
+    baseline=args.baseline.resolve(); out=args.output.resolve()
     if out==baseline or baseline in out.parents:
         raise ValueError("Evaluation output must be separate from the source job")
+    out.mkdir(parents=True,exist_ok=True)
     with JobLock(baseline),JobLock(out):
         receipt=out/"passage.json"
         if receipt.is_file():
@@ -181,12 +183,50 @@ def run_set(args):
             state[name]["comparison"]=str(out/"comparison.json");write_json(root/"queue/state.json",state)
 
 
+def summarize(args):
+    root=args.output.resolve(); records=[]
+    page='<!doctype html><meta charset="utf-8"><title>Conversational performance comparisons</title><h1>Conversational performance comparisons</h1><p>Experimental results. No agent listening or perceptual approval. Times refer to the original recording; copied excerpts may include keyframe preroll.</p>'
+    for receipt in sorted(root.glob("*/passage.json"),key=lambda p:read_json(p)["interval"][0]):
+        d=read_json(receipt);job=Path(d["job"]);manifest=read_json(job/"manifest.json")
+        c=read_json(receipt.parent/"comparison.json") if (receipt.parent/"comparison.json").exists() else {}
+        report=read_json(job/"report/validation.json") if (job/"report/validation.json").exists() else {}
+        cfg=read_json(job/"config.json");reference=read_json(args.reference_config)
+        corrections=read_json(job/"transcribe/corrections.json") if (job/"transcribe/corrections.json").exists() else {}
+        a,b=d["interval"]
+        prior=read_json(Path(d["baseline"])/"mix/placed_summary.json")
+        old=[s for s in prior["segments"] if a<=s["start"]<b]
+        new=c.get("new_cues",[])
+        old_text=" ".join(s["spanish"] for s in old).split();new_text=" ".join(s["spanish"] for s in new).split()
+        diff=[dict(op=op,before=old_text[i:j],after=new_text[k:l]) for op,i,j,k,l in difflib.SequenceMatcher(None,old_text,new_text).get_opcodes() if op!="equal"]
+        record={"name":d["name"],"interval":[a,b],"status":manifest["state"],"error":manifest.get("error"),
+                "preview":str(receipt.parent/"index.html") if c else None,
+                "retained":report.get("n_segments"),"placed":report.get("n_placed"),"omitted":report.get("omitted"),
+                "synthesis":c.get("synthesis"),"vocal_events":report.get("vocal_events"),
+                "source_uncertainties":report.get("source_uncertainties"),"transcription_drops":corrections.get("dropped",[]),
+                "source_text_diff":diff,"source_text_diff_scope":"ASR/segmentation differences, not listening ground truth",
+                "settings_match_approved":all(cfg[k]==reference[k] for k in ("reference","qwen3","schedule")),
+                "reference_hashes":{k:sha256_file(Path(cfg["reference"][k])) for k in ("wav","text_file")},
+                "failed_required_checks":[x for x in report.get("checks",[]) if x.get("required",True) and x.get("ok") is not True],
+                "copied_video_equal":c.get("copied_video_equal")}
+        records.append(record)
+        link=f'{receipt.parent.name}/index.html' if c else f'{receipt.parent.name}/run.log'
+        page+=f'<p><a href="{html.escape(link)}">{a:.3f}–{b:.3f}s: {html.escape(d["name"])}</a> — {html.escape(manifest["state"])}; placed {report.get("n_placed","unavailable")}/{report.get("n_segments","unavailable")}</p>'
+    page+='<h2>Identical cached takes / selection controls</h2>'
+    for name in ("cached-minute","cached-long-600-790"):
+        page+=f'<p>{name}: <a href="{name}/before.mp4">prior</a> · <a href="{name}/after_cached.mp4">new cached selection/processing</a> · <a href="{name}/evidence.json">evidence</a></p>'
+    page+='<p><a href="results.json">Exact event, text, omission, uncertainty and settings accounting</a></p>'
+    write_json(root/"results.json",{"listening_approved":False,"passages":records})
+    (root/"index.html").write_text(page)
+    print(root/"index.html")
+
+
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest="action",required=True)
     p=sub.add_parser("prepare");p.add_argument("--baseline",type=Path,required=True);p.add_argument("--reference-config",type=Path,required=True)
     p.add_argument("--name",required=True);p.add_argument("--start",type=float,default=0);p.add_argument("--end",type=float,required=True)
     p.add_argument("--clone",action="store_true");p.add_argument("--annotations",type=Path)
     run=sub.add_parser("run-set");run.add_argument("--wait-for-job",type=Path);run.add_argument("--first")
-    for command in (p,sub.add_parser("render"),run):command.add_argument("--output",type=Path,required=True)
+    summary=sub.add_parser("summarize");summary.add_argument("--reference-config",type=Path,required=True)
+    for command in (p,sub.add_parser("render"),run,summary):command.add_argument("--output",type=Path,required=True)
     args=parser.parse_args()
-    {"prepare":prepare,"render":render,"run-set":run_set}[args.action](args)
+    {"prepare":prepare,"render":render,"run-set":run_set,"summarize":summarize}[args.action](args)

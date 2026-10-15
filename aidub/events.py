@@ -15,6 +15,7 @@ import soundfile as sf
 
 from .config import resolve_path
 from .util import fingerprint, read_json, sha256_file
+from .fidelity import material_conflict
 
 HESITATIONS_ES = {"eh", "em", "mmm", "mm", "hmm"}
 REALIZATIONS = {"hesitation": {"Uh...", "Um...", "Hmm..."}}
@@ -27,6 +28,7 @@ def identity(cfg):
         return {}
     annotation = opts.get("annotations_file")
     return {"source_events": opts, "events_code": sha256_file(Path(__file__)),
+            "source_fidelity_code": sha256_file(Path(__file__).with_name("fidelity.py")),
             "annotations_sha256": sha256_file(resolve_path(cfg, annotation)) if annotation else None}
 
 
@@ -119,6 +121,9 @@ def apply_events(built, raw, mic_path, offset, cfg, mic_sha):
         events = load_annotations(cfg, mic_sha, offset+handle.frames/sr)
         for s in segments:
             s["source_words"] = _words_for(s, raw, offset)
+            conflict = material_conflict(s)
+            if conflict:
+                s["material_source_conflict"] = conflict
             if set(_tokens(s["spanish"])) <= HESITATIONS_ES and _tokens(s["spanish"]):
                 # Already-transcribed isolated hesitations need no second cue.
                 e = dict(id=f"asr-{s['id']}", start=s["start"], end=s["end"], kind="hesitation",

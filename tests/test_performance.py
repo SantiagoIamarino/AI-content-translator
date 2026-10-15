@@ -19,6 +19,7 @@ from aidub.continuity import render_protected
 from aidub.context import join_short_pauses, utterance_groups
 from aidub.pipeline import source_uncertainty_issues
 from aidub.linework import collect_line_best_of_n
+from aidub.fidelity import material_conflict
 
 
 def seg(i, start, end, text):
@@ -169,6 +170,14 @@ class VocalEventTests(unittest.TestCase):
 
 
 class PerformanceTimingTests(unittest.TestCase):
+    def test_opposite_source_readings_are_not_guessed_from_game_context(self):
+        s=seg(1,2182.6,2184.1,"Vamos a comer unos ya es suficiente")
+        s["asr_alternatives"]=[{"text":"Pero aún no es suficiente"}]
+        self.assertEqual(material_conflict(s)["decision"],"unvoiced_pending_source_resolution")
+        s=seg(1,22,30,"Pero luego no volví a jugarlo")
+        s["asr_alternatives"]=[{"text":"Pero luego no volvía a jugarlo, digamos"}]
+        self.assertIsNone(material_conflict(s))
+
     def test_valid_but_unplaceable_takes_use_remaining_budget_without_shifting_event(self):
         def run(place_third):
             seen=[]

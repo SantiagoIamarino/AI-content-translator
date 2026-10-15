@@ -64,7 +64,7 @@ def review_request(job_id: str, translation_request: dict, english: dict[int, st
         }
         if src.get("asr_alternatives"):
             row["asr_alternatives"] = src["asr_alternatives"]
-        for key in ("vocal_events", "fixed_event_realization", "required_event_prefix", "source_pauses"):
+        for key in ("vocal_events", "fixed_event_realization", "required_event_prefix", "source_pauses", "material_source_conflict"):
             if key in src:
                 row[key] = src[key]
         if history.get(sid):

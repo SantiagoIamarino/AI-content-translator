@@ -18,7 +18,9 @@ steps are in [performance-progress.md](performance-progress.md).
   is recomputed after filtering, so a removed cue's region is not silently hidden.
 - Broad cue coverage hid the thinking sound near 00:10. Whisper emitted no filler,
   and gap recovery examined only the small region before the next cue. Timed
-  source events now exist independently of lexical cue coverage.
+  source events now exist independently of lexical cue coverage. A leading
+  confirmed hesitation can be a required prefix of the connected thought, rather
+  than an isolated take constrained by an approximate internal Whisper boundary.
 - A matching take could fail solely for a pause over one second. A contextual
   check now distinguishes a source-supported thinking pause from an unsupported
   generated pause, using approximate position and duration. Other quality failures
@@ -65,6 +67,11 @@ of every existing word. Existing lexical IDs are retained where possible.
 The 00:10 annotation uses the user's listening identification. Its onset follows
 the measured acoustic run and its end follows the saved first lexical onset;
 neither boundary is claimed to be a listened-to or forced-aligned boundary.
+The performance preset uses `source_events.realization_mode=prefix_with_following`
+for a leading annotated hesitation. Its event interval remains in the ledger; the
+connected take starts at the event onset and must contain the required English
+prefix in both raw and processed verification. Precise internal event duration is
+not claimed from this check. Separate units remain supported for other events.
 
 Isolated source-ASR hesitations carry their ASR provenance. A conservative
 periodicity scan can nominate unexplained regions inside broad cues, but those
@@ -81,6 +88,13 @@ Filler-only generated lines require a heard vocal event and cannot pass an empty
 normalized-text comparison. This does not guarantee recognition of every filler
 inside a longer sentence.
 
+Materially opposite ASR polarity readings of shared content (the longer job's
+“ya es suficiente” versus “aún no es suficiente”) are explicitly withheld from
+synthesis pending source resolution. Context cannot choose one for unattended
+voicing. The checker is conservative and limited; it does not adjudicate arbitrary
+semantic differences. Nonmaterial disagreements remain available to bilingual
+review and visible in the partial-status report.
+
 ## Pauses, grouping and endings
 
 Source pauses are low-energy microphone intervals inside a cue, measured in
@@ -95,6 +109,9 @@ translation groups. Joined cues retain their source spans and measured pauses.
 It does not indiscriminately expand the synthesis-unit limit, shift later lines,
 overlap takes, stretch video, or slow every English utterance to the Spanish span.
 The source-duration score chooses among takes, with the existing hard rate bound.
+If the initial valid pool has no placeable take, `search_for_placeable` uses its
+remaining bounded attempts. Vocal events and required prefixes cannot be shifted
+earlier or sent for meaningless compact rewrites just to achieve placement.
 
 Full-tail inspection protects generated signal across quiet dips and below the
 ordinary core threshold. Fades remain outside protected signal; raw truncation,

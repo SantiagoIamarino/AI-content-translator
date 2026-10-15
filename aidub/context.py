@@ -274,7 +274,7 @@ def quality_translation_request(job_id: str, segments: list[dict], video_duratio
         }
         if seg.get("asr_alternatives"):
             row["asr_alternatives"] = seg["asr_alternatives"]
-        for key in ("vocal_events", "fixed_event_realization", "required_event_prefix", "source_pauses"):
+        for key in ("vocal_events", "fixed_event_realization", "required_event_prefix", "source_pauses", "material_source_conflict"):
             if key in seg:
                 row[key] = seg[key]
         rows.append(row)

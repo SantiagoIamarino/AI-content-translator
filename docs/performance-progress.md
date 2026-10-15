@@ -157,3 +157,34 @@ mode is `prefix_with_following`. All configs are already migrated under owned lo
 do not reset them or repeat completed providers/synthesis. Inspect the resulting
 event verification and contextual previews, address demonstrated failures without
 weakening gates, then finish the final evidence/results and resume verification.
+
+## Stage 6 — processed event verification and material source conflicts
+
+Completed: required hesitation prefixes are checked in the processed candidate,
+with an independent saved waveform/ASR verification identity. A required gate
+records this, separately from raw-prefix evidence. Schedule versioning invalidates
+only fitting/processing for this change; matching translations and raw synthesis
+remain reusable. Validation version 6 records the new gate.
+
+The demonstrated longer-job polarity disagreement (“ya es suficiente” versus
+“aún no es suficiente”) is no longer eligible for an unattended spoken guess.
+Opposite negation readings of shared content are marked as material conflicts and
+remain unvoiced/partial pending source resolution. This conservative rule is
+limited to detectable polarity conflicts; it does not claim general semantic ASR
+adjudication. Minor first-minute `volví/volvía, digamos` disagreement remains
+available to review. The summary tool records exact text/event differences,
+counts, settings, failed gates and preview links without changing job state.
+
+Changed files: `aidub/fidelity.py`, events/context/review/performance/pipeline
+integration, evaluation summary tooling, tests and docs. Verification: 127 tests,
+126 passed, one existing fixture skipped (`stage6-tests.log`). All 20 original
+metadata hashes still match; all nine evaluation configs preserve the approved
+reference, Qwen and schedule blocks (`preservation.json`).
+
+Exact next step: let `queue-second.log` continue. The connected minute is in
+configured provider review; prepared long jobs follow serially. Because the minute
+worker began before the processed-prefix gate was added, resume it once after its
+current worker exits to exercise that new gate using caches. Do not repeat paid
+provider calls: matching requests/responses are retained. Render/summarize the
+finished passages, diagnose source-negative fixtures honestly, and finish the
+timestamped excerpts, final resume check, results docs and commit.

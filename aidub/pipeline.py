@@ -29,7 +29,7 @@ from .context import glossary_names, join_short_pauses, quality_translation_requ
 from .second_pass import run_second_pass, settings as second_pass_settings, unreviewed_gaps
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
 from .events import identity as events_identity, apply_events, event_placement_report
-from .performance import identity as performance_identity, attach_source_pauses, score_contextual
+from .performance import identity as performance_identity, attach_source_pauses, score_contextual, contextual_quality
 from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
 from .textnorm import content_tokens, normalize_tokens
 from .export import decode_ok, mux_english_cmd, mux_spanish_cmd, place_voice, write_bilingual
@@ -653,7 +653,8 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
     segments = _timeline(job)
     fp = fingerprint({
         "segments": [
-            {"id": s["id"], "english": s.get("english"), "start": s["start"], "end": s["end"], "revisions": s.get("revisions") or []}
+            {"id": s["id"], "english": s.get("english"), "start": s["start"], "end": s["end"], "revisions": s.get("revisions") or [],
+             **{k:s[k] for k in ("material_source_conflict","vocal_events","required_event_prefix","source_pauses") if k in s}}
             for s in segments
         ],
         "video_duration": source_duration,
@@ -670,6 +671,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         **continuity_identity(cfg),
         **events_identity(cfg),
         **performance_identity(cfg),
+        **({"performance_schedule_version": 2} if (cfg.get("source_events") or {}).get("enabled") else {}),
         **({"voice_selection": voice_selection_settings(cfg), "selection_code": sha256_file(Path(__file__).with_name("selection.py"))}
            if voice_selection_settings(cfg) else {}),
         **({"context": (load_context_for(job, cfg, segments) or {}).get("identity")} if quality_translation_settings(cfg) else {}),
@@ -732,11 +734,16 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
             cue = loudness.get(int(seg["id"])) or {}
             line_rms = target_rms * 10 ** (float(cue["expressive_db"]) / 20.0) if target_rms and cue else target_rms
             attempt = _present_v3(job, cfg, seg, attempt, occupied_until, next_start, source_dur, line_rms, edge)
-            if attempt.get("placed") and attempt.get("tempo",1.) > 1. and (edge.get("protection") or {}).get("inspect_full_tail"):
+            if attempt.get("placed") and (seg.get("required_event_prefix") or
+                    (attempt.get("tempo",1.) > 1. and (edge.get("protection") or {}).get("inspect_full_tail"))):
                 processed = assessor(dict(meta,path=attempt["used_path"]),text)
+                processed = contextual_quality(dict(attempt,raw_path=attempt["used_path"]),processed,seg,selection)
                 attempt["processed_quality"] = processed
                 verified = bool(processed.get("ok") and not processed.get("asr_skipped"))
                 attempt["presentation"]["post_tempo_text_verified"] = verified
+                if seg.get("required_event_prefix"):
+                    attempt["presentation"]["event_prefix_processed_verified"] = bool(
+                        verified and processed.get("event_prefix_verified"))
                 if not verified:
                     attempt.update(placed=False,presentation_rejected="processed_take_failed_verification",
                                    timing_error="processed_take_failed_verification",status="unresolved")
@@ -748,6 +755,11 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
             text = seg.get("english") or ""
             context_before = ordered[i - 1]["spanish"] if i else None
             context_after = ordered[i + 1]["spanish"] if i + 1 < len(ordered) else None
+            if seg.get("material_source_conflict"):
+                item = _unplaced_from_history(seg,prior_attempts.get(int(seg["id"]),[]),nxt,source_duration)
+                item.update(timing_error="material_source_asr_conflict",material_source_conflict=seg["material_source_conflict"])
+                scheduled.append(item)
+                continue
             if any(r.get("action") == "leave_unresolved" for r in seg.get("revisions") or []):
                 attempts = prior_attempts.get(int(seg["id"]), [])
                 item = _unplaced_from_history(seg, attempts, nxt, source_duration)
@@ -1330,6 +1342,8 @@ def source_uncertainty_issues(corrections, timeline):
     issues += [{"kind":"disputed_translation","id":s["id"],"span":[s["start"],s["end"]],
                 "spanish":s["spanish"],"english":s.get("english"),"status":s["translation_review"]["status"]}
                for s in timeline if s.get("translation_review",{}).get("status") in {"disputed","revised_unconfirmed"}]
+    issues += [{"kind":"material_source_asr_conflict","id":s["id"],"span":[s["start"],s["end"]],
+                "conflict":s["material_source_conflict"]} for s in timeline if s.get("material_source_conflict")]
     return issues
 
 
@@ -1351,7 +1365,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
                  "mix": job.dir / "output/english_mix.wav", "srt": job.dir / "output/english.srt"}
     corrections_file = job.dir / "transcribe/corrections.json"
     event_file = job.dir / "transcribe/vocal_events.json"
-    validate_fp = fingerprint({"version": 5,
+    validate_fp = fingerprint({"version": 6,
                                **({"protected_endings_gate": 1} if int(summary.get("presentation_version", 1)) >= 3 else {}), "source_sha256": source_sha, "protected": protected_now,
                                "artifacts": {label: sha256_file(path) for label, path in artifacts.items()},
                                "schedule": job.stage("schedule").get("fingerprint"), "mix": job.stage("mix").get("fingerprint"),
@@ -1461,6 +1475,9 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         write_json(job.dir / "report/vocal_events.json", event_report)
         add("source_events_accounted", ledger_path.is_file() and not event_report["unresolved"],
             event_report["unresolved"] or "all confirmed vocal events placed; non-speech exclusions explicit")
+        bad_prefixes = [s["id"] for s in summary["segments"] if s.get("placed") and s.get("required_event_prefix")
+                        and not s.get("presentation",{}).get("event_prefix_processed_verified")]
+        add("processed_vocal_events_verified",not bad_prefixes,bad_prefixes or "required prefixes heard in processed takes")
         source_uncertainties = source_uncertainty_issues(corrections,_timeline(job))
         write_json(job.dir / "report/source_uncertainties.json", source_uncertainties)
         add("source_uncertainty_resolved",not source_uncertainties,
