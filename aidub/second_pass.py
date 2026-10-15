@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from .segment import _HALLUCINATIONS
+from .segment import _HALLUCINATIONS, coverage_gaps_file
 from .textnorm import strip_accents
 from .util import fingerprint, read_json, write_json
 
@@ -186,6 +186,15 @@ def run_second_pass(job_dir: Path, built: dict, mic_path: Path, offset_sec: floa
                     a["spanish"] = " ".join(words_a[:max(1, len(words_a) - len(b["spanish"].split()))])
                     a["notes"] = " ".join(x for x in (a.get("notes"), "Second ASR pass heard the trailing phrase once, in the next cue; removed the duplicate from this cue.") if x)
                     target["outcome"] = f"trimmed_duplicate_tail_from_{a['id']}"
+                elif why == "head_repeat":
+                    # B contains unique suffix words. Hearing the common prefix
+                    # once is never evidence for deleting those words (candado).
+                    full = es_tokens(b["spanish"])
+                    if _find(heard, full) and overlap_b > overlap_a:
+                        drop.add(i)
+                        target["outcome"] = f"dropped_duplicate_cue_{a['id']}"
+                    else:
+                        target["outcome"] = "unresolved_duplicate_unique_words_preserved"
                 else:
                     drop.add(j)
                     target["outcome"] = f"dropped_duplicate_cue_{b['id']}"
@@ -222,7 +231,12 @@ def run_second_pass(job_dir: Path, built: dict, mic_path: Path, offset_sec: floa
                     "source": "second_pass", "note": "Independent second hearing; first-pass text is kept as spanish."})
             audit["targets"].append(target)
 
-        gaps = _merge_gaps(built.get("untranscribed_energy") or [], float(opts["merge_gap_sec"]))
+        if cfg.get("segmentation"):
+            gaps = coverage_gaps_file(mic_path, kept, cfg["segmentation"], offset_sec=offset_sec,
+                                      index_path=job_dir / "transcribe" / "energy" / f"surviving_{mic_sha or identity}.sqlite")
+        else:
+            gaps = list(built.get("untranscribed_energy") or [])
+        gaps = _merge_gaps(gaps, float(opts["merge_gap_sec"]))
         recovered = []
         cue_spans = [(float(s["start"]), float(s["end"])) for s in kept]
         for n, gap in enumerate(gaps):
@@ -285,6 +299,10 @@ def run_second_pass(job_dir: Path, built: dict, mic_path: Path, offset_sec: floa
     built = dict(built)
     built["segments"] = merged_segments
     built["untranscribed_energy"] = gaps
+    built["source_coverage"] = {"basis": "surviving_cues_after_second_pass", "kept": len(merged_segments),
+                                "removed_duplicates": len(dropped_dup),
+                                "uncovered": [part for gap in gaps for part in _subtract(
+                                    gap["span"], [(s["start"], s["end"]) for s in merged_segments])]}
     built["corrections"] = list(built.get("corrections") or []) + [
         {"kind": "second_pass_duplicate", "text": s["spanish"], "span": [s["start"], s["end"]]} for s in dropped_dup
     ] + [{"kind": "second_pass_recovered", "text": s["spanish"], "span": [s["start"], s["end"]]} for s in recovered]

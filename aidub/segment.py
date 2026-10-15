@@ -73,6 +73,43 @@ def build_segments_file(whisper: dict, path: Path, cfg: dict, *, offset_sec=0.0,
             energy.close()
 
 
+def coverage_gaps_file(path: Path, segments: list[dict], cfg: dict, *, offset_sec=0.0, index_path=None) -> list[dict]:
+    """Recompute energy outside the *surviving* cues, without loading the track.
+
+    This is an acoustic inventory, not evidence that the gaps contain speech.
+    Filtering a cue must expose its former coverage to the second hearing.
+    """
+    with sf.SoundFile(path) as handle:
+        def reader(start, count):
+            handle.seek(start)
+            return to_mono(handle.read(count, dtype="float32", always_2d=True))
+        sr = handle.samplerate
+        energy = EnergyIndex.build(reader, handle.frames, sr, float(cfg["energy_rms"]),
+                                   float(cfg["energy_window_sec"]), path=index_path)
+        try:
+            covered = sorted((round((s["start"]-offset_sec)*sr), round((s["end"]-offset_sec)*sr)) for s in segments)
+            return _coverage_gaps(energy, covered, sr, offset_sec, round(float(cfg["min_voiced_sec"])*sr))
+        finally:
+            energy.close()
+
+
+def _coverage_gaps(energy, covered, sr, offset_sec, min_voiced):
+    gaps, cursor = [], 0
+    for run_start, run_end in energy.runs():
+        while cursor < len(covered) and covered[cursor][1] <= run_start:
+            cursor += 1
+        parts = [(run_start, run_end)]
+        for index in range(cursor, len(covered)):
+            lo, hi = covered[index]
+            if lo >= run_end:
+                break
+            parts = [(a, min(b, lo)) for a, b in parts if a < lo] + [(max(a, hi), b) for a, b in parts if b > hi]
+        if sum(b-a for a, b in parts) >= min_voiced:
+            gaps.append({"span": [round(run_start/sr+offset_sec, 6), round(run_end/sr+offset_sec, 6)],
+                         "reason": "Energy outside surviving transcript cues; not classified as speech."})
+    return gaps
+
+
 def _build_segments(whisper, reader, energy, sr, cfg, offset_sec):
     lookback = int(round(float(cfg["onset_lookback_sec"]) * sr))
     tail = int(round(float(cfg["end_tail_sec"]) * sr))
