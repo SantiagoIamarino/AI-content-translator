@@ -45,9 +45,33 @@ Changed files: `aidub/events.py`, `aidub/pipeline.py`, `aidub/context.py`,
 Verification: 120 tests, 119 passed, one existing fixture skipped.
 Log: `runs/performance-20261015/stage2-tests.log`. No provider or TTS call yet.
 
-Exact next step: add per-cue source-pause evidence and contextual take evaluation,
-so a source-supported thinking pause is not rejected by the one-second rule;
-protect complete generated tails and verify processing. Then create isolated
-evaluation jobs and the 00:10 annotation with approximate boundary provenance,
-run configured synthesis/providers, render contextual comparisons and verify
-repeat resume. Original jobs and approved reference inputs remain preserved.
+## Stage 3 — source pauses, reaction boundaries and complete tail analysis
+
+Completed: bounded per-cue microphone pause evidence; contextual candidate
+evaluation can resolve only a pause rejection supported by a source pause at a
+similar relative position and duration. Other quality failures remain. Selection
+penalizes unsupported take pauses and missing source pauses. The opt-in source
+duration target can follow the source span within the existing hard rate bound;
+it never stretches audio or moves later anchors. Isolated reactions are protected
+from short-pause joining and from unrelated utterance groups. This does not blindly
+expand synthesis unit sizes. Source pauses and event evidence reach translation.
+
+The performance preset inspects the entire generated tail within a two-second
+analysis bound, protects quiet decay down to RMS 0.0001, fades outside it and
+rejects unpreservable windows. The established trim measurement stays unchanged.
+Processed endpoints are checked; tempo-processed candidates require their own
+saved ASR verification. Raw truncation still requires another take.
+
+Changed files: `aidub/performance.py`, `aidub/pipeline.py`, `aidub/linework.py`,
+`aidub/continuity.py`, `aidub/context.py`, `config/presets/performance.json`,
+`tests/test_performance.py`, this note. Verification: 123 tests, 122 passed,
+one existing fixture skipped. Log: `runs/performance-20261015/stage3-tests.log`.
+
+Exact next step: create isolated evaluation jobs and a microphone-bound 00:10
+annotation (user-confirmed event, approximate end from saved lexical onset).
+First compare identical cached takes under old/new processing and selection.
+Then run this checkout's configured providers/synthesis on the first minute and
+representative long passages. Preserve original jobs and paid response identities;
+record separate fresh-generation counts, omissions/uncertainty and media checks.
+Render timestamped Spanish/prior/new comparisons, verify repeat resume, and commit
+the evaluation tooling, final evidence documentation and updated progress note.

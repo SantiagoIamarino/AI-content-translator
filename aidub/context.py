@@ -171,7 +171,7 @@ def english_rate(cfg: dict) -> float:
     return float(settings(cfg).get("english_syllables_per_sec", 5.0))
 
 
-def utterance_groups(segments: list[dict], max_gap_sec: float = 1.5, max_parts: int = 4) -> dict[int, tuple[str, int, int]]:
+def utterance_groups(segments: list[dict], max_gap_sec: float = 1.5, max_parts: int = 4, preserve_boundaries=False) -> dict[int, tuple[str, int, int]]:
     """Consecutive cues without terminal punctuation and with short pauses form one thought."""
     ordered = sorted(segments, key=lambda s: (float(s["start"]), int(s["id"])))
     groups, current = [], []
@@ -180,7 +180,9 @@ def utterance_groups(segments: list[dict], max_gap_sec: float = 1.5, max_parts: 
             prev = current[-1]
             gap = float(seg["start"]) - float(prev["end"])
             open_sentence = not _TERMINAL.search(prev["spanish"].strip())
-            if gap <= max_gap_sec and open_sentence and len(current) < max_parts:
+            boundary = preserve_boundaries and (_reaction(prev) or _reaction(seg) or
+                         re.match(r"^(así que bueno|la verdad es|pero bueno)\b",seg["spanish"].lower()))
+            if gap <= max_gap_sec and open_sentence and len(current) < max_parts and not boundary:
                 current.append(seg)
                 continue
             groups.append(current)
@@ -195,8 +197,13 @@ def utterance_groups(segments: list[dict], max_gap_sec: float = 1.5, max_parts: 
     return out
 
 
+def _reaction(seg):
+    return seg.get("anchor_type") == "vocal_event" or bool(seg.get("vocal_events")) or bool(
+        re.fullmatch(r"(?:ok|okay|eh|ah|uf|uff|sí|no|oh)[.!?,… ]*",seg["spanish"].lower()))
+
+
 def join_short_pauses(segments: list[dict], *, max_gap_sec: float, open_gap_sec: float,
-                      max_duration_sec: float, max_parts: int) -> tuple[list[dict], list[dict]]:
+                      max_duration_sec: float, max_parts: int, preserve_reactions=False) -> tuple[list[dict], list[dict]]:
     """Merge cues separated by a breath-length pause so they are voiced as one take.
 
     Very short pauses always join; somewhat longer pauses join only when the
@@ -214,6 +221,8 @@ def join_short_pauses(segments: list[dict], *, max_gap_sec: float, open_gap_sec:
             open_sentence = not _TERMINAL.search(prev["spanish"].strip())
             duration = float(seg["end"]) - float(prev["start"])
             joinable = (gap <= max_gap_sec or (open_sentence and gap <= open_gap_sec))
+            if preserve_reactions and (_reaction(prev) or _reaction(seg)):
+                joinable = False
             if gap >= 0 and joinable and duration <= max_duration_sec and len(prev["source_cues"]) + len(seg["source_cues"]) <= max_parts:
                 audit.append({"kind": "utterance_join", "kept": prev["spanish"], "joined": seg["spanish"],
                               "gap_sec": round(gap, 3), "open_sentence": open_sentence})
@@ -238,7 +247,8 @@ def quality_translation_request(job_id: str, segments: list[dict], video_duratio
     windows = safe_windows(ordered, video_duration)
     rate = english_rate(cfg)
     max_tempo = float(cfg["schedule"]["max_tempo"])
-    groups = utterance_groups(ordered, float(opts.get("utterance_max_gap_sec", 1.5)), int(opts.get("utterance_max_parts", 4)))
+    groups = utterance_groups(ordered, float(opts.get("utterance_max_gap_sec", 1.5)), int(opts.get("utterance_max_parts", 4)),
+                              preserve_boundaries=bool((cfg.get("source_events") or {}).get("enabled")))
     n_ctx = int(opts.get("neighbor_lines", 3))
     rows = []
     for i, seg in enumerate(ordered):

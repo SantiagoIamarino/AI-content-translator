@@ -33,6 +33,8 @@ def source_pacing_score(selection, seg, opts):
     penalty, target = 0.0, None
     if duration >= 1.6 and core > 0 and syllables >= 4:
         target = min(duration, syllables / float(opts['natural_rate_low']))
+        if policy.get('use_source_span'):
+            target = min(duration, syllables / float(opts.get('reject_rate_low', 2.3)))
         target = max(target, syllables / float(opts['natural_rate_high']))
         penalty = max(0.0, abs(math.log(core / target)) - math.log(1.1))
     result['components'] = dict(selection['components'], source_duration=round(penalty, 4))
@@ -59,7 +61,10 @@ def protected_edges(wav, sr, edge):
     quiet = int(sr * float(opts.get('settle_ms', 20)) / 1000)
     win = max(1, int(sr * .01))
     first, last = bounds
-    lo, hi = max(0, first - lead_limit), min(mono.size, last + tail_limit)
+    full_tail = bool(opts.get('inspect_full_tail'))
+    if full_tail and mono.size-last > int(sr*float(opts.get('max_analysis_tail_sec',2))):
+        return {'ok': False, 'reason': 'raw_tail_analysis_bound_exceeded'}
+    lo, hi = max(0, first - lead_limit), mono.size if full_tail else min(mono.size, last + tail_limit)
     # Compute only the bounded margins; long utterances remain inexpensive.
     def active(a, b):
         left, right = max(0, a - win), min(mono.size, b + win)
@@ -69,15 +74,23 @@ def protected_edges(wav, sr, edge):
     before, after = active(lo, first), active(last, hi)
     protected_first = int(before[0]) if before.size else first
     protected_last = int(after[-1]) + 1 if after.size else last
+    if full_tail:
+        # Preserve soft signal below the ordinary protection floor too. Only
+        # the quiet endpoint receives a fade; never infer a missing phoneme.
+        tail_floor = float(opts.get('decay_floor_rms', .0001))
+        tail = mono[last:].astype(np.float64)
+        low = np.flatnonzero(np.convolve(tail*tail,np.ones(win)/win,'same') > tail_floor**2) if tail.size else []
+        if len(low):
+            protected_last = max(protected_last,last+int(low[-1])+1)
     terminal_rms = float(np.sqrt(np.mean(mono[-win:].astype(np.float64)**2)))
     reason = ''
-    if terminal_rms > floor:
+    if terminal_rms > (float(opts.get('decay_floor_rms',.0001)) if full_tail else floor):
         reason = 'raw_ending_unsettled'
     elif hi < mono.size and protected_last + quiet > hi:
         reason = 'ending_margin_exhausted'
     return {'ok': not reason, 'reason': reason, 'first': first, 'last': last,
             'protected_first': protected_first, 'protected_last': protected_last,
-            'terminal_rms': terminal_rms, 'floor_rms': floor,
+            'terminal_rms': terminal_rms, 'floor_rms': floor, 'full_tail_inspected': full_tail,
             'lead_samples': max(first-protected_first + quiet, round(sr*float(edge.get('margin_lead_ms',20))/1000)),
             'tail_samples': max(protected_last-last + quiet, round(sr*float(edge.get('margin_tail_ms',60))/1000)),
             'scope': 'bounded generated signal; not a speech or listening verdict'}

@@ -29,6 +29,7 @@ from .context import glossary_names, join_short_pauses, quality_translation_requ
 from .second_pass import run_second_pass, settings as second_pass_settings, unreviewed_gaps
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
 from .events import identity as events_identity, apply_events, event_placement_report
+from .performance import identity as performance_identity, attach_source_pauses, score_contextual
 from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
 from .textnorm import content_tokens, normalize_tokens
 from .export import decode_ok, mux_english_cmd, mux_spanish_cmd, place_voice, write_bilingual
@@ -234,7 +235,7 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
     })
     fp_inputs = {"legacy_inputs": legacy_fp, "transcription": cfg.get("transcription"),
                  "weights": file_identity(whisper_model_file(cfg)),
-                 "segmentation_version": 2, **events_identity(cfg)}
+                 "segmentation_version": 2, **events_identity(cfg), **performance_identity(cfg)}
     second = second_pass_settings(cfg)
     join = (quality_translation_settings(cfg).get("join") or {})
     if second:
@@ -271,13 +272,14 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
         joined, join_audit = join_short_pauses(
             built["segments"], max_gap_sec=float(join.get("max_gap_sec", 0.35)),
             open_gap_sec=float(join.get("open_gap_sec", 0.7)), max_duration_sec=float(join.get("max_duration_sec", 10.0)),
-            max_parts=int(join.get("max_parts", 3)))
+            max_parts=int(join.get("max_parts", 3)), preserve_reactions=bool(join.get("preserve_reactions")))
         for index, seg in enumerate(joined, start=1):
             seg["id"] = index
         built["segments"] = joined
         built["merges"] = list(built.get("merges") or []) + join_audit
         built["corrections"] = list(built.get("corrections") or []) + join_audit
     built = apply_events(built, raw, mic, float(alignment["offset_sec"]), cfg, alignment["mic_sha256"])
+    built = attach_source_pauses(built, mic, float(alignment["offset_sec"]), cfg)
     if "vocal_events" in built:
         write_json(out_dir / "vocal_events.json", built["vocal_events"])
     for seg in built["segments"]:
@@ -667,6 +669,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         "schedule_version": 3 if int((cfg.get("voice_edge") or {}).get("presentation_version", 1)) >= 2 else 2,
         **continuity_identity(cfg),
         **events_identity(cfg),
+        **performance_identity(cfg),
         **({"voice_selection": voice_selection_settings(cfg), "selection_code": sha256_file(Path(__file__).with_name("selection.py"))}
            if voice_selection_settings(cfg) else {}),
         **({"context": (load_context_for(job, cfg, segments) or {}).get("identity")} if quality_translation_settings(cfg) else {}),
@@ -702,7 +705,8 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
     def score(attempt: dict) -> dict:
         raw, raw_sr = read_audio(Path(attempt["raw_path"]))
         pace = take_pacing(to_mono(raw), raw_sr, attempt["text"], float(cfg["schedule"]["trim_rms"]), float(attempt.get("tempo") or 1.0))
-        return source_pacing_score(score_take(attempt, pace, profile, running_profile(chosen_profiles), selection), seg, selection)
+        scored = source_pacing_score(score_take(attempt, pace, profile, running_profile(chosen_profiles), selection), seg, selection)
+        return score_contextual(scored, attempt, selection)
     prior = read_json(summary_path) if summary_path.is_file() else {"segments": []}
     prior_attempts = {int(s["id"]): list(s.get("attempts") or []) for s in prior.get("segments") or []}
     ordered = sorted(segments, key=lambda s: (float(s["start"]), int(s["id"])))
@@ -728,6 +732,14 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
             cue = loudness.get(int(seg["id"])) or {}
             line_rms = target_rms * 10 ** (float(cue["expressive_db"]) / 20.0) if target_rms and cue else target_rms
             attempt = _present_v3(job, cfg, seg, attempt, occupied_until, next_start, source_dur, line_rms, edge)
+            if attempt.get("placed") and attempt.get("tempo",1.) > 1. and (edge.get("protection") or {}).get("inspect_full_tail"):
+                processed = assessor(dict(meta,path=attempt["used_path"]),text)
+                attempt["processed_quality"] = processed
+                verified = bool(processed.get("ok") and not processed.get("asr_skipped"))
+                attempt["presentation"]["post_tempo_text_verified"] = verified
+                if not verified:
+                    attempt.update(placed=False,presentation_rejected="processed_take_failed_verification",
+                                   timing_error="processed_take_failed_verification",status="unresolved")
         return attempt
 
     try:
@@ -982,6 +994,10 @@ def _present_v3(job, cfg, seg, chosen, occupied, next_start, source_duration, ta
     placement_start = core_start - info["lead_ms_used"] / 1000 / tempo
     if placement_start + piece.size / sr > window_end + 1e-4:
         return reject("protected_edge_outside_window_after_tempo")
+    terminal = float(np.sqrt(np.mean(piece[-max(1,round(.01*sr)):].astype(np.float64)**2)))
+    settled = terminal <= float((edge.get("protection") or {}).get("decay_floor_rms", .0001)) * max(1.,info["gain"])
+    if (edge.get("protection") or {}).get("inspect_full_tail") and not settled:
+        return reject("processed_ending_unsettled")
     write_wav(path, piece, sr, subtype="FLOAT")
     chosen.update(used_path=str(path), placement_start=placement_start,
                   generated_duration_sec=piece.size/sr, edge=info,
@@ -989,6 +1005,8 @@ def _present_v3(job, cfg, seg, chosen, occupied, next_start, source_duration, ta
                   presentation={"version": 3, "tempo": tempo, "lead_ms": info["lead_ms_used"],
                                 "tail_ms": info["tail_ms_used"], "truncated_to_window": False,
                                 "protected_signal_preserved": info["protected_signal_preserved"],
+                                "full_tail_inspected": info.get("full_tail_inspected",False),
+                                "processed_ending_settled": settled,
                                 "target_rms": target_rms, "loudness_gain": info["gain"]})
     return chosen
 
@@ -1413,6 +1431,12 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
                        (s.get("presentation") or {}).get("truncated_to_window") is not False)]
         add("generated_endings_preserved", not lost_edges,
             lost_edges or "bounded quiet signal retained; no window clipping; raw unsettled endings rejected")
+        if ((cfg.get("voice_edge") or {}).get("protection") or {}).get("inspect_full_tail"):
+            bad = [s["id"] for s in summary["segments"] if s.get("placed") and
+                   (not s.get("presentation",{}).get("full_tail_inspected") or
+                    not s.get("presentation",{}).get("processed_ending_settled") or
+                    (s.get("tempo",1.) > 1. and not s.get("presentation",{}).get("post_tempo_text_verified")))]
+            add("processed_endings_verified",not bad,bad or "full generated tail inspected; processed endpoint checked; tempo takes reverified")
     event_report = None
     if (cfg.get("source_events") or {}).get("enabled"):
         ledger_path = job.dir / "transcribe/vocal_events.json"

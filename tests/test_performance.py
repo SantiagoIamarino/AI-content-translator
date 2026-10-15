@@ -14,6 +14,9 @@ from aidub.events import apply_events, event_placement_report, identity as event
 from aidub.context import quality_translation_request
 from aidub.handoff import validate_translation_response, TRANSLATION_SCHEMA
 from aidub.textnorm import sequence_check
+from aidub.performance import contextual_quality, quiet_intervals, score_contextual
+from aidub.continuity import render_protected
+from aidub.context import join_short_pauses, utterance_groups
 
 
 def seg(i, start, end, text):
@@ -145,3 +148,46 @@ class VocalEventTests(unittest.TestCase):
         self.assertIn("missing_vocal_event",sequence_check("Uh...","")["hard"])
         self.assertIn("extra_speech",sequence_check("Uh...","Uh, let's go!")["hard"])
         self.assertEqual(sequence_check("Uh...","Um")["hard"],[])
+
+
+class PerformanceTimingTests(unittest.TestCase):
+    def test_source_supported_thinking_pause_is_not_a_global_failure(self):
+        sr=16000; tone=.1*np.sin(2*np.pi*140*np.arange(sr)/sr)
+        wav=np.r_[tone,np.zeros(round(1.3*sr)),tone].astype(np.float32)
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/"raw.wav";sf.write(path,wav,sr)
+            opts={"source_pauses":{"enabled":True},"weights":{"pause":2.}}
+            source=dict(start=10.,end=13.3,source_pauses=[dict(start=11.,end=12.3,duration=1.3)])
+            original={"ok":False,"reasons":["pathological_pause"]}
+            a={"raw_path":str(path)}
+            good=contextual_quality(a,original,source,opts)
+            self.assertTrue(good["ok"])
+            self.assertEqual(original["reasons"],["pathological_pause"])
+            self.assertEqual(a["raw_quality"],original)
+            bad=contextual_quality({"raw_path":str(path)},dict(original,reasons=["pathological_pause","missing_or_incorrect_text"]),source,opts)
+            self.assertEqual(bad["reasons"],["missing_or_incorrect_text"])
+            misplaced=dict(source,source_pauses=[dict(start=10.,end=10.4,duration=.4)])
+            self.assertFalse(contextual_quality({"raw_path":str(path)},original,misplaced,opts)["ok"])
+            self.assertEqual(score_contextual({"score":2.,"components":{"pause":1.}},a,opts)["components"]["pause"],0.)
+
+    def test_reaction_keeps_anchor_during_grouping(self):
+        rows=[seg(1,1,2,"La idea"),seg(2,2.1,2.4,"Eh..."),seg(3,2.5,3,"es jugarlo")]
+        joined,_=join_short_pauses(rows,max_gap_sec=.35,open_gap_sec=.35,max_duration_sec=10,max_parts=3,preserve_reactions=True)
+        self.assertEqual(len(joined),3)
+        groups=utterance_groups(rows,preserve_boundaries=True)
+        self.assertNotEqual(groups[1][0],groups[2][0])
+
+    def test_full_tail_keeps_delayed_and_soft_generated_decay(self):
+        sr=24000; wav=np.zeros(sr*2,dtype=np.float32)
+        wav[2400:sr]=.08*np.sin(2*np.pi*140*np.arange(sr-2400)/sr)
+        # A delayed release outside the former 400-ms search, below RMS .0015.
+        a,b=round(1.5*sr),round(1.7*sr)
+        wav[a:b]=.0007*np.sin(2*np.pi*2200*np.arange(b-a)/sr)
+        edge={"fade_ms":12,"protection":{"inspect_full_tail":True,"decay_floor_rms":.0001}}
+        new,info=render_protected(wav,sr,edge,target_rms=None,lead_room=sr,tail_room=sr*2)
+        self.assertTrue(info["full_tail_inspected"])
+        start=info["first"]-round(info["lead_ms_used"]*sr/1000)
+        np.testing.assert_array_equal(new[a-start:b-start],wav[a:b])
+        short,why=render_protected(wav,sr,edge,target_rms=None,lead_room=sr,tail_room=round(.2*sr))
+        self.assertIsNone(short)
+        self.assertEqual(why["reason"],"protected_edge_outside_window")
