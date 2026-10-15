@@ -243,7 +243,7 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
     if second:
         fp_inputs["second_pass"] = {"settings": second, "model": (cfg.get("asr_second_pass") or {}).get("model"),
                                     "device": (cfg.get("asr_second_pass") or {}).get("device"),
-                                    "weights": file_identity(second_pass_model_file(cfg)), "version": 3 if second.get("confirm_recovered") else 2}
+                                    "weights": file_identity(second_pass_model_file(cfg)), "version": 4 if second.get("confirm_recovered") else 2}
     if join.get("enabled"):
         fp_inputs["utterance_join"] = join
     fp = fingerprint(fp_inputs)

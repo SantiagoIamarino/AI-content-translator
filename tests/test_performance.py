@@ -47,6 +47,21 @@ class SurvivingCoverageTests(unittest.TestCase):
             # confirmation window is an additional ASR request.
             run_second_pass(root,built,mic,0,cfg,lambda *a:self.fail("hearing cache not reused"))
 
+    def test_context_word_with_broad_approximate_timing_can_corroborate_gap(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);mic=root/"mic.wav";sf.write(mic,np.zeros(16000*5),16000)
+            built={"segments":[seg(1,3,4,"Intentar escapar")],"untranscribed_energy":[{"span":[2.1,2.3]}],"corrections":[]}
+            built["segments"][0]["source_words"]=[dict(word="Intentar",start=3.2,end=3.6)]
+            cfg={"asr_second_pass":{"enabled":True,"confirm_recovered":True}}
+            def hear(path,options):
+                # Confirmation window starts at 1.3; broad word 1.3–2.4
+                # intersects the gap even though its midpoint is too early.
+                a,b=(0.,1.1) if "gap_confirm" in str(path) else (.35,.55)
+                return {"segments":[{"words":[dict(word="Intentar...",start=a,end=b,probability=.7)]}]}
+            out=run_second_pass(root,built,mic,0,cfg,hear)
+            self.assertEqual(len(out["segments"]),2)
+            self.assertEqual(read_json(root/"transcribe/second_pass.json")["targets"][0]["outcome"],"recovered")
+
     def test_final_coverage_includes_recovered_prefix_and_joined_cues(self):
         d={"segments":[seg(2,10.179,20.949,"Eh... Es la primera vez")],
            "untranscribed_energy":[{"span":[10.179,11.097]},{"span":[21.8,22]}]}

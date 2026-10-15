@@ -277,3 +277,37 @@ responses for matching requests; changed gap content legitimately needs its own
 translation response. Inspect actual contextual confirmation, local onset delay,
 omissions and fresh/cache counts. Finish excerpts, summary, idempotent resume and
 final results documentation after that queue exits.
+
+## Stage 10 — fair source-timing confirmation and comparison picture origin
+
+Completed: actual context confirmation of `Intentar...` used a broad Whisper word
+interval (104.224–105.464 local seconds). Its midpoint was earlier than the
+105.024–105.340 uncovered span, even though the word interval covers that span.
+The confirmation now requires meaningful overlap rather than treating approximate
+Whisper midpoints as exact alignment. Recovered text still needs concordance and
+the configured confidence floors. Interpretation version 4 reuses both hearings.
+
+The picture comparison harness also had a demonstrated seek error: a packet hash
+identifies the 600-second Matroska fixture's first packet as the original 598.55
+keyframe, normalized to zero. Corrected MP4 comparisons copy directly from the
+full saved baseline picture, preserve edit-list preroll, and check the first
+displayed frame against the intended original frame after mux. Existing fixture
+sources/exports remain preserved and are not presented as absolute alignment
+proof. Future fixture preparation aligns all tracks to a verified keyframe first.
+Short absolute-timestamp comparison rendering and cumulative raw-cache accounting
+are now available in the evaluation tool.
+
+Changed files: second-pass interpretation/version, evaluation tool, two test
+files and docs. Verification: 135 tests, 134 passed, one existing fixture skipped
+(`stage10-tests.log`). The picture test demonstrates the old drift and checks the
+corrected displayed frame. The full cached controls have been refreshed into
+`cached-minute-final` and `cached-long-600-790-final`: 7/7 and 25/25 placements,
+zero translation, ASR or TTS calls, exact continuous game-plus-voice PCM.
+
+Exact next step: let `queue-final.log` finish; it began before interpretation 4,
+so run the saved queue once more with current code to settle all fingerprints.
+Matching providers/raw takes must be reused; inspect the returned `Intentar`
+confirmation and the uncertain `Gracias` result explicitly. Rerender all
+comparisons with the corrected picture tool, create timestamped excerpts, run
+the unchanged-resume check and write final counts/limitations. The refreshed
+minute renderer is in `minute-render-final.log`.

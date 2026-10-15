@@ -185,6 +185,22 @@ It holds a separate queue lock and passes normal work through the existing CLI.
 comparisons, plus cue and event accounting. These are experimental listening
 artifacts, not perceptual approval.
 
+`excerpts --output PASSAGE --start A --end B` creates short three-way comparisons
+using absolute original recording times. Their voice/mix WAVs have exact requested
+sample boundaries. The videos preserve MP4 edit-list preroll and compare their
+first displayed frame with the requested source frame.
+
+The initial Matroska passage fixtures normalized copied keyframe preroll: for the
+600-second passage, the first packet was from 598.55 seconds but displayed at
+zero alongside samples from 600 seconds. This was an evaluation-tool error, not a
+change to production extraction. Existing fixtures/jobs are preserved for audit;
+their pipeline exports do not establish absolute picture alignment. The corrected
+comparison renderer copies directly from the full available baseline picture,
+preserves the MP4 seek origin, and checks the first displayed frame after mux.
+New fixture preparation instead aligns every audio crop to the actual copied
+keyframe, records requested and actual intervals, and checks its displayed origin
+before ASR or providers. It refuses a mismatch.
+
 Evaluation results, absolute local preview paths, fresh/cached counts and remaining
 limitations will be recorded after the configured jobs finish. No representative
 full-length run or general automatic filler-recovery guarantee is claimed.

@@ -284,8 +284,12 @@ def run_second_pass(job_dir: Path, built: dict, mic_path: Path, offset_sec: floa
                 ca = max(0.,g0-max(.8,pad))
                 cb = min(offset_sec+mic.handle.frames/mic.sr,g1+max(.8,pad))
                 context_words,_ = hear("gap_confirm",f"{n:04d}",ca,cb)
+                # Whisper can assign a quiet word a broad interval beginning
+                # well before its acoustic onset (the saved "Intentar..."
+                # hearing). Require meaningful overlap, not an exact midpoint.
                 timed = [w for w in context_words if any(
-                    a-.1 <= (w["start"]+w["end"])/2 <= b+.1 for a,b in uncovered)]
+                    max(0.,min(w["end"],b)-max(w["start"],a)) >= min(.06,(b-a)/2)
+                    for a,b in uncovered)]
                 corroborated = _summary(timed)
                 matches = bool(_find(es_tokens(corroborated["text"]),es_tokens(info["text"])))
                 confirmed = bool(matches and corroborated["mean_probability"] >= float(opts["accept_probability"])
