@@ -1,0 +1,33 @@
+{
+  "waveform_sha256": "5c4d36231737b870c7f1d5fcfa98bff92444c8d8a9e358e7e0a4c8e7f9123955",
+  "path": "/home/siamarino/ai-dubbing-e2e-unattended/runs/reference-comparison-20261014/emotiva_takes/phrase_03_seed_5103.wav",
+  "text": "Honestly, I'm still deciding whether to play on Hardcore or Standard.",
+  "reference_audio": "/home/siamarino/audios/referencia_ingles_nueva_voz_emotiva_20261014.wav",
+  "seed": 5103,
+  "sample_rate": 24000,
+  "duration_sec": 5.2,
+  "inference_seconds": 3.5893875350000144,
+  "peak_gpu_gib": 4.701589584350586,
+  "mode": "generate_voice_clone",
+  "x_vector_only_mode": false,
+  "language": "English",
+  "generation_settings": {
+    "do_sample": true,
+    "top_k": 50,
+    "top_p": 1.0,
+    "temperature": 0.9,
+    "repetition_penalty": 1.05,
+    "subtalker_dosample": true,
+    "subtalker_top_k": 50,
+    "subtalker_top_p": 1.0,
+    "subtalker_temperature": 0.9,
+    "max_new_tokens": 2048
+  },
+  "cache_hit": false,
+  "n_samples": 124800,
+  "peak": 0.09619140625,
+  "rms": 0.01109369844198227,
+  "finite": true,
+  "silent": false,
+  "clipping_samples": 0
+}

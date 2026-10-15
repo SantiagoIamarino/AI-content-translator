@@ -1,0 +1,33 @@
+{
+  "waveform_sha256": "7bbf1a1da8b81939ce638d060bdba8d72352693c60f50228caab56c724ebf1eb",
+  "path": "/home/siamarino/ai-dubbing-e2e-unattended/runs/reference-comparison-20261014/emotiva_takes/phrase_02_seed_5102.wav",
+  "text": "I played the original Resident Evil 4 a lot on PlayStation 2.",
+  "reference_audio": "/home/siamarino/audios/referencia_ingles_nueva_voz_emotiva_20261014.wav",
+  "seed": 5102,
+  "sample_rate": 24000,
+  "duration_sec": 3.6,
+  "inference_seconds": 2.573020366000037,
+  "peak_gpu_gib": 4.701503753662109,
+  "mode": "generate_voice_clone",
+  "x_vector_only_mode": false,
+  "language": "English",
+  "generation_settings": {
+    "do_sample": true,
+    "top_k": 50,
+    "top_p": 1.0,
+    "temperature": 0.9,
+    "repetition_penalty": 1.05,
+    "subtalker_dosample": true,
+    "subtalker_top_k": 50,
+    "subtalker_top_p": 1.0,
+    "subtalker_temperature": 0.9,
+    "max_new_tokens": 2048
+  },
+  "cache_hit": false,
+  "n_samples": 86400,
+  "peak": 0.1787109375,
+  "rms": 0.018231628462672234,
+  "finite": true,
+  "silent": false,
+  "clipping_samples": 0
+}

@@ -340,7 +340,7 @@ def _invoke_checked_locked(spec, request_path, response_path, role, current, bef
         req = dict(original)
         if feedback:
             req["validation_feedback"] = {"attempt": index - 1, "errors": [str(e)[:1000] for e in feedback[:20]],
-                                          "instruction": "Correct these schema errors; preserve the requested cue IDs."}
+                                          "instruction": "Correct every listed validator error. Follow the original response contract, preserve requested IDs and source content, and do not weaken or bypass validation."}
         limit = int(spec.get("max_request_chars", 40000))
         while len(json.dumps(req, ensure_ascii=False)) > limit and req.get("validation_feedback", {}).get("errors"):
             errors = req["validation_feedback"]["errors"]

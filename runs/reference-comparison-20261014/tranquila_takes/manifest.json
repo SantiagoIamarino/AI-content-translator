@@ -1,0 +1,62 @@
+{
+  "reference_wav": "/home/siamarino/audios/referencia_ingles_nueva_voz_tranquila_20261014.wav",
+  "reference_wav_sha256": "befb8b63e7bbaff92da9a6910cbce3fa147c9328503d9f6b5693274c556333bf",
+  "reference_text_file": "/home/siamarino/audios/referencia_ingles_nueva_voz_tranquila_20261014.txt",
+  "reference_text_sha256": "5961c35971055464ee01d61014b80501595720a3f63f34b24de436c14e07be88",
+  "reference_text": "Good night, everyone. So, the idea for today is to play Resident Evil 4 Remake. We're going to play it at a pretty relaxed and chill gameplay, so you can watch it and, I don't know, try to fall asleep or if you just want to relax and watch a chill gameplay. Um, so we're going to be playing the main story. I'm going to create a new game. I've played this game a lot in the original version, the PlayStation 2 version, when I was a child, but didn't play too much on this new remake version. I think I'm gonna choose the hardcore game mode. Um, yeah, yeah, I'll think I'll go with it. And yep, hopefully you'll enjoy it.",
+  "qwen3": {
+    "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    "attn_implementation": "sdpa",
+    "dtype": "bfloat16",
+    "device": "cuda:0",
+    "language": "English",
+    "x_vector_only_mode": false,
+    "generation": {
+      "do_sample": true,
+      "top_k": 50,
+      "top_p": 1.0,
+      "temperature": 0.9,
+      "repetition_penalty": 1.05,
+      "subtalker_dosample": true,
+      "subtalker_top_k": 50,
+      "subtalker_top_p": 1.0,
+      "subtalker_temperature": 0.9,
+      "max_new_tokens": 2048
+    },
+    "model_revision": "fd4b254389122332181a7c3db7f27e918eec64e3"
+  },
+  "prompts": [
+    "Hi, good evening. Let's take it easy and enjoy the game.",
+    "I played the original Resident Evil 4 a lot on PlayStation 2.",
+    "Honestly, I'm still deciding whether to play on Hardcore or Standard."
+  ],
+  "takes": [
+    {
+      "index": 1,
+      "seed": 5101,
+      "prompt": "Hi, good evening. Let's take it easy and enjoy the game.",
+      "wav": "/home/siamarino/ai-dubbing-e2e-unattended/runs/reference-comparison-20261014/tranquila_takes/phrase_01_seed_5101.wav",
+      "wav_sha256": "1eca6e2717657a6f29a4fa91ffb3ef0395be3fdd27229f6d68fa67ac0e6853a5",
+      "duration_sec": 3.52,
+      "inference_seconds": 2.7089968999999883
+    },
+    {
+      "index": 2,
+      "seed": 5102,
+      "prompt": "I played the original Resident Evil 4 a lot on PlayStation 2.",
+      "wav": "/home/siamarino/ai-dubbing-e2e-unattended/runs/reference-comparison-20261014/tranquila_takes/phrase_02_seed_5102.wav",
+      "wav_sha256": "7cbd6e661d8852ef78d767523dd4088433279bc82272532451273b155d9c41ed",
+      "duration_sec": 4.24,
+      "inference_seconds": 3.0105687899999793
+    },
+    {
+      "index": 3,
+      "seed": 5103,
+      "prompt": "Honestly, I'm still deciding whether to play on Hardcore or Standard.",
+      "wav": "/home/siamarino/ai-dubbing-e2e-unattended/runs/reference-comparison-20261014/tranquila_takes/phrase_03_seed_5103.wav",
+      "wav_sha256": "ed34c6abf1ce79f65d3759ed15bb3de8b6cb5ac7bdd4ed6ca58368989a413e62",
+      "duration_sec": 5.28,
+      "inference_seconds": 3.7137290370000073
+    }
+  ]
+}

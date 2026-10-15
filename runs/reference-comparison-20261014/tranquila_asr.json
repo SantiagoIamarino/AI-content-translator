@@ -1,0 +1,1001 @@
+{
+  "wav": "/home/siamarino/audios/referencia_ingles_nueva_voz_tranquila_20261014.wav",
+  "wav_sha256": "befb8b63e7bbaff92da9a6910cbce3fa147c9328503d9f6b5693274c556333bf",
+  "model": "/home/siamarino/.cache/whisper/large-v3-turbo.pt",
+  "decode_options": {
+    "language": "English",
+    "condition_on_previous_text": false,
+    "beam_size": 5,
+    "best_of": 5
+  },
+  "result": {
+    "text": " Good night, everyone. So, the idea for today is to play Rusted and Evil 4 Remake. We're going to play it at a pretty relaxed and chill gameplay, so you can watch it and, I don't know, try to fall asleep or if you just want to relax and watch a chill gameplay. um so we're going to be playing the main story i'm going to create a new game i've played this game a lot in the original version the playstation 2 version when i was a child but didn't play too much on this new remake version i think i'm gonna choose the hardcore game mode um yeah yeah i'll think i'll go with it and yep hopefully you'll enjoy it",
+    "segments": [
+      {
+        "id": 0,
+        "seek": 0,
+        "start": 1.2199999999999978,
+        "end": 8.32,
+        "text": " Good night, everyone. So, the idea for today is to play Rusted and Evil 4 Remake.",
+        "tokens": [
+          50365,
+          2205,
+          1818,
+          11,
+          1518,
+          13,
+          407,
+          11,
+          264,
+          1558,
+          337,
+          965,
+          307,
+          281,
+          862,
+          497,
+          6589,
+          293,
+          20528,
+          1017,
+          4080,
+          619,
+          13,
+          50815
+        ],
+        "temperature": 0.0,
+        "avg_logprob": -0.2715630061189893,
+        "compression_ratio": 1.4885057471264367,
+        "no_speech_prob": 8.230326142832922e-12,
+        "words": [
+          {
+            "word": " Good",
+            "start": 1.2199999999999978,
+            "end": 1.78,
+            "probability": 0.6463487148284912
+          },
+          {
+            "word": " night,",
+            "start": 1.78,
+            "end": 2.02,
+            "probability": 0.9420893788337708
+          },
+          {
+            "word": " everyone.",
+            "start": 2.06,
+            "end": 2.48,
+            "probability": 0.9966186285018921
+          },
+          {
+            "word": " So,",
+            "start": 3.54,
+            "end": 3.68,
+            "probability": 0.9494051933288574
+          },
+          {
+            "word": " the",
+            "start": 4.06,
+            "end": 4.3,
+            "probability": 0.9995115995407104
+          },
+          {
+            "word": " idea",
+            "start": 4.3,
+            "end": 4.56,
+            "probability": 0.9997634291648865
+          },
+          {
+            "word": " for",
+            "start": 4.56,
+            "end": 4.78,
+            "probability": 0.9973256587982178
+          },
+          {
+            "word": " today",
+            "start": 4.78,
+            "end": 5.14,
+            "probability": 0.9997290968894958
+          },
+          {
+            "word": " is",
+            "start": 5.14,
+            "end": 5.72,
+            "probability": 0.9855121970176697
+          },
+          {
+            "word": " to",
+            "start": 5.72,
+            "end": 5.94,
+            "probability": 0.9988927245140076
+          },
+          {
+            "word": " play",
+            "start": 5.94,
+            "end": 6.32,
+            "probability": 0.9992977380752563
+          },
+          {
+            "word": " Rusted",
+            "start": 6.32,
+            "end": 6.82,
+            "probability": 0.46335888653993607
+          },
+          {
+            "word": " and",
+            "start": 6.82,
+            "end": 6.98,
+            "probability": 0.1913556158542633
+          },
+          {
+            "word": " Evil",
+            "start": 6.98,
+            "end": 7.12,
+            "probability": 0.9550867080688477
+          },
+          {
+            "word": " 4",
+            "start": 7.12,
+            "end": 7.54,
+            "probability": 0.9898155927658081
+          },
+          {
+            "word": " Remake.",
+            "start": 7.54,
+            "end": 8.32,
+            "probability": 0.8969355523586273
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "seek": 0,
+        "start": 9.3,
+        "end": 22.44,
+        "text": " We're going to play it at a pretty relaxed and chill gameplay, so you can watch it and, I don't know, try to fall asleep or if you just want to relax and watch a chill gameplay.",
+        "tokens": [
+          50815,
+          492,
+          434,
+          516,
+          281,
+          862,
+          309,
+          412,
+          257,
+          1238,
+          14628,
+          293,
+          11355,
+          11421,
+          11,
+          370,
+          291,
+          393,
+          1159,
+          309,
+          293,
+          11,
+          286,
+          500,
+          380,
+          458,
+          11,
+          853,
+          281,
+          2100,
+          11039,
+          420,
+          498,
+          291,
+          445,
+          528,
+          281,
+          5789,
+          293,
+          1159,
+          257,
+          11355,
+          11421,
+          13,
+          51515
+        ],
+        "temperature": 0.0,
+        "avg_logprob": -0.2715630061189893,
+        "compression_ratio": 1.4885057471264367,
+        "no_speech_prob": 8.230326142832922e-12,
+        "words": [
+          {
+            "word": " We're",
+            "start": 9.3,
+            "end": 9.86,
+            "probability": 0.9661350250244141
+          },
+          {
+            "word": " going",
+            "start": 9.86,
+            "end": 10.02,
+            "probability": 0.9996883869171143
+          },
+          {
+            "word": " to",
+            "start": 10.02,
+            "end": 10.22,
+            "probability": 0.9997268319129944
+          },
+          {
+            "word": " play",
+            "start": 10.22,
+            "end": 10.52,
+            "probability": 0.9992808699607849
+          },
+          {
+            "word": " it",
+            "start": 10.52,
+            "end": 10.68,
+            "probability": 0.9490838050842285
+          },
+          {
+            "word": " at",
+            "start": 10.68,
+            "end": 10.8,
+            "probability": 0.892442524433136
+          },
+          {
+            "word": " a",
+            "start": 10.8,
+            "end": 10.86,
+            "probability": 0.9931408762931824
+          },
+          {
+            "word": " pretty",
+            "start": 10.86,
+            "end": 11.1,
+            "probability": 0.8474436402320862
+          },
+          {
+            "word": " relaxed",
+            "start": 11.1,
+            "end": 11.56,
+            "probability": 0.9905450344085693
+          },
+          {
+            "word": " and",
+            "start": 11.56,
+            "end": 12.8,
+            "probability": 0.9847357273101807
+          },
+          {
+            "word": " chill",
+            "start": 12.8,
+            "end": 13.18,
+            "probability": 0.9418356418609619
+          },
+          {
+            "word": " gameplay,",
+            "start": 13.18,
+            "end": 13.88,
+            "probability": 0.9813321828842163
+          },
+          {
+            "word": " so",
+            "start": 14.14,
+            "end": 14.42,
+            "probability": 0.997688889503479
+          },
+          {
+            "word": " you",
+            "start": 14.42,
+            "end": 14.56,
+            "probability": 0.999705970287323
+          },
+          {
+            "word": " can",
+            "start": 14.56,
+            "end": 14.74,
+            "probability": 0.9999555349349976
+          },
+          {
+            "word": " watch",
+            "start": 14.74,
+            "end": 15.04,
+            "probability": 0.9995909333229065
+          },
+          {
+            "word": " it",
+            "start": 15.04,
+            "end": 15.32,
+            "probability": 0.9994662404060364
+          },
+          {
+            "word": " and,",
+            "start": 15.32,
+            "end": 15.66,
+            "probability": 0.9745594263076782
+          },
+          {
+            "word": " I",
+            "start": 16.56,
+            "end": 16.74,
+            "probability": 0.9994648098945618
+          },
+          {
+            "word": " don't",
+            "start": 16.74,
+            "end": 16.84,
+            "probability": 0.9983631670475006
+          },
+          {
+            "word": " know,",
+            "start": 16.84,
+            "end": 16.92,
+            "probability": 0.9999250173568726
+          },
+          {
+            "word": " try",
+            "start": 17.02,
+            "end": 17.24,
+            "probability": 0.9998369216918945
+          },
+          {
+            "word": " to",
+            "start": 17.24,
+            "end": 17.4,
+            "probability": 0.999915599822998
+          },
+          {
+            "word": " fall",
+            "start": 17.4,
+            "end": 17.72,
+            "probability": 0.999779999256134
+          },
+          {
+            "word": " asleep",
+            "start": 17.72,
+            "end": 18.08,
+            "probability": 0.9992714524269104
+          },
+          {
+            "word": " or",
+            "start": 18.08,
+            "end": 18.44,
+            "probability": 0.5299528241157532
+          },
+          {
+            "word": " if",
+            "start": 18.44,
+            "end": 18.94,
+            "probability": 0.9453466534614563
+          },
+          {
+            "word": " you",
+            "start": 18.94,
+            "end": 19.06,
+            "probability": 0.9999732971191406
+          },
+          {
+            "word": " just",
+            "start": 19.06,
+            "end": 19.46,
+            "probability": 0.9882698059082031
+          },
+          {
+            "word": " want",
+            "start": 19.46,
+            "end": 19.62,
+            "probability": 0.999115526676178
+          },
+          {
+            "word": " to",
+            "start": 19.62,
+            "end": 19.78,
+            "probability": 0.9999643564224243
+          },
+          {
+            "word": " relax",
+            "start": 19.78,
+            "end": 20.14,
+            "probability": 0.99960857629776
+          },
+          {
+            "word": " and",
+            "start": 20.14,
+            "end": 20.48,
+            "probability": 0.9967013001441956
+          },
+          {
+            "word": " watch",
+            "start": 20.48,
+            "end": 21.58,
+            "probability": 0.9994624257087708
+          },
+          {
+            "word": " a",
+            "start": 21.58,
+            "end": 21.82,
+            "probability": 0.9060864448547363
+          },
+          {
+            "word": " chill",
+            "start": 21.82,
+            "end": 22.06,
+            "probability": 0.9982612729072571
+          },
+          {
+            "word": " gameplay.",
+            "start": 22.06,
+            "end": 22.44,
+            "probability": 0.9977140426635742
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "seek": 2244,
+        "start": 23.659999999999997,
+        "end": 31.48,
+        "text": " um so we're going to be playing the main story i'm going to create a new game i've played this",
+        "tokens": [
+          50365,
+          1105,
+          370,
+          321,
+          434,
+          516,
+          281,
+          312,
+          2433,
+          264,
+          2135,
+          1657,
+          741,
+          478,
+          516,
+          281,
+          1884,
+          257,
+          777,
+          1216,
+          741,
+          600,
+          3737,
+          341,
+          50818
+        ],
+        "temperature": 0.0,
+        "avg_logprob": -0.09014684050830442,
+        "compression_ratio": 1.6815286624203822,
+        "no_speech_prob": 6.696876126560669e-12,
+        "words": [
+          {
+            "word": " um",
+            "start": 23.659999999999997,
+            "end": 24.22,
+            "probability": 0.008749372325837612
+          },
+          {
+            "word": " so",
+            "start": 24.22,
+            "end": 24.78,
+            "probability": 0.8723359107971191
+          },
+          {
+            "word": " we're",
+            "start": 24.78,
+            "end": 24.92,
+            "probability": 0.9961002171039581
+          },
+          {
+            "word": " going",
+            "start": 24.92,
+            "end": 25.06,
+            "probability": 0.9997673630714417
+          },
+          {
+            "word": " to",
+            "start": 25.06,
+            "end": 25.22,
+            "probability": 0.9999744892120361
+          },
+          {
+            "word": " be",
+            "start": 25.22,
+            "end": 25.56,
+            "probability": 0.9994346499443054
+          },
+          {
+            "word": " playing",
+            "start": 25.56,
+            "end": 25.86,
+            "probability": 0.99958735704422
+          },
+          {
+            "word": " the",
+            "start": 25.86,
+            "end": 26.06,
+            "probability": 0.9989799857139587
+          },
+          {
+            "word": " main",
+            "start": 26.06,
+            "end": 26.26,
+            "probability": 0.999631404876709
+          },
+          {
+            "word": " story",
+            "start": 26.26,
+            "end": 26.8,
+            "probability": 0.9996503591537476
+          },
+          {
+            "word": " i'm",
+            "start": 26.8,
+            "end": 27.94,
+            "probability": 0.8421049416065216
+          },
+          {
+            "word": " going",
+            "start": 27.94,
+            "end": 28.64,
+            "probability": 0.9995930790901184
+          },
+          {
+            "word": " to",
+            "start": 28.64,
+            "end": 28.82,
+            "probability": 0.9999768733978271
+          },
+          {
+            "word": " create",
+            "start": 28.82,
+            "end": 29.06,
+            "probability": 0.9996765851974487
+          },
+          {
+            "word": " a",
+            "start": 29.06,
+            "end": 29.24,
+            "probability": 0.9998676776885986
+          },
+          {
+            "word": " new",
+            "start": 29.24,
+            "end": 29.36,
+            "probability": 0.99972003698349
+          },
+          {
+            "word": " game",
+            "start": 29.36,
+            "end": 29.8,
+            "probability": 0.9994449019432068
+          },
+          {
+            "word": " i've",
+            "start": 29.8,
+            "end": 31.06,
+            "probability": 0.9609795808792114
+          },
+          {
+            "word": " played",
+            "start": 31.06,
+            "end": 31.28,
+            "probability": 0.9980347752571106
+          },
+          {
+            "word": " this",
+            "start": 31.28,
+            "end": 31.48,
+            "probability": 0.9998218417167664
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "seek": 2244,
+        "start": 31.48,
+        "end": 37.24,
+        "text": " game a lot in the original version the playstation 2 version when i was a child",
+        "tokens": [
+          50818,
+          1216,
+          257,
+          688,
+          294,
+          264,
+          3380,
+          3037,
+          264,
+          862,
+          19159,
+          568,
+          3037,
+          562,
+          741,
+          390,
+          257,
+          1440,
+          51106
+        ],
+        "temperature": 0.0,
+        "avg_logprob": -0.09014684050830442,
+        "compression_ratio": 1.6815286624203822,
+        "no_speech_prob": 6.696876126560669e-12,
+        "words": [
+          {
+            "word": " game",
+            "start": 31.48,
+            "end": 31.72,
+            "probability": 0.9997712969779968
+          },
+          {
+            "word": " a",
+            "start": 31.72,
+            "end": 31.92,
+            "probability": 0.9998605251312256
+          },
+          {
+            "word": " lot",
+            "start": 31.92,
+            "end": 32.08,
+            "probability": 0.9998700618743896
+          },
+          {
+            "word": " in",
+            "start": 32.08,
+            "end": 32.28,
+            "probability": 0.9968996047973633
+          },
+          {
+            "word": " the",
+            "start": 32.28,
+            "end": 32.42,
+            "probability": 0.9961050748825073
+          },
+          {
+            "word": " original",
+            "start": 32.42,
+            "end": 32.76,
+            "probability": 0.9999098777770996
+          },
+          {
+            "word": " version",
+            "start": 32.76,
+            "end": 33.24,
+            "probability": 0.9998985528945923
+          },
+          {
+            "word": " the",
+            "start": 33.24,
+            "end": 33.94,
+            "probability": 0.9959218502044678
+          },
+          {
+            "word": " playstation",
+            "start": 33.94,
+            "end": 35.5,
+            "probability": 0.8402864336967468
+          },
+          {
+            "word": " 2",
+            "start": 35.5,
+            "end": 35.72,
+            "probability": 0.9867430925369263
+          },
+          {
+            "word": " version",
+            "start": 35.72,
+            "end": 36.14,
+            "probability": 0.9966852068901062
+          },
+          {
+            "word": " when",
+            "start": 36.14,
+            "end": 36.58,
+            "probability": 0.9752562642097473
+          },
+          {
+            "word": " i",
+            "start": 36.58,
+            "end": 36.7,
+            "probability": 0.9965774416923523
+          },
+          {
+            "word": " was",
+            "start": 36.7,
+            "end": 36.86,
+            "probability": 0.9998819828033447
+          },
+          {
+            "word": " a",
+            "start": 36.86,
+            "end": 36.96,
+            "probability": 0.9998728036880493
+          },
+          {
+            "word": " child",
+            "start": 36.96,
+            "end": 37.24,
+            "probability": 0.9964284300804138
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "seek": 2244,
+        "start": 37.24,
+        "end": 46.8,
+        "text": " but didn't play too much on this new remake version i think i'm gonna choose the hardcore",
+        "tokens": [
+          51106,
+          457,
+          994,
+          380,
+          862,
+          886,
+          709,
+          322,
+          341,
+          777,
+          28582,
+          3037,
+          741,
+          519,
+          741,
+          478,
+          799,
+          2826,
+          264,
+          28196,
+          51582
+        ],
+        "temperature": 0.0,
+        "avg_logprob": -0.09014684050830442,
+        "compression_ratio": 1.6815286624203822,
+        "no_speech_prob": 6.696876126560669e-12,
+        "words": [
+          {
+            "word": " but",
+            "start": 37.24,
+            "end": 38.12,
+            "probability": 0.997825562953949
+          },
+          {
+            "word": " didn't",
+            "start": 38.12,
+            "end": 38.68,
+            "probability": 0.9897086322307587
+          },
+          {
+            "word": " play",
+            "start": 38.68,
+            "end": 38.86,
+            "probability": 0.9988903403282166
+          },
+          {
+            "word": " too",
+            "start": 38.86,
+            "end": 39.06,
+            "probability": 0.9972479939460754
+          },
+          {
+            "word": " much",
+            "start": 39.06,
+            "end": 39.26,
+            "probability": 0.999891996383667
+          },
+          {
+            "word": " on",
+            "start": 39.26,
+            "end": 39.46,
+            "probability": 0.9252325296401978
+          },
+          {
+            "word": " this",
+            "start": 39.46,
+            "end": 39.8,
+            "probability": 0.9996792078018188
+          },
+          {
+            "word": " new",
+            "start": 39.8,
+            "end": 41.06,
+            "probability": 0.8047047853469849
+          },
+          {
+            "word": " remake",
+            "start": 41.06,
+            "end": 41.48,
+            "probability": 0.9987027645111084
+          },
+          {
+            "word": " version",
+            "start": 41.48,
+            "end": 41.84,
+            "probability": 0.9991959929466248
+          },
+          {
+            "word": " i",
+            "start": 41.84,
+            "end": 43.22,
+            "probability": 0.9923925399780273
+          },
+          {
+            "word": " think",
+            "start": 43.22,
+            "end": 43.78,
+            "probability": 0.9998069405555725
+          },
+          {
+            "word": " i'm",
+            "start": 43.78,
+            "end": 44.04,
+            "probability": 0.9995022118091583
+          },
+          {
+            "word": " gonna",
+            "start": 44.04,
+            "end": 44.2,
+            "probability": 0.9563124179840088
+          },
+          {
+            "word": " choose",
+            "start": 44.2,
+            "end": 45.58,
+            "probability": 0.9978565573692322
+          },
+          {
+            "word": " the",
+            "start": 45.58,
+            "end": 46.08,
+            "probability": 0.9996916055679321
+          },
+          {
+            "word": " hardcore",
+            "start": 46.08,
+            "end": 46.8,
+            "probability": 0.9765840768814087
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "seek": 4680,
+        "start": 46.8,
+        "end": 57.38,
+        "text": " game mode um yeah yeah i'll think i'll go with it and yep hopefully you'll enjoy it",
+        "tokens": [
+          50365,
+          1216,
+          4391,
+          1105,
+          1338,
+          1338,
+          741,
+          603,
+          519,
+          741,
+          603,
+          352,
+          365,
+          309,
+          293,
+          18633,
+          4696,
+          291,
+          603,
+          2103,
+          309,
+          50897
+        ],
+        "temperature": 0.0,
+        "avg_logprob": -0.16453572978144107,
+        "compression_ratio": 1.1216216216216217,
+        "no_speech_prob": 1.1286851444788915e-12,
+        "words": [
+          {
+            "word": " game",
+            "start": 46.8,
+            "end": 47.22,
+            "probability": 0.8693579435348511
+          },
+          {
+            "word": " mode",
+            "start": 47.22,
+            "end": 47.62,
+            "probability": 0.9962040781974792
+          },
+          {
+            "word": " um",
+            "start": 47.62,
+            "end": 48.62,
+            "probability": 0.30922672152519226
+          },
+          {
+            "word": " yeah",
+            "start": 48.62,
+            "end": 50.28,
+            "probability": 0.9854001402854919
+          },
+          {
+            "word": " yeah",
+            "start": 50.28,
+            "end": 50.66,
+            "probability": 0.6260669827461243
+          },
+          {
+            "word": " i'll",
+            "start": 50.66,
+            "end": 50.86,
+            "probability": 0.7668610215187073
+          },
+          {
+            "word": " think",
+            "start": 50.86,
+            "end": 51.1,
+            "probability": 0.9985059499740601
+          },
+          {
+            "word": " i'll",
+            "start": 51.1,
+            "end": 51.3,
+            "probability": 0.9994471371173859
+          },
+          {
+            "word": " go",
+            "start": 51.3,
+            "end": 51.46,
+            "probability": 0.99978107213974
+          },
+          {
+            "word": " with",
+            "start": 51.46,
+            "end": 51.74,
+            "probability": 0.9999170303344727
+          },
+          {
+            "word": " it",
+            "start": 51.74,
+            "end": 52.04,
+            "probability": 0.9998821020126343
+          },
+          {
+            "word": " and",
+            "start": 52.04,
+            "end": 53.96,
+            "probability": 0.9997370839118958
+          },
+          {
+            "word": " yep",
+            "start": 53.96,
+            "end": 54.58,
+            "probability": 0.9948413968086243
+          },
+          {
+            "word": " hopefully",
+            "start": 54.58,
+            "end": 56.08,
+            "probability": 0.9982213377952576
+          },
+          {
+            "word": " you'll",
+            "start": 56.08,
+            "end": 56.78,
+            "probability": 0.9998058676719666
+          },
+          {
+            "word": " enjoy",
+            "start": 56.78,
+            "end": 57.08,
+            "probability": 0.9997397065162659
+          },
+          {
+            "word": " it",
+            "start": 57.08,
+            "end": 57.38,
+            "probability": 0.9996644258499146
+          }
+        ]
+      }
+    ],
+    "language": "English"
+  }
+}

@@ -1,0 +1,315 @@
+{
+  "wav": "/home/siamarino/ai-dubbing-e2e-unattended/runs/reference-comparison-20261014/tranquila_3_frases.wav",
+  "wav_sha256": "1c64fd3aab9f8d93e8d567c2c218ff517a14da9772f76f49e5c18fa3b575d356",
+  "model": "/home/siamarino/.cache/whisper/large-v3-turbo.pt",
+  "decode_options": {
+    "language": "English",
+    "condition_on_previous_text": false,
+    "beam_size": 5,
+    "best_of": 5
+  },
+  "result": {
+    "text": " Hi, good evening. Let's take it easy and enjoy the game. I played the original Resident Evil 4 a lot on PlayStation 2. Honestly, I'm still deciding whether to play on Hardcore or Standard.",
+    "segments": [
+      {
+        "id": 0,
+        "seek": 0,
+        "start": 0.0,
+        "end": 3.4,
+        "text": " Hi, good evening. Let's take it easy and enjoy the game.",
+        "tokens": [
+          50365,
+          2421,
+          11,
+          665,
+          5634,
+          13,
+          961,
+          311,
+          747,
+          309,
+          1858,
+          293,
+          2103,
+          264,
+          1216,
+          13,
+          50533
+        ],
+        "temperature": 0.0,
+        "avg_logprob": -0.2006610679626465,
+        "compression_ratio": 1.2702702702702702,
+        "no_speech_prob": 9.322178445847484e-13,
+        "words": [
+          {
+            "word": " Hi,",
+            "start": 0.0,
+            "end": 0.3,
+            "probability": 0.9150784015655518
+          },
+          {
+            "word": " good",
+            "start": 0.52,
+            "end": 0.78,
+            "probability": 0.9405519366264343
+          },
+          {
+            "word": " evening.",
+            "start": 0.78,
+            "end": 1.06,
+            "probability": 0.9982752799987793
+          },
+          {
+            "word": " Let's",
+            "start": 1.4,
+            "end": 1.68,
+            "probability": 0.9898883402347565
+          },
+          {
+            "word": " take",
+            "start": 1.68,
+            "end": 1.84,
+            "probability": 0.9929789900779724
+          },
+          {
+            "word": " it",
+            "start": 1.84,
+            "end": 2.0,
+            "probability": 0.997902512550354
+          },
+          {
+            "word": " easy",
+            "start": 2.0,
+            "end": 2.24,
+            "probability": 0.9985400438308716
+          },
+          {
+            "word": " and",
+            "start": 2.24,
+            "end": 2.68,
+            "probability": 0.9834486842155457
+          },
+          {
+            "word": " enjoy",
+            "start": 2.68,
+            "end": 3.04,
+            "probability": 0.9972248077392578
+          },
+          {
+            "word": " the",
+            "start": 3.04,
+            "end": 3.18,
+            "probability": 0.9975460171699524
+          },
+          {
+            "word": " game.",
+            "start": 3.18,
+            "end": 3.4,
+            "probability": 0.9989442229270935
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "seek": 0,
+        "start": 3.98,
+        "end": 8.42,
+        "text": " I played the original Resident Evil 4 a lot on PlayStation 2.",
+        "tokens": [
+          50581,
+          286,
+          3737,
+          264,
+          3380,
+          29563,
+          20528,
+          1017,
+          257,
+          688,
+          322,
+          20599,
+          568,
+          13,
+          50785
+        ],
+        "temperature": 0.0,
+        "avg_logprob": -0.2006610679626465,
+        "compression_ratio": 1.2702702702702702,
+        "no_speech_prob": 9.322178445847484e-13,
+        "words": [
+          {
+            "word": " I",
+            "start": 3.98,
+            "end": 4.54,
+            "probability": 0.9943642616271973
+          },
+          {
+            "word": " played",
+            "start": 4.54,
+            "end": 4.82,
+            "probability": 0.9647966623306274
+          },
+          {
+            "word": " the",
+            "start": 4.82,
+            "end": 5.0,
+            "probability": 0.9959419369697571
+          },
+          {
+            "word": " original",
+            "start": 5.0,
+            "end": 5.32,
+            "probability": 0.9957772493362427
+          },
+          {
+            "word": " Resident",
+            "start": 5.32,
+            "end": 5.54,
+            "probability": 0.9211190342903137
+          },
+          {
+            "word": " Evil",
+            "start": 5.54,
+            "end": 5.82,
+            "probability": 0.9974598288536072
+          },
+          {
+            "word": " 4",
+            "start": 5.82,
+            "end": 6.18,
+            "probability": 0.9836734533309937
+          },
+          {
+            "word": " a",
+            "start": 6.18,
+            "end": 7.08,
+            "probability": 0.7925654053688049
+          },
+          {
+            "word": " lot",
+            "start": 7.08,
+            "end": 7.36,
+            "probability": 0.9955431818962097
+          },
+          {
+            "word": " on",
+            "start": 7.36,
+            "end": 7.62,
+            "probability": 0.9943110942840576
+          },
+          {
+            "word": " PlayStation",
+            "start": 7.62,
+            "end": 7.94,
+            "probability": 0.6524379253387451
+          },
+          {
+            "word": " 2.",
+            "start": 7.94,
+            "end": 8.42,
+            "probability": 0.9825055599212646
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "seek": 0,
+        "start": 9.36,
+        "end": 14.02,
+        "text": " Honestly, I'm still deciding whether to play on Hardcore or Standard.",
+        "tokens": [
+          50837,
+          12348,
+          11,
+          286,
+          478,
+          920,
+          17990,
+          1968,
+          281,
+          862,
+          322,
+          11817,
+          12352,
+          420,
+          21298,
+          13,
+          51085
+        ],
+        "temperature": 0.0,
+        "avg_logprob": -0.2006610679626465,
+        "compression_ratio": 1.2702702702702702,
+        "no_speech_prob": 9.322178445847484e-13,
+        "words": [
+          {
+            "word": " Honestly,",
+            "start": 9.36,
+            "end": 9.92,
+            "probability": 0.9922682642936707
+          },
+          {
+            "word": " I'm",
+            "start": 9.98,
+            "end": 10.3,
+            "probability": 0.9804912507534027
+          },
+          {
+            "word": " still",
+            "start": 10.3,
+            "end": 10.52,
+            "probability": 0.9990234375
+          },
+          {
+            "word": " deciding",
+            "start": 10.52,
+            "end": 11.04,
+            "probability": 0.9984387755393982
+          },
+          {
+            "word": " whether",
+            "start": 11.04,
+            "end": 11.32,
+            "probability": 0.9937119483947754
+          },
+          {
+            "word": " to",
+            "start": 11.32,
+            "end": 11.58,
+            "probability": 0.9978718757629395
+          },
+          {
+            "word": " play",
+            "start": 11.58,
+            "end": 11.92,
+            "probability": 0.9982366561889648
+          },
+          {
+            "word": " on",
+            "start": 11.92,
+            "end": 12.32,
+            "probability": 0.976841390132904
+          },
+          {
+            "word": " Hardcore",
+            "start": 12.32,
+            "end": 12.96,
+            "probability": 0.6878880113363266
+          },
+          {
+            "word": " or",
+            "start": 12.96,
+            "end": 13.4,
+            "probability": 0.9868583679199219
+          },
+          {
+            "word": " Standard.",
+            "start": 13.4,
+            "end": 14.02,
+            "probability": 0.9054865837097168
+          }
+        ]
+      }
+    ],
+    "language": "English"
+  }
+}

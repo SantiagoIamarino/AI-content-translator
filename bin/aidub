@@ -31,4 +31,8 @@ PY
 export AIDUB_CONFIG="$CONFIG"
 export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
-exec "$PY" -P -m aidub "$@"
+# Keep the inhibitor alive around the complete CLI process, including provider waits.
+# Inhibit sleep only so Hypridle can still blank and lock the screen while a job runs.
+exec systemd-inhibit --what=sleep --mode=block --who=aidub \
+  --why="Video dubbing pipeline is running" \
+  "$PY" -P -m aidub "$@"

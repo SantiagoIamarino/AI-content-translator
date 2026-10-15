@@ -166,6 +166,19 @@ def cmd_asr_compare(args) -> int:
     return 0
 
 
+def cmd_reference_asr(args) -> int:
+    from .reference_trial import transcribe_reference
+    transcribe_reference(_cfg(args), Path(args.wav).expanduser().resolve(), Path(args.out).expanduser().resolve())
+    print(Path(args.out).expanduser().resolve())
+    return 0
+
+
+def cmd_reference_trial(args) -> int:
+    from .reference_trial import generate_trial
+    generate_trial(_cfg(args), Path(args.prompts).expanduser().resolve(), Path(args.out).expanduser().resolve())
+    return 0
+
+
 def cmd_validate(args) -> int:
     cfg = _cfg(args)
     job = _job(cfg, args.job)
@@ -210,6 +223,16 @@ def build_parser() -> argparse.ArgumentParser:
     asr.add_argument("job")
     asr.add_argument("--models", default="turbo,large-v3")
     asr.set_defaults(func=cmd_asr_compare)
+
+    ref_asr = sub.add_parser("reference-asr", help="transcribe a local reference WAV with word timestamps")
+    ref_asr.add_argument("wav")
+    ref_asr.add_argument("--out", required=True)
+    ref_asr.set_defaults(func=cmd_reference_asr)
+
+    ref_trial = sub.add_parser("reference-trial", help="generate three fresh voice takes from one configured reference")
+    ref_trial.add_argument("--prompts", required=True)
+    ref_trial.add_argument("--out", required=True)
+    ref_trial.set_defaults(func=cmd_reference_trial)
 
     run = sub.add_parser("run", help="run ready stages until done or a handoff")
     run.add_argument("job")

@@ -114,6 +114,10 @@ bin/aidub resume manual_clip
 
 `export-translation` and `export-repair` remain available. The validators reject missing/duplicate/extra IDs, empty English, and response timing edits. Repair requires a reason and a changed line or explicit `leave_unresolved`.
 
+## Sleep inhibition while processing
+
+Every `bin/aidub` command automatically holds a systemd `sleep` inhibitor for the lifetime of its CLI process. This covers local work, provider calls, and waiting periods, whether run in a terminal or a systemd user service. The launcher uses `systemd-inhibit`, which returns the command's exit status and releases its lock when the command exits. Only sleep is inhibited: Hypridle's screen-lock timers continue, and no idle, shutdown, or key-handling inhibitor is taken. A privileged or forced suspend can override logind's inhibitor.
+
 ## Resume, errors and status
 
 One nonblocking OS job lock covers initialization, stages, provider calls and acceptance. Manual writers follow the same lock strategy. A competing runner exits with a lock diagnostic. Locks release when processes exit; **never delete LOCK to bypass a live runner**, and the leftover file does not itself mean a lock is held.
