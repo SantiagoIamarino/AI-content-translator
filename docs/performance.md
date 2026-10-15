@@ -76,6 +76,14 @@ connected take starts at the event onset and must contain the required English
 prefix in both raw and processed verification. Precise internal event duration is
 not claimed from this check. Separate units remain supported for other events.
 
+Full-sentence Whisper can normalize away a generated filler. In the actual minute
+tests, raw seeds 1044 and 5044 gave no `Uh` in full-sentence ASR, but their 0.55-,
+0.8- and 1.1-second prefix excerpts consistently returned `Uh`. The verifier now
+requires agreeing focused windows when the full reading omits the prefix, with
+no expected-text prompt. These are narrower hearings using the same model, not
+independent recognizers. Low word confidence remains explicit and raises listening
+priority. Raw and processed prefix checks have separate waveform-bound caches.
+
 Isolated source-ASR hesitations carry their ASR provenance. A conservative
 periodicity scan can nominate unexplained regions inside broad cues, but those
 regions remain **unknown** and cannot generate speech. Periodicity and energy

@@ -45,6 +45,8 @@ def account_lines(segment_ids: list[int], placed_ids: list[int], unresolved_ids:
 
 
 def _candidate_quality(attempt, quality, seg=None, cfg=None):
+    if attempt.get("event_prefix_check") is not None:
+        quality = dict(quality,event_prefix_check=attempt["event_prefix_check"])
     if seg is not None and cfg is not None:
         from .performance import contextual_quality
         quality = contextual_quality(attempt, quality, seg, cfg.get("voice_selection") or {})

@@ -62,6 +62,10 @@ def line_risk(row: dict, seg: dict, audit_line: dict | None) -> tuple[float, lis
         add(1.5, "synthesized text needed a second ASR verification")
     if quality.get("short_phrase_unverified"):
         add(1, "short phrase could not be confirmed by ASR")
+    if row.get("required_event_prefix"):
+        add(1.5,"recovered hesitation prefix; compare its onset and duration with the source")
+    if quality.get("event_prefix_check",{}).get("low_confidence"):
+        add(2,"focused prefix hearings agree, with low ASR word confidence; listening required")
     if text.get("soft"):
         add(1, "minor ASR differences: " + ", ".join(text["soft"]))
     selection = row.get("selection_summary") or {}

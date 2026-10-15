@@ -20,6 +20,7 @@ from aidub.context import join_short_pauses, utterance_groups
 from aidub.pipeline import source_uncertainty_issues
 from aidub.linework import collect_line_best_of_n
 from aidub.fidelity import material_conflict
+from aidub.vocal_verification import verify_prefix
 
 
 def seg(i, start, end, text):
@@ -107,6 +108,23 @@ class SurvivingCoverageTests(unittest.TestCase):
 
 
 class VocalEventTests(unittest.TestCase):
+    def test_focused_prefix_hearings_survive_full_sentence_normalization_and_resume(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);mic,cfg,built,raw=self.fixture(root);calls=[]
+            def hear(path):
+                calls.append(path);return {"text":"Uh.","mean_probability":.25}
+            result=verify_prefix(root,{"path":str(mic)},"Uh...",lambda:"checker",hear)
+            self.assertTrue(result["verified"])
+            self.assertTrue(result["low_confidence"])
+            self.assertEqual(len(calls),2)
+            again=verify_prefix(root,{"path":str(mic)},"Uh...",lambda:"checker",lambda p:self.fail("cache missed"))
+            self.assertTrue(again["cache_hit"])
+            q=contextual_quality({},dict(ok=True,reasons=[],asr_text="This is the first time",event_prefix_check=result),
+                                 {"required_event_prefix":"Uh..."},{})
+            self.assertTrue(q["event_prefix_verified"])
+            wrong=verify_prefix(root,{"path":str(mic)},"Hmm...",lambda:"checker",lambda p:{"text":"This is"})
+            self.assertFalse(wrong["verified"])
+
     def test_timed_prefix_keeps_following_thought_and_requires_generated_filler(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);mic,cfg,built,raw=self.fixture(root)
@@ -193,6 +211,10 @@ class PerformanceTimingTests(unittest.TestCase):
         self.assertEqual(material_conflict(s)["decision"],"unvoiced_pending_source_resolution")
         s=seg(1,22,30,"Pero luego no volví a jugarlo")
         s["asr_alternatives"]=[{"text":"Pero luego no volvía a jugarlo, digamos"}]
+        self.assertIsNone(material_conflict(s))
+        s["spanish"]="No debería luchar Tengo tres balas"
+        s["source_cues"]=[{"spanish":"No debería luchar"},{"spanish":"Tengo tres balas"}]
+        s["asr_alternatives"]=[{"text":"Tengo 3 balas"}]
         self.assertIsNone(material_conflict(s))
 
     def test_valid_but_unplaceable_takes_use_remaining_budget_without_shifting_event(self):

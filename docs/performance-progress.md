@@ -213,3 +213,34 @@ cached provider reuse and raw-take reuse for identical texts. Keep the recovered
 hesitation's approximate timing explicit. The remaining long passages will start
 with current code. Finish previews, source/target/event accounting, operational
 resume evidence and final documentation when the queue completes.
+
+## Stage 8 — demonstrated ASR normalization of generated fillers
+
+Completed after actual generation: every long-sentence ASR reading omitted the
+requested `Uh`, so the initial prefix check rejected the whole sentence. Focused
+CPU Whisper hearings of existing seeds 1044 and 5044 at 0.55, 0.8 and 1.1 seconds
+all return `Uh` (the longest seed-1044 reading says `Uh, this is`). This demonstrates
+that absence from full-sentence ASR was an unsuitable proxy, rather than evidence
+that these raw takes lack the filler. No listening or fresh TTS was used for this
+finding. Evidence: `prefix-probe/results.json` and exact cropped WAVs.
+
+New `aidub/vocal_verification.py` checks distinct short windows without an expected
+text prompt, requires concordant prefix readings, retains probabilities/low
+confidence, and caches by waveform, checker implementation and ASR identity.
+Raw and processed takes each receive this evidence. ASR fallback identities cannot
+share successful checks across a runtime change. Risk reports flag recovered
+prefixes and low-confidence focused readings. Material-polarity comparison also
+uses the closest original source part, avoiding an unrelated negation in another
+joined clause.
+
+Verification: 130 tests, 129 passed, one existing fixture skipped
+(`stage8-tests.log`). Tests include cache reuse, missing-prefix rejection,
+concordant low-confidence readings and joined-clause polarity scope.
+
+Exact next step: `minute-prefix-verification.log` is running the updated minute
+with this checkout's CLI, reusing matching provider responses and raw takes.
+The second queue continues the other passages independently; check `queue-second.log`
+and their manifests. Do not restart active jobs. After the minute finishes, inspect
+the event's raw/processed verification, rerender its comparison, then repeat resume
+to prove no new provider/synthesis work. Finish remaining passage diagnostics,
+timestamped excerpts, summary index, final evidence docs and commit.

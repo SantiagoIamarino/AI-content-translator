@@ -29,6 +29,7 @@ from .context import glossary_names, join_short_pauses, quality_translation_requ
 from .second_pass import run_second_pass, settings as second_pass_settings, unreviewed_gaps, final_coverage
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
 from .events import identity as events_identity, apply_events, event_placement_report
+from .vocal_verification import verify_prefix
 from .performance import identity as performance_identity, attach_source_pauses, score_contextual, contextual_quality
 from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
 from .textnorm import content_tokens, normalize_tokens
@@ -596,6 +597,20 @@ class _LineAssessor:
             write_json(path, result)
         return result
 
+    def verify_prefix(self, meta, prefix):
+        if self.disabled:
+            return {"verified":False,"reason":"candidate_asr_unavailable"}
+        def hear(path):
+            self.stats["asr_calls"] += 1
+            self.stats["prefix_hearings"] = self.stats.get("prefix_hearings",0)+1
+            return self._transcribe(path,second=True)
+        try:
+            result = verify_prefix(self.job.dir,meta,prefix,lambda:self.identity,hear)
+            self.stats["prefix_cache_hits"] = self.stats.get("prefix_cache_hits",0)+int(result.get("cache_hit",False))
+            return result
+        except Exception as exc:
+            return {"verified":False,"reason":"prefix_asr_unavailable","error":str(exc)}
+
     def _transcribe(self, path: str, second: bool = False) -> dict:
         lang = (self.cfg.get("quality") or {}).get("asr_language") or None
         if self.text_checker == "sequence-v1":
@@ -672,7 +687,8 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         **continuity_identity(cfg),
         **events_identity(cfg),
         **performance_identity(cfg),
-        **({"performance_schedule_version": 2} if (cfg.get("source_events") or {}).get("enabled") else {}),
+        **({"performance_schedule_version": 3,"vocal_verification_code":sha256_file(Path(__file__).with_name("vocal_verification.py"))}
+           if (cfg.get("source_events") or {}).get("enabled") else {}),
         **({"voice_selection": voice_selection_settings(cfg), "selection_code": sha256_file(Path(__file__).with_name("selection.py"))}
            if voice_selection_settings(cfg) else {}),
         **({"context": (load_context_for(job, cfg, segments) or {}).get("identity")} if quality_translation_settings(cfg) else {}),
@@ -730,6 +746,8 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
 
     def attempt_fn(seg, text, seed, kind, meta, occupied_until, next_start, source_dur):
         attempt = _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, next_start, source_dur)
+        if seg.get("required_event_prefix"):
+            attempt["event_prefix_check"] = assessor.verify_prefix(meta,seg["required_event_prefix"])
         edge = cfg.get("voice_edge") or {}
         if edge.get("enabled") and int(edge.get("presentation_version", 1)) >= 3 and attempt.get("placed"):
             cue = loudness.get(int(seg["id"])) or {}
@@ -738,6 +756,9 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
             if attempt.get("placed") and (seg.get("required_event_prefix") or
                     (attempt.get("tempo",1.) > 1. and (edge.get("protection") or {}).get("inspect_full_tail"))):
                 processed = assessor(dict(meta,path=attempt["used_path"]),text)
+                if seg.get("required_event_prefix"):
+                    processed = dict(processed,event_prefix_check=assessor.verify_prefix(
+                        dict(meta,path=attempt["used_path"]),seg["required_event_prefix"]))
                 processed = contextual_quality(dict(attempt,raw_path=attempt["used_path"]),processed,seg,selection)
                 attempt["processed_quality"] = processed
                 verified = bool(processed.get("ok") and not processed.get("asr_skipped"))
