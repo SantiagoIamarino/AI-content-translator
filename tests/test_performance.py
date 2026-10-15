@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from aidub.second_pass import run_second_pass
+from aidub.second_pass import run_second_pass, final_coverage
 from aidub.segment import coverage_gaps_file
 from aidub.util import read_json
 from aidub.util import write_json
@@ -27,6 +27,23 @@ def seg(i, start, end, text):
 
 
 class SurvivingCoverageTests(unittest.TestCase):
+    def test_final_coverage_includes_recovered_prefix_and_joined_cues(self):
+        d={"segments":[seg(2,10.179,20.949,"Eh... Es la primera vez")],
+           "untranscribed_energy":[{"span":[10.179,11.097]},{"span":[21.8,22]}]}
+        c=final_coverage(d)
+        self.assertEqual(c["kept"],1)
+        self.assertEqual(c["uncovered"],[(21.8,22.)])
+
+    def test_a_distant_connector_does_not_close_an_uncertain_timed_gap(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);mic=root/"mic.wav";sf.write(mic,np.zeros(160000),16000)
+            s=seg(1,3,4,"Y bueno")
+            s["source_words"]=[dict(word="Y",start=3,end=3.2),dict(word="bueno",start=3.2,end=4)]
+            built={"segments":[s],"corrections":[],"untranscribed_energy":[{"span":[5,5.6]}]}
+            hearing={"segments":[{"words":[dict(word="Y...",start=.4,end=.8,probability=.534)]}]}
+            out=run_second_pass(root,built,mic,0,{"asr_second_pass":{"enabled":True}},lambda *a:hearing)
+            self.assertEqual(out["untranscribed_energy"][0]["second_pass"]["outcome"],"unintelligible")
+
     def test_candado_unique_suffix_survives_head_duplicate(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

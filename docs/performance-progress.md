@@ -188,3 +188,28 @@ current worker exits to exercise that new gate using caches. Do not repeat paid
 provider calls: matching requests/responses are retained. Render/summarize the
 finished passages, diagnose source-negative fixtures honestly, and finish the
 timestamped excerpts, final resume check, results docs and commit.
+
+## Stage 7 — timed connector coverage
+
+Completed: neighboring text alone can no longer close a gap when its matching
+word occurs several seconds away. Source word timestamps now survive initial
+segmentation; the gap check requires a nearby matching word. The first minute's
+21.86-second `Y...` reading remains uncertain rather than falsely covered by a
+later `Y` in a long cue. No English conjunction is invented from that reading.
+Coverage is refreshed after final joining and event realization, including the
+00:10 prefix interval. Reported uncovered span duration is explicitly not a
+measurement of missing speech. New segmentation version 3 reuses saved raw ASR
+and matching second hearings, invalidating their interpretation and dependents.
+
+Changed files: `aidub/segment.py`, `aidub/second_pass.py`, `aidub/pipeline.py`,
+`tests/test_performance.py`, this note. Verification: 129 tests, 128 passed,
+one existing fixture skipped (`stage7-tests.log`).
+
+Exact next step: the connected minute has reached synthesis (translation includes
+`Uh... This is the first time...`). Let the second queue continue. After its minute
+worker exits, resume that minute once under the current code so segmentation 3,
+processed-prefix verification and material-conflict gates are exercised. Expect
+cached provider reuse and raw-take reuse for identical texts. Keep the recovered
+hesitation's approximate timing explicit. The remaining long passages will start
+with current code. Finish previews, source/target/event accounting, operational
+resume evidence and final documentation when the queue completes.

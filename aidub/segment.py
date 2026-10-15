@@ -171,6 +171,7 @@ def _build_segments(whisper, reader, energy, sr, cfg, offset_sec):
             "whisper_end": float(raw["end"]),
             "uncertain_words": low,
             "merged_from": [text],
+            "source_words": [dict(w,start=float(w["start"])+offset_sec,end=float(w["end"])+offset_sec) for w in words],
             "borderline": borderline,
         })
         prev_end = end
@@ -195,6 +196,7 @@ def _build_segments(whisper, reader, energy, sr, cfg, offset_sec):
             merged[-1]["whisper_end"] = cand["whisper_end"]
             merged[-1]["uncertain_words"].extend(cand["uncertain_words"])
             merged[-1]["merged_from"].extend(cand["merged_from"])
+            merged[-1]["source_words"].extend(cand["source_words"])
         else:
             merged.append(cand)
 
@@ -234,6 +236,7 @@ def _build_segments(whisper, reader, energy, sr, cfg, offset_sec):
             "whisper_start": cand["whisper_start"] + offset_sec,
             "whisper_end": cand["whisper_end"] + offset_sec,
             "uncertain_words": cand["uncertain_words"],
+            "source_words": cand["source_words"],
             "revisions": [],
         })
 

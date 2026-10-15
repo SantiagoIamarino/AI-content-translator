@@ -26,7 +26,7 @@ from .audio import (
 )
 from .config import jobs_dir, reference_text, require_schedule_defaults, resolve_path, second_pass_model_file, whisper_model_file, verification_model_file
 from .context import glossary_names, join_short_pauses, quality_translation_request, settings as quality_translation_settings, syllable_report
-from .second_pass import run_second_pass, settings as second_pass_settings, unreviewed_gaps
+from .second_pass import run_second_pass, settings as second_pass_settings, unreviewed_gaps, final_coverage
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
 from .events import identity as events_identity, apply_events, event_placement_report
 from .performance import identity as performance_identity, attach_source_pauses, score_contextual, contextual_quality
@@ -235,7 +235,7 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
     })
     fp_inputs = {"legacy_inputs": legacy_fp, "transcription": cfg.get("transcription"),
                  "weights": file_identity(whisper_model_file(cfg)),
-                 "segmentation_version": 2, **events_identity(cfg), **performance_identity(cfg)}
+                 "segmentation_version": 3, **events_identity(cfg), **performance_identity(cfg)}
     second = second_pass_settings(cfg)
     join = (quality_translation_settings(cfg).get("join") or {})
     if second:
@@ -280,6 +280,7 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
         built["corrections"] = list(built.get("corrections") or []) + join_audit
     built = apply_events(built, raw, mic, float(alignment["offset_sec"]), cfg, alignment["mic_sha256"])
     built = attach_source_pauses(built, mic, float(alignment["offset_sec"]), cfg)
+    built["source_coverage"] = final_coverage(built)
     if "vocal_events" in built:
         write_json(out_dir / "vocal_events.json", built["vocal_events"])
     for seg in built["segments"]:

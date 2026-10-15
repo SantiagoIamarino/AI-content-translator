@@ -16,6 +16,9 @@ steps are in [performance-progress.md](performance-progress.md).
   when the later phrase “A ver este candado” shared a prefix with “A ver”. The longer
   phrase now survives; ambiguous evidence preserves unique words. Energy coverage
   is recomputed after filtering, so a removed cue's region is not silently hidden.
+  Matching text several seconds later cannot close a timed connector gap; source
+  word timestamps must support nearby coverage. Final coverage is refreshed again
+  after joining and event realization.
 - Broad cue coverage hid the thinking sound near 00:10. Whisper emitted no filler,
   and gap recovery examined only the small region before the next cue. Timed
   source events now exist independently of lexical cue coverage. A leading

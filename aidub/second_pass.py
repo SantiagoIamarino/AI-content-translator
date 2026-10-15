@@ -262,6 +262,12 @@ def run_second_pass(job_dir: Path, built: dict, mic_path: Path, offset_sec: floa
             neighbor_text = " ".join(s["spanish"] for s in kept
                                      if abs(float(s["end"]) - g0) < 1.0 or abs(float(s["start"]) - g1) < 1.0)
             repeats_neighbor = bool(inside) and _contained(es_tokens(info["text"]), es_tokens(neighbor_text))
+            if repeats_neighbor and any(s.get("source_words") for s in kept):
+                # Matching a token somewhere in a long neighboring cue does
+                # not establish that this *timed* reaction is already covered.
+                nearby = " ".join(w["word"] for s in kept for w in s.get("source_words",[])
+                                  if float(w["end"]) >= g0-.25 and float(w["start"]) <= g1+.25)
+                repeats_neighbor = _contained(es_tokens(info["text"]),es_tokens(nearby))
             confident = (inside and info["mean_probability"] >= float(opts["accept_probability"])
                          and info["min_probability"] >= float(opts["min_word_probability"])
                          and info["max_no_speech_prob"] <= float(opts["max_no_speech_prob"])
@@ -325,6 +331,15 @@ def _subtract(span: list[float], covered: list[tuple[float, float]]) -> list[tup
                 nxt.append((c1, b))
         parts = nxt
     return [(a, b) for a, b in parts if b - a > 1e-4]
+
+
+def final_coverage(built):
+    """Coverage after joining and event realization; energy spans are not speech."""
+    spans=[(float(s["start"]),float(s["end"])) for s in built["segments"]]
+    parts=[p for g in built.get("untranscribed_energy",[]) for p in _subtract(g["span"],spans)]
+    return {"basis":"surviving_final_cues_including_events","kept":len(spans),"uncovered":parts,
+            "uncovered_span_sec":sum(b-a for a,b in parts),
+            "scope":"uncovered reported energy spans, possibly including quiet bridges; not proven speech"}
 
 
 def _contained(needle: list[str], haystack: list[str]) -> bool:
