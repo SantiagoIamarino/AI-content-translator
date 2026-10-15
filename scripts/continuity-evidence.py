@@ -153,7 +153,7 @@ def run(job, out, start, end, recheck_saved_asr=False, preset='continuity'):
              '[2:a]showwavespic=s=1600x180:colors=green:scale=lin[c];[a][b][c]vstack=inputs=3[v]',
              '-map','[v]','-frames:v','1',str(out/'waveforms.png')])
     report={'status':'experimental_cached_replay_not_job_acceptance','preset':preset,'job':str(job),'interval':[start,end],
-            'rechecked_saved_asr':recheck_saved_asr,'new_translation_calls':0,'new_synthesis':0,'reference_sha256_at_generation':summary['reference_sha256'],
+            'rechecked_saved_asr':bool(recheck_saved_asr or preset == 'performance'),'new_translation_calls':0,'new_synthesis':0,'reference_sha256_at_generation':summary['reference_sha256'],
             'counts':{'retained':len(selected),'translated':sum(bool(s['english']) for s in selected),
                       'before_placed':sum(bool(s['placed']) for s in selected),
                       'after_placed':sum(bool(s['placed']) for s in planned),'omitted':sum(not s['placed'] for s in planned)},

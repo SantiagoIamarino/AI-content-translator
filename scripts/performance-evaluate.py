@@ -22,6 +22,23 @@ from aidub.job import JobLock
 from aidub.media import run_cmd, bitstream_md5, encoded_audio_metrics
 from aidub.util import read_json, write_json, sha256_file
 
+LABELS={"spanish":"Original Spanish","prior":"Prior English","new":"New English (experimental)"}
+
+
+def timestamp(seconds):
+    minutes,seconds=divmod(seconds,60)
+    hours,minutes=divmod(int(minutes),60)
+    return (f"{hours:02d}:" if hours else "")+f"{minutes:02d}:{seconds:06.3f}"
+
+
+def cue_table(cues, origin):
+    page='<table border="1" cellpadding="5"><tr><th>Original time</th><th>Spanish</th><th>English</th><th>Placement</th></tr>'
+    for s in cues:
+        timing=f'{timestamp(s["start"]+origin)}–{timestamp(s["end"]+origin)}'
+        status="placed" if s["placed"] else "withheld: "+(s.get("timing_error") or "unresolved")
+        page+='<tr>'+''.join(f'<td>{html.escape(str(x))}</td>' for x in (timing,s["spanish"],s["english"],status))+'</tr>'
+    return page+'</table>'
+
 
 def crop(src, dst, start, duration):
     with sf.SoundFile(src) as f:
@@ -198,6 +215,7 @@ def render(args):
                 "baseline_cues":[{k:s.get(k) for k in ("id","start","end","spanish","english","placed")} for s in old],
                 "new_cues":[{k:s.get(k) for k in ("id","start","end","spanish","english","placed","placement_start","placement_end","timing_error")} for s in summary["segments"]],
                 "synthesis":{"fresh":summary["n_synth_fresh"],"cache_hits":summary["n_synth_cache_hits"],
+                             "statistics_scope":"last rebuilt schedule, not calls made by a later unchanged resume",
                              "raw_inventory":{"baseline_unique_waveforms":len(base_raw),"current_unique_waveforms":len(current_raw),
                                               "additional_unique_waveforms":len(current_raw-base_raw),
                                               "selected_from_baseline":sum(h in base_raw for h in selected),
@@ -207,11 +225,14 @@ def render(args):
                 "encoded_audio":{label:encoded_audio_metrics(ffmpeg,str(preview/(label+".mp4"))) for label in ("spanish","prior","new")},
                 "limitations":receipt["limitations"]}
         write_json(out/"comparison.json",report)
-        title=f"Original recording {a:.3f}–{b:.3f}s"
+        title=f"Original recording {timestamp(a)}–{timestamp(b)}"
         page=f"<!doctype html><meta charset=utf-8><title>{title}</title><h1>{title}</h1><p>Not listening approved. {html.escape(report['new_status'])}.</p>"
+        if report["reference_changed_from_long_baseline"]:
+            page+='<p>The prior longer-job English uses its older voice reference; new English uses the approved relaxed reference. This comparison includes fresh synthesis. Use the separate cached controls to isolate processing and selection.</p>'
         for label in ("spanish","prior","new"):
-            page+=f'<h2>{label}</h2><video controls preload="metadata" width="720" src="previews/{label}.mp4"></video>'
+            page+=f'<h2>{LABELS[label]}</h2><video controls preload="metadata" width="720" src="previews/{label}.mp4"></video>'
             page+=f'<p>Voice alone: <audio controls preload="none" src="previews/{"spanish_mic" if label=="spanish" else label+"_voice"}.wav"></audio></p>'
+        page+='<h2>Current cue accounting</h2>'+cue_table(report["new_cues"],a)
         page+='<p><a href="comparison.json">Cue/event accounting and technical evidence</a></p>'
         (out/"index.html").write_text(page)
         print(json.dumps({"status":report["new_status"],"video":video_ok,"index":str(out/"index.html")},indent=2))
@@ -226,7 +247,9 @@ def excerpts(args):
         cfg=read_json(job/"config.json");ffmpeg=cfg["executables"]["ffmpeg"]
         directory=out/"excerpts"/f"{args.start:09.3f}-{args.end:09.3f}"
         directory.mkdir(parents=True,exist_ok=True);local=args.start-origin;duration=args.end-args.start
-        page=f'<!doctype html><meta charset="utf-8"><h1>Original recording {args.start:.3f}–{args.end:.3f}s</h1><p>No agent listening or perceptual approval. WAV boundaries are sample accurate. Video uses copied packets with MP4 edit-list preroll.</p>'
+        page=f'<!doctype html><meta charset="utf-8"><h1>Original recording {timestamp(args.start)}–{timestamp(args.end)}</h1><p>No agent listening or perceptual approval. WAV boundaries are sample accurate. Video uses copied packets with MP4 edit-list preroll.</p>'
+        if read_json(out/"comparison.json")["reference_changed_from_long_baseline"]:
+            page+='<p>The prior longer-job voice uses an older reference. New English uses the approved relaxed reference.</p>'
         checks={}
         for label,voice in (("spanish","spanish_mic"),("prior","prior_voice"),("new","new_voice")):
             crop(out/f"previews/{voice}.wav",directory/f"{label}_voice.wav",local,duration)
@@ -237,7 +260,7 @@ def excerpts(args):
                      "-c:v","copy","-c:a","aac","-b:a","192k","-avoid_negative_ts","disabled",str(picture)])
             checks[label]=dict(first_displayed_frame_equal=first_frame_md5(ffmpeg,picture)==first_frame_md5(ffmpeg,out/"comparison_picture.mp4",local),
                                voice_sha256=sha256_file(directory/f"{label}_voice.wav"),mix_sha256=sha256_file(directory/f"{label}_mix.wav"))
-            page+=f'<h2>{label}</h2><video controls preload="metadata" width="720" src="{label}.mp4"></video><p>Voice alone: <audio controls preload="none" src="{label}_voice.wav"></audio></p>'
+            page+=f'<h2>{LABELS[label]}</h2><video controls preload="metadata" width="720" src="{label}.mp4"></video><p>Voice alone: <audio controls preload="none" src="{label}_voice.wav"></audio></p>'
         if not all(c["first_displayed_frame_equal"] for c in checks.values()):
             raise ValueError("Excerpt copied picture origin mismatch")
         write_json(directory/"evidence.json",dict(interval=[args.start,args.end],checks=checks,listening_approved=False))
@@ -278,7 +301,7 @@ def run_set(args):
 
 def summarize(args):
     root=args.output.resolve(); records=[]
-    page='<!doctype html><meta charset="utf-8"><title>Conversational performance comparisons</title><h1>Conversational performance comparisons</h1><p>Experimental results. No agent listening or perceptual approval. Times refer to the original recording; copied excerpts may include keyframe preroll.</p>'
+    page='<!doctype html><meta charset="utf-8"><title>Conversational performance comparisons</title><h1>Conversational performance comparisons</h1><p>Experimental results. No agent listening or perceptual approval. Times refer to the original recording. Current comparison MP4s verify the displayed origin; WAVs have exact sample boundaries.</p><p>Longer prior English and its cached controls use the old reference. Fresh longer-job English uses the approved relaxed reference. All unresolved cues/gaps remain partial and are listed with each comparison.</p>'
     for receipt in sorted(root.glob("*/passage.json"),key=lambda p:read_json(p)["interval"][0]):
         d=read_json(receipt);job=Path(d["job"]);manifest=read_json(job/"manifest.json")
         c=read_json(receipt.parent/"comparison.json") if (receipt.parent/"comparison.json").exists() else {}
@@ -304,7 +327,7 @@ def summarize(args):
                 "copied_video_equal":c.get("copied_video_equal"),"picture_timing":c.get("picture_timing")}
         records.append(record)
         link=f'{receipt.parent.name}/index.html' if c else f'{receipt.parent.name}/run.log'
-        page+=f'<p><a href="{html.escape(link)}">{a:.3f}–{b:.3f}s: {html.escape(d["name"])}</a> — {html.escape(manifest["state"])}; placed {report.get("n_placed","unavailable")}/{report.get("n_segments","unavailable")}</p>'
+        page+=f'<p><a href="{html.escape(link)}">{timestamp(a)}–{timestamp(b)}: {html.escape(d["name"])}</a> — {html.escape(manifest["state"])}; placed {report.get("n_placed","unavailable")}/{report.get("n_segments","unavailable")}</p>'
         for excerpt in sorted(receipt.parent.glob("excerpts/*/index.html")):
             page+=f'<p>Short comparison: <a href="{excerpt.relative_to(root)}">{excerpt.parent.name}s</a></p>'
     page+='<h2>Identical cached takes / selection controls</h2>'

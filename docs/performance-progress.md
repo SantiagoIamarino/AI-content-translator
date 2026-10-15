@@ -373,3 +373,48 @@ changes no selected audio in the demonstrated set (all selected takes had zero
 early shift). Refresh final accounting and unchanged-resume proofs. Finish and
 commit measured results documentation and preview-tool labels; do not run fresh
 translation or TTS unless an actual changed request/take requires it.
+
+## Stage 13 — final measured comparisons and handoff
+
+Completed: all nine passages finished under schedule version 5. Counts remain
+44 retained/translated, 35 placed and nine explicitly withheld; all jobs honestly
+remain partial for source uncertainty. The minute places all seven cues and the
+confirmed thinking prefix; the long passage places 21/24. The recovered suffix,
+`Intentar` restart and repeated question are documented separately from unresolved
+quiet/connector readings. All 35 placed endings pass the configured signal/endpoint
+checks. No listening or perceptual approval is claimed.
+
+`reaction-safeguard-proof.json` confirms identical PCM voices across the final
+schedule-only change, zero fresh synthesis, and unchanged raw/provider/source-ASR
+files for every passage. FLOAT WAV `PEAK` creation timestamps changed on rewriting;
+matching the original whole-file hashes after replacing only that four-byte field
+in memory proves this was header variation, without editing any audio file.
+
+Current-head resume proofs compare **658 minute** and **1,139 long-passage** cache,
+handoff, output, schedule and transcription files: no changes/additions/removals,
+all stages reused, expected partial exit 3. All ten short new-English voice/mix
+excerpts exactly equal the corresponding current pipeline PCM (`excerpts-proof.json`).
+Every delivered comparison copies video and verifies its displayed source origin.
+Original 20 metadata hashes and all nine approved reference/Qwen/schedule blocks
+remain preserved. Cached controls remain 7/7 and 25/25 with no new provider, TTS or
+ASR hearings; their report now correctly labels re-evaluation of saved ASR.
+
+Final changed files: evaluation preview labels/cue accounting, cached-control
+report metadata, `docs/performance-results.md`, performance guide and this note.
+Final suite: **137 tests, 136 passed, one existing unavailable recorded fixture
+skipped** (`final-tests.log`); `git diff --check` passed. Results document fresh
+versus cached takes, exact omissions and source uncertainties, fixed-reference
+hashes, initial fixture picture limitations and the lack of a new full-length soak.
+
+Exact next step: the user listens at `runs/performance-20261015/index.html`, starting
+with the minute 00:08–00:14 and candado 44:08–44:16 comparisons. Use the saved source
+excerpts to resolve the listed ambiguities before making integration decisions.
+No generation or provider task remains active. To reproduce the current minute:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 bin/aidub --config config/performance-eval.local.json \
+  resume minute-tranquila-corregida-20261014
+```
+
+Expected result remains partial/exit 3; do not weaken the gate to call it complete.
+Do not merge or push this branch without the user's later instruction.

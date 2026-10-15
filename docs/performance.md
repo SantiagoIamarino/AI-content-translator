@@ -144,6 +144,8 @@ The source-duration score chooses among takes, with the existing hard rate bound
 If the initial valid pool has no placeable take, `search_for_placeable` uses its
 remaining bounded attempts. Vocal events and required prefixes cannot be shifted
 earlier or sent for meaningless compact rewrites just to achieve placement.
+Performance reactions also cannot use the early-start fallback in either take
+collector; a failed fit does not authorize reacting before the gameplay event.
 
 Full-tail inspection protects generated signal across quiet dips and below the
 ordinary core threshold. Fades remain outside protected signal; raw truncation,
@@ -210,6 +212,6 @@ New fixture preparation instead aligns every audio crop to the actual copied
 keyframe, records requested and actual intervals, and checks its displayed origin
 before ASR or providers. It refuses a mismatch.
 
-Evaluation results, absolute local preview paths, fresh/cached counts and remaining
-limitations will be recorded after the configured jobs finish. No representative
-full-length run or general automatic filler-recovery guarantee is claimed.
+Completed results, exact cue/event accounting, listening paths, cached/fresh
+comparisons and remaining limitations are in [performance-results.md](performance-results.md).
+No full-length soak run or general automatic filler-recovery guarantee is claimed.
