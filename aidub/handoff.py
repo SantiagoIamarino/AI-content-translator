@@ -92,6 +92,10 @@ def validate_translation_response(request: dict, response: dict) -> list[str]:
         english = row.get("english")
         if not isinstance(english, str) or not english.strip():
             errors.append(f"id {row['id']} english is empty or not a string")
+        source = next((s for s in request["segments"] if s["id"] == row["id"]), {})
+        fixed = source.get("fixed_event_realization")
+        if fixed and english != fixed:
+            errors.append(f"id {row['id']} must preserve the confirmed vocal-event realization {fixed!r}")
     missing = [i for i in expected if i not in seen]
     duplicate = sorted({i for i in seen if seen.count(i) > 1})
     unexpected = [i for i in seen if i not in expected]

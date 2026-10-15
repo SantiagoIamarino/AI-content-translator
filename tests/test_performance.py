@@ -9,6 +9,11 @@ import soundfile as sf
 from aidub.second_pass import run_second_pass
 from aidub.segment import coverage_gaps_file
 from aidub.util import read_json
+from aidub.util import write_json
+from aidub.events import apply_events, event_placement_report, identity as event_identity
+from aidub.context import quality_translation_request
+from aidub.handoff import validate_translation_response, TRANSLATION_SCHEMA
+from aidub.textnorm import sequence_check
 
 
 def seg(i, start, end, text):
@@ -76,3 +81,67 @@ class SurvivingCoverageTests(unittest.TestCase):
             self.assertIn("gap_0000", calls)
             self.assertTrue(out["source_coverage"]["uncovered"])
             self.assertEqual(out["untranscribed_energy"][0]["second_pass"]["outcome"], "no_speech_heard")
+
+
+class VocalEventTests(unittest.TestCase):
+    def fixture(self, root, annotation=True, noise=False):
+        sr = 16000; x = np.zeros(sr*3)
+        x[round(.5*sr):sr] = (np.random.default_rng(7).normal(0, .05, sr//2) if noise else
+                                          .1*np.sin(2*np.pi*140*np.arange(sr//2)/sr))
+        mic = root/"mic.wav"; sf.write(mic, x, sr)
+        cfg = {"_project_root": str(root), "source_events": {"enabled": True}, "schedule": {"max_tempo": 1.1},
+               "translation_quality": {"enabled": True}}
+        built = {"segments": [seg(2, .5, 2, "Es la primera vez.")]}
+        raw = {"segments": [{"words": [dict(word=w, start=a, end=b) for w,a,b in
+                                       [("Es",1,1.2),("la",1.2,1.3),("primera",1.3,1.6),("vez.",1.6,2)]]}]}
+        if annotation:
+            cfg["source_events"]["annotations_file"] = "events.json"
+            write_json(root/"events.json", dict(schema="aidub.source_events.v1", mic_sha256="mic",
+                events=[dict(id="thinking", start=.5, end=1., kind="hesitation", status="confirmed",
+                             provenance="user_listening", evidence="User identified the thinking sound", realization="Uh...")]))
+        return mic, cfg, built, raw
+
+    def test_confirmed_hesitation_inside_cue_reaches_translation_and_placement(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); mic,cfg,built,raw = self.fixture(root)
+            out = apply_events(built,raw,mic,0,cfg,"mic")
+            self.assertEqual([(s["id"],s["spanish"],s["start"]) for s in out["segments"]],
+                             [(3,"Eh...",.5),(2,"Es la primera vez.",1.)])
+            self.assertEqual(built["segments"][0]["start"], .5)  # no in-place mutation
+            req = quality_translation_request("j",out["segments"],3,cfg,None)
+            response = dict(schema=TRANSLATION_SCHEMA,job_id="j",translator={"kind":"command"},
+                            segments=[dict(id=3,english="Uh..."),dict(id=2,english="It's the first time.")])
+            self.assertEqual(validate_translation_response(req,response), [])
+            response["segments"][0]["english"] = "Right!"
+            self.assertTrue(validate_translation_response(req,response))
+            report = event_placement_report(out["vocal_events"],[dict(id=3,english="Uh...",placed=True)])
+            self.assertEqual(report["unresolved"], [])
+            self.assertEqual(event_placement_report(out["vocal_events"],[])["unresolved"], ["thinking"])
+
+    def test_periodic_unknown_is_never_automatically_spoken(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); mic,cfg,built,raw = self.fixture(root,annotation=False)
+            out=apply_events(built,raw,mic,0,cfg,"mic")
+            self.assertEqual(len(out["segments"]),1)
+            self.assertEqual(out["vocal_events"]["events"][0]["status"],"uncertain")
+            self.assertTrue(event_placement_report(out["vocal_events"],[])["unresolved"])
+
+    def test_noise_is_not_a_hesitation_and_annotation_is_hash_bound(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); mic,cfg,built,raw = self.fixture(root,annotation=False,noise=True)
+            out=apply_events(built,raw,mic,0,cfg,"mic")
+            self.assertEqual(out["vocal_events"]["events"],[])
+            mic,cfg,built,raw = self.fixture(root)
+            before=event_identity(cfg)
+            doc=read_json(root/"events.json");doc["events"][0]["end"]=1.2;write_json(root/"events.json",doc)
+            self.assertNotEqual(before,event_identity(cfg))
+            out=apply_events(built,raw,mic,0,cfg,"mic")
+            self.assertEqual(len(out["segments"]),1)
+            self.assertEqual(out["vocal_events"]["events"][0]["disposition"],"unresolved")
+            with self.assertRaisesRegex(ValueError,"hash mismatch"):
+                apply_events(built,raw,mic,0,cfg,"wrong")
+
+    def test_missing_or_embellished_filler_is_not_a_pass(self):
+        self.assertIn("missing_vocal_event",sequence_check("Uh...","")["hard"])
+        self.assertIn("extra_speech",sequence_check("Uh...","Uh, let's go!")["hard"])
+        self.assertEqual(sequence_check("Uh...","Um")["hard"],[])

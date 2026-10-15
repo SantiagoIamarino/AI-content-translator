@@ -242,6 +242,17 @@ def sequence_check(expected_text: str, heard_text: str | None, *, language: str 
     name_set = name_tokens(expected_text, names)
     result.update(expected_tokens=exp, heard_tokens=hyp)
     if not exp:
+        # Fillers can be the entire intended performance. Removing both sides
+        # from comparison previously let a missing hesitation pass unchecked.
+        original = normalize_tokens(expected_text, drop_fillers=False)
+        heard = normalize_tokens(heard_text, drop_fillers=False)
+        if original and all(w in FILLERS for w in original):
+            family = FILLERS | {"eh", "uhhh", "ummm"}
+            if not heard or not any(w in family for w in heard):
+                result["hard"].append("missing_vocal_event")
+            if any(w not in family for w in heard):
+                result["hard"].append("extra_speech")
+            result["vocal_event_check"] = {"expected": original, "heard": heard}
         return result
     ops = align(exp, hyp, name_set)
     matches = sum(1 for op in ops if op[0] == "match")

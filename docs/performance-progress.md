@@ -25,8 +25,29 @@ The first test run exposed an incorrectly constructed single-token duplicate
 fixture; the fixture now exercises the configured two-token minimum.
 Log: `runs/performance-20261015/stage1-tests.log`.
 
-Exact next step: implement an opt-in timed source-event ledger bound to microphone
-hash and timestamped evidence. Represent confirmed hesitation and uncertainty
-inside cues, propagate it through translation/synthesis/placement, and test that
-noise/unknown events cannot become English words. Preserve the approved reference
-pair, fixed Qwen generation, trim settings, and tempo ceiling.
+## Stage 2 — timed source-event representation
+
+Completed: opt-in `performance` preset and a microphone-hash-bound event ledger.
+Confirmed listening annotations can separate a hesitation from broad lexical-cue
+coverage, preserving the lexical cue ID and words. Internal events can split a cue
+only when all original words can be reconciled and none overlap the event.
+Source-ASR isolated hesitations retain their own evidence. Acoustic periodicity
+only nominates uncertain regions; it never creates a speakable event. Noise,
+breaths and silence cannot insert English. Laugh/sigh synthesis and passthrough
+remain unvalidated and unresolved. Translation/review receive event evidence,
+preserve conversational function, and cannot replace a fixed realization with
+arbitrary words. Filler-only candidate verification now detects missing events
+and added speech. A required placement gate keeps unresolved events partial.
+
+Changed files: `aidub/events.py`, `aidub/pipeline.py`, `aidub/context.py`,
+`aidub/review.py`, `aidub/handoff.py`, `aidub/textnorm.py`,
+`config/presets/performance.json`, `tests/test_performance.py`, this note.
+Verification: 120 tests, 119 passed, one existing fixture skipped.
+Log: `runs/performance-20261015/stage2-tests.log`. No provider or TTS call yet.
+
+Exact next step: add per-cue source-pause evidence and contextual take evaluation,
+so a source-supported thinking pause is not rejected by the one-second rule;
+protect complete generated tails and verify processing. Then create isolated
+evaluation jobs and the 00:10 annotation with approximate boundary provenance,
+run configured synthesis/providers, render contextual comparisons and verify
+repeat resume. Original jobs and approved reference inputs remain preserved.

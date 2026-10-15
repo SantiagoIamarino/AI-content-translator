@@ -28,6 +28,7 @@ from .config import jobs_dir, reference_text, require_schedule_defaults, resolve
 from .context import glossary_names, join_short_pauses, quality_translation_request, settings as quality_translation_settings, syllable_report
 from .second_pass import run_second_pass, settings as second_pass_settings, unreviewed_gaps
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
+from .events import identity as events_identity, apply_events, event_placement_report
 from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
 from .textnorm import content_tokens, normalize_tokens
 from .export import decode_ok, mux_english_cmd, mux_spanish_cmd, place_voice, write_bilingual
@@ -233,7 +234,7 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
     })
     fp_inputs = {"legacy_inputs": legacy_fp, "transcription": cfg.get("transcription"),
                  "weights": file_identity(whisper_model_file(cfg)),
-                 "segmentation_version": 2}
+                 "segmentation_version": 2, **events_identity(cfg)}
     second = second_pass_settings(cfg)
     join = (quality_translation_settings(cfg).get("join") or {})
     if second:
@@ -244,7 +245,10 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
         fp_inputs["utterance_join"] = join
     fp = fingerprint(fp_inputs)
     files = ["transcribe/raw.json", "transcribe/segments.json", "transcribe/corrections.json", "timeline.json"]
-    if _fp_ok(job, "transcribe", fp, files) or ("transcription" not in cfg and _fp_ok(job, "transcribe", legacy_fp, files)):
+    if events_identity(cfg):
+        files.append("transcribe/vocal_events.json")
+    if _fp_ok(job, "transcribe", fp, files) or (not second and not join.get("enabled") and not events_identity(cfg)
+            and "transcription" not in cfg and _fp_ok(job, "transcribe", legacy_fp, files)):
         print("transcribe: unchanged")
         return read_json(job.dir / "transcribe/segments.json")
     print("transcribe: checkpointed Whisper windows on mic-only audio")
@@ -273,6 +277,9 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
         built["segments"] = joined
         built["merges"] = list(built.get("merges") or []) + join_audit
         built["corrections"] = list(built.get("corrections") or []) + join_audit
+    built = apply_events(built, raw, mic, float(alignment["offset_sec"]), cfg, alignment["mic_sha256"])
+    if "vocal_events" in built:
+        write_json(out_dir / "vocal_events.json", built["vocal_events"])
     for seg in built["segments"]:
         seg["english"] = None
         seg["english_original"] = None
@@ -286,6 +293,7 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
         "untranscribed_energy": built["untranscribed_energy"],
         "dropped": built["dropped"],
         **({"source_coverage": built["source_coverage"]} if "source_coverage" in built else {}),
+        **({"vocal_events": built["vocal_events"]} if "vocal_events" in built else {}),
         **({"second_pass": "transcribe/second_pass.json"} if second else {}),
     })
     if not built["segments"]:
@@ -658,6 +666,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         "verification_identity": verification_identity(cfg, ref_sha),
         "schedule_version": 3 if int((cfg.get("voice_edge") or {}).get("presentation_version", 1)) >= 2 else 2,
         **continuity_identity(cfg),
+        **events_identity(cfg),
         **({"voice_selection": voice_selection_settings(cfg), "selection_code": sha256_file(Path(__file__).with_name("selection.py"))}
            if voice_selection_settings(cfg) else {}),
         **({"context": (load_context_for(job, cfg, segments) or {}).get("identity")} if quality_translation_settings(cfg) else {}),
@@ -1081,6 +1090,7 @@ def _scheduled_item(seg: dict, chosen: dict, attempts: list[dict], source_durati
         "edge_ok": chosen.get("edge_ok"),
         "loudness_gain": chosen.get("loudness_gain"),
         "leading_shift_sec": chosen.get("leading_shift_sec") or 0.0,
+        **{key: seg[key] for key in ("vocal_events", "fixed_event_realization", "source_pauses") if key in seg},
         **{key: chosen[key] for key in ("selection_summary", "presentation", "source_loudness") if key in chosen},
     }
 
@@ -1310,6 +1320,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     artifacts = {"english": en_path, "spanish": es_path, "voice": job.dir / "output/english_voice.wav",
                  "mix": job.dir / "output/english_mix.wav", "srt": job.dir / "output/english.srt"}
     corrections_file = job.dir / "transcribe/corrections.json"
+    event_file = job.dir / "transcribe/vocal_events.json"
     validate_fp = fingerprint({"version": 4,
                                **({"protected_endings_gate": 1} if int(summary.get("presentation_version", 1)) >= 3 else {}), "source_sha256": source_sha, "protected": protected_now,
                                "artifacts": {label: sha256_file(path) for label, path in artifacts.items()},
@@ -1317,6 +1328,8 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
                                "gains": {k: v for k, v in gain.items() if k not in {"commands", "english_video", "english_video_rel"}},
                                "placements": summary, "segmentation_policy": cfg["segmentation"].get("untranscribed_energy_policy", "partial"),
                                "corrections": sha256_file(corrections_file) if corrections_file.is_file() else None,
+                               **({"source_event_ledger": sha256_file(event_file) if event_file.is_file() else None}
+                                  if (cfg.get("source_events") or {}).get("enabled") else {}),
                                "validator_code": [sha256_file(Path(__file__)), sha256_file(Path(__file__).with_name("media.py")),
                                                   sha256_file(Path(__file__).with_name("streaming.py")), sha256_file(Path(__file__).with_name("export.py"))]})
     if _fp_ok(job, "validate", validate_fp, ["report/validation.json", "report/validation.md"]):
@@ -1400,6 +1413,14 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
                        (s.get("presentation") or {}).get("truncated_to_window") is not False)]
         add("generated_endings_preserved", not lost_edges,
             lost_edges or "bounded quiet signal retained; no window clipping; raw unsettled endings rejected")
+    event_report = None
+    if (cfg.get("source_events") or {}).get("enabled"):
+        ledger_path = job.dir / "transcribe/vocal_events.json"
+        ledger = read_json(ledger_path) if ledger_path.is_file() else {"events": []}
+        event_report = event_placement_report(ledger, summary["segments"])
+        write_json(job.dir / "report/vocal_events.json", event_report)
+        add("source_events_accounted", ledger_path.is_file() and not event_report["unresolved"],
+            event_report["unresolved"] or "all confirmed vocal events placed; non-speech exclusions explicit")
     placed = [s for s in summary["segments"] if s.get("placed")]
     bounds_bad = []
     ordered = summary["segments"]
@@ -1499,6 +1520,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         "verification_stats": summary.get("verification_stats"),
         "transcription_drops": (corrections or {}).get("dropped", []),
         "untranscribed_energy": gaps,
+        **({"vocal_events": event_report} if event_report is not None else {}),
     }
     write_json(job.dir / "report/validation.json", report)
     (job.dir / "report").mkdir(parents=True, exist_ok=True)
