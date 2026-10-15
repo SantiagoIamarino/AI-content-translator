@@ -343,3 +343,33 @@ reading using both existing hearings. Inspect any compact repairs and reviewer
 changes; reuse matching saved responses/takes. The minute excerpts are being
 rendered in the background. Finish corrected comparisons, remaining excerpts,
 final counts/preservation/resume evidence, results docs and commit.
+
+## Stage 12 — reaction timing in both collection paths
+
+Completed: the final constraint review found that performance reactions could
+still use the older early-start fallback, and the legacy collector lacked the
+vocal-event protection already present in best-of-N. Both collectors now refuse
+to advance a timed reaction into earlier gameplay. Fixed vocal realizations also
+cannot request a meaningless compact rewrite in the legacy path. Ordinary source
+anchors and later cues remain fixed; protected preroll and bounded local lead
+budget are unchanged.
+
+Changed files: line collection, performance schedule identity, regression tests
+and this note. Verification: 137 tests, 136 passed, one existing recorded fixture
+skip (`stage12-tests.log`). The test checks both collectors with a valid take
+that would otherwise fit only by starting 300 ms early. Schedule version 5 affects
+selection/presentation only, preserving raw ASR, source analysis, provider requests
+and generation identities.
+
+The settled passage set before this final safeguard is 44 retained/translated,
+35 placed, nine explicitly withheld; minute 7/7 and long 21/24. All nine current
+comparison MP4s check their displayed source origin. Final unchanged-resume proofs
+cover 649 minute and 1,139 long-passage cache/provider/transcription/schedule/output
+files with no additions/removals/changes (`resume-proofs-final.json`).
+
+Exact next step: checkpoint current voice hashes and protected raw/provider/ASR
+files, then repeat the serial queue under schedule version 5. Confirm this safeguard
+changes no selected audio in the demonstrated set (all selected takes had zero
+early shift). Refresh final accounting and unchanged-resume proofs. Finish and
+commit measured results documentation and preview-tool labels; do not run fresh
+translation or TTS unless an actual changed request/take requires it.

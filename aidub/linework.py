@@ -65,6 +65,15 @@ def _quality_failure(attempt: dict) -> dict:
     return chosen
 
 
+def _fixed_vocal_event(seg):
+    return seg.get("anchor_type")=="vocal_event" or bool(seg.get("required_event_prefix"))
+
+
+def _may_advance(seg,cfg):
+    return not (_fixed_vocal_event(seg) or ((cfg.get("source_events") or {}).get("enabled") and
+                                         seg.get("anchor_type")=="reaction"))
+
+
 def collect_line(
     seg: dict,
     *,
@@ -120,7 +129,7 @@ def collect_line(
             if attempt["placed"]:
                 break
 
-    if not chosen["placed"] and (chosen.get("quality") or {}).get("ok"):
+    if not chosen["placed"] and (chosen.get("quality") or {}).get("ok") and _may_advance(seg,cfg):
         shift = leading_shift(
             float(seg["start"]),
             float(chosen["generated_duration_sec"]),
@@ -142,6 +151,7 @@ def collect_line(
         and bool((chosen.get("quality") or {}).get("ok"))
         and len(revisions) < int(revision_limit_n)
         and not any(r.get("action") == "leave_unresolved" for r in revisions)
+        and not _fixed_vocal_event(seg)
     )
     return {"chosen": chosen, "attempts": attempts, "needs_repair": needs_repair, "skip": None}
 
@@ -195,7 +205,7 @@ def collect_line_best_of_n(
         return {"chosen": failed, "attempts": attempts, "needs_repair": False, "skip": None}
     from .selection import choose
     chosen = dict(choose(valid))
-    if not chosen["placed"] and seg.get("anchor_type") != "vocal_event" and not seg.get("required_event_prefix"):
+    if not chosen["placed"] and _may_advance(seg,cfg):
         shortest = min(valid, key=lambda a: float(a["generated_duration_sec"]))
         shift = leading_shift(float(seg["start"]), float(shortest["generated_duration_sec"]), occupied, next_start,
                               float((cfg.get("fit_retries") or {}).get("max_leading_shift_sec", 0.4)))
@@ -212,7 +222,7 @@ def collect_line_best_of_n(
                            "tempo": a.get("tempo")} for a in ranked]
     summary["margin_to_next"] = round(ranked[1]["selection"]["score"] - ranked[0]["selection"]["score"], 4) if len(ranked) > 1 else None
     chosen["selection_summary"] = summary
-    needs_repair = (not chosen["placed"]) and len(revisions) < int(revision_limit_n) and seg.get("anchor_type") != "vocal_event" and not seg.get("required_event_prefix")
+    needs_repair = (not chosen["placed"]) and len(revisions) < int(revision_limit_n) and not _fixed_vocal_event(seg)
     return {"chosen": chosen, "attempts": attempts, "needs_repair": needs_repair, "skip": None}
 
 

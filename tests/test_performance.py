@@ -18,7 +18,7 @@ from aidub.performance import contextual_quality, quiet_intervals, score_context
 from aidub.continuity import render_protected
 from aidub.context import join_short_pauses, utterance_groups
 from aidub.pipeline import source_uncertainty_issues, _present_v3, _cache_misses
-from aidub.linework import collect_line_best_of_n
+from aidub.linework import collect_line_best_of_n, collect_line
 from aidub.fidelity import material_conflict, voicing_uncertainty
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -242,6 +242,25 @@ class VocalEventTests(unittest.TestCase):
 
 
 class PerformanceTimingTests(unittest.TestCase):
+    def test_timed_reactions_do_not_advance_into_earlier_gameplay_in_either_collector(self):
+        for anchor in ("reaction","vocal_event"):
+            for collector in (collect_line,collect_line_best_of_n):
+                with self.subTest(anchor=anchor,collector=collector.__name__):
+                    s=dict(id=1,start=1.,end=1.5,english="Okay",anchor_type=anchor)
+                    cfg={"source_events":{"enabled":True},"schedule":{"seed_base":42,"alternate_seed_offset":100},
+                         "quality":{"max_retries":0},"fit_retries":{"max_alternate_seeds":0}}
+                    def attempt(s,text,seed,kind,meta,*rest):
+                        return dict(text=text,seed=seed,kind=kind,placed=False,tempo=1.,trim_duration_sec=.8,
+                                    generated_duration_sec=.8,status="unresolved",timing_error="overrun")
+                    args=dict(occupied=0.,next_start=1.5,source_duration=3.,cfg=cfg,synthesize=lambda *a:{},
+                              assess=lambda *a:{"ok":True,"reasons":[]},attempt_fn=attempt,revision_limit_n=2)
+                    if collector is collect_line_best_of_n:
+                        args.update(score=lambda a:{"score":0.},candidates=1,max_extra=0)
+                    result=collector(s,**args)
+                    self.assertFalse(result["chosen"]["placed"])
+                    self.assertNotIn("leading_shift_sec",result["chosen"])
+                    if anchor=="vocal_event":self.assertFalse(result["needs_repair"])
+
     def test_compact_repair_verdict_is_bound_to_the_actual_repaired_text(self):
         cfg={"source_events":{"enabled":True},"translation_quality":{"enabled":True,"review":{"enabled":True,"max_rounds":2}},
              "schedule":{"max_tempo":1.1}}

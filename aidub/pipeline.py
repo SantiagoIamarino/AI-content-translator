@@ -689,7 +689,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         **continuity_identity(cfg),
         **events_identity(cfg),
         **performance_identity(cfg),
-        **({"performance_schedule_version": 4,"vocal_verification_code":sha256_file(Path(__file__).with_name("vocal_verification.py"))}
+        **({"performance_schedule_version": 5,"vocal_verification_code":sha256_file(Path(__file__).with_name("vocal_verification.py"))}
            if (cfg.get("source_events") or {}).get("enabled") else {}),
         **({"voice_selection": voice_selection_settings(cfg), "selection_code": sha256_file(Path(__file__).with_name("selection.py"))}
            if voice_selection_settings(cfg) else {}),
