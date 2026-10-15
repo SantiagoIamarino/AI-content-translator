@@ -67,11 +67,55 @@ Changed files: `aidub/performance.py`, `aidub/pipeline.py`, `aidub/linework.py`,
 `tests/test_performance.py`, this note. Verification: 123 tests, 122 passed,
 one existing fixture skipped. Log: `runs/performance-20261015/stage3-tests.log`.
 
-Exact next step: create isolated evaluation jobs and a microphone-bound 00:10
-annotation (user-confirmed event, approximate end from saved lexical onset).
-First compare identical cached takes under old/new processing and selection.
-Then run this checkout's configured providers/synthesis on the first minute and
-representative long passages. Preserve original jobs and paid response identities;
-record separate fresh-generation counts, omissions/uncertainty and media checks.
-Render timestamped Spanish/prior/new comparisons, verify repeat resume, and commit
-the evaluation tooling, final evidence documentation and updated progress note.
+## Stage 4 — recoverable evaluation and honest uncertainty status
+
+Completed: `scripts/performance-evaluate.py` prepares isolated bounded source
+fixtures from saved mic/game and copied picture, freezes the approved reference
+configuration, renders Spanish/prior/new comparisons, and runs a serial resumable
+queue through this checkout's `bin/aidub`. Each job holds its normal provider lock;
+the queue has a separate owned lock. Saved receipts prevent accidental reuse for
+another source interval. Fixture picture bitstreams are checked after mux.
+The first fixture attempt caught a final `-t` dropping copied packets; the mux now
+preserves every packet of the already-bounded picture. No source job was changed.
+
+The cached evidence tool accepts `--preset performance`, applying current checks
+to saved ASR and raw takes with no fresh hearing/synthesis. Minute: 7/7 placed;
+600–790-second passage: 25/25 placed. Both have zero PCM game-bed error and copied
+video identity. These comparisons exclude event recovery and new translations;
+the long cached comparison retains its historical voice. Same-take WAVs remain
+separate from reselection results.
+
+Performance jobs now remain partial with unintelligible source gaps or disputed /
+unconfirmed bilingual reviews. Reports expose the spans and texts. Validation-only
+version 5 reuses source analysis, provider responses and synthesis. This is stricter
+than the old reviewed-gap gate, without treating noise as missing speech.
+
+Changed files: `scripts/performance-evaluate.py`, `scripts/continuity-evidence.py`,
+`aidub/pipeline.py`, `tests/test_performance.py`, this note. Verification: 124 tests,
+123 passed and one existing fixture skipped. Log: `stage4-tests.log` in local runs.
+
+Evaluation currently running (not yet accepted): first-minute job under
+`runs/performance-20261015/jobs/minute-tranquila-corregida-20261014` using
+`config/performance-eval.local.json`. New 00:10 event is `thinking-0010`,
+10.178979–10.720000, user listening provenance, approximate boundaries; no original
+microphone passthrough. The serial queue waits for that job and then runs the eight
+prepared audit passages plus the minute comparison. Logs: `minute-run.log`,
+`queue.log`, `queue/state.json`, individual passage `run.log` and `comparison.json`.
+
+Exact next step after an interruption: inspect those logs and manifests before
+starting anything. If the queue is still alive, let it continue. If inactive,
+resume the minute with `bin/aidub --config config/performance-eval.local.json auto`
+using its original saved source path and name; then run:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. /path/to/authorized/python \
+  scripts/performance-evaluate.py run-set --output runs/performance-20261015
+```
+
+The local config records the already-authorized interpreter; no installation is
+needed. If a passage fails, preserve its request/response state, diagnose and resume.
+Do not regenerate matching saved provider responses or raw takes. Once finished,
+review exact text/event deltas and omissions, render short 00:09–00:13 listening
+excerpts and a top-level comparison index, verify repeat resume, record reference
+hashes and technical checks, update documentation/results and commit. No listening
+or perceptual approval is claimed.

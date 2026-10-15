@@ -1321,6 +1321,17 @@ def stage_mix(job: Job, cfg: dict, summary: dict) -> dict:
     return gain
 
 
+def source_uncertainty_issues(corrections, timeline):
+    """A completed review is not evidence that ambiguous source meaning is resolved."""
+    issues = [{"kind":"unintelligible_source","span":g["span"],"text":g.get("second_pass",{}).get("text","")}
+              for g in (corrections or {}).get("untranscribed_energy",[])
+              if g.get("second_pass",{}).get("outcome") == "unintelligible"]
+    issues += [{"kind":"disputed_translation","id":s["id"],"span":[s["start"],s["end"]],
+                "spanish":s["spanish"],"english":s.get("english"),"status":s["translation_review"]["status"]}
+               for s in timeline if s.get("translation_review",{}).get("status") in {"disputed","revised_unconfirmed"}]
+    return issues
+
+
 def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     inspected = read_json(job.dir / "inspect/probe.json")
     video = Path(job.data["video"])
@@ -1339,7 +1350,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
                  "mix": job.dir / "output/english_mix.wav", "srt": job.dir / "output/english.srt"}
     corrections_file = job.dir / "transcribe/corrections.json"
     event_file = job.dir / "transcribe/vocal_events.json"
-    validate_fp = fingerprint({"version": 4,
+    validate_fp = fingerprint({"version": 5,
                                **({"protected_endings_gate": 1} if int(summary.get("presentation_version", 1)) >= 3 else {}), "source_sha256": source_sha, "protected": protected_now,
                                "artifacts": {label: sha256_file(path) for label, path in artifacts.items()},
                                "schedule": job.stage("schedule").get("fingerprint"), "mix": job.stage("mix").get("fingerprint"),
@@ -1350,7 +1361,10 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
                                   if (cfg.get("source_events") or {}).get("enabled") else {}),
                                "validator_code": [sha256_file(Path(__file__)), sha256_file(Path(__file__).with_name("media.py")),
                                                   sha256_file(Path(__file__).with_name("streaming.py")), sha256_file(Path(__file__).with_name("export.py"))]})
-    if _fp_ok(job, "validate", validate_fp, ["report/validation.json", "report/validation.md"]):
+    validation_files = ["report/validation.json", "report/validation.md"]
+    if (cfg.get("source_events") or {}).get("enabled"):
+        validation_files += ["report/vocal_events.json", "report/source_uncertainties.json"]
+    if _fp_ok(job, "validate", validate_fp, validation_files):
         saved = read_json(job.dir / "report/validation.json")
         job.state = saved["status"]
         job.error = None
@@ -1438,6 +1452,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
                     (s.get("tempo",1.) > 1. and not s.get("presentation",{}).get("post_tempo_text_verified")))]
             add("processed_endings_verified",not bad,bad or "full generated tail inspected; processed endpoint checked; tempo takes reverified")
     event_report = None
+    source_uncertainties = []
     if (cfg.get("source_events") or {}).get("enabled"):
         ledger_path = job.dir / "transcribe/vocal_events.json"
         ledger = read_json(ledger_path) if ledger_path.is_file() else {"events": []}
@@ -1445,6 +1460,10 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         write_json(job.dir / "report/vocal_events.json", event_report)
         add("source_events_accounted", ledger_path.is_file() and not event_report["unresolved"],
             event_report["unresolved"] or "all confirmed vocal events placed; non-speech exclusions explicit")
+        source_uncertainties = source_uncertainty_issues(corrections,_timeline(job))
+        write_json(job.dir / "report/source_uncertainties.json", source_uncertainties)
+        add("source_uncertainty_resolved",not source_uncertainties,
+            source_uncertainties or "no unintelligible source spans or unresolved bilingual reviews")
     placed = [s for s in summary["segments"] if s.get("placed")]
     bounds_bad = []
     ordered = summary["segments"]
@@ -1545,6 +1564,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         "transcription_drops": (corrections or {}).get("dropped", []),
         "untranscribed_energy": gaps,
         **({"vocal_events": event_report} if event_report is not None else {}),
+        **({"source_uncertainties": source_uncertainties} if event_report is not None else {}),
     }
     write_json(job.dir / "report/validation.json", report)
     (job.dir / "report").mkdir(parents=True, exist_ok=True)

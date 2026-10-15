@@ -15,6 +15,8 @@ import soundfile as sf
 
 from aidub.audio import read_audio, to_mono
 from aidub.continuity import source_pacing_score
+from aidub.config import apply_preset, load_preset
+from aidub.performance import attach_source_pauses, contextual_quality, score_contextual
 from aidub.export import mux_english_cmd
 from aidub.job import JobLock
 from aidub.media import run_cmd, bitstream_md5, encoded_audio_metrics
@@ -32,11 +34,14 @@ def crop(src, dst, start, end):
         sf.write(dst,data,source.samplerate,subtype='FLOAT')
 
 
-def run(job, out, start, end, recheck_saved_asr=False):
+def run(job, out, start, end, recheck_saved_asr=False, preset='continuity'):
     cfg=read_json(job/'config.json')
     cfg.setdefault('voice_selection',{}).update(enabled=True, source_pacing={'enabled':True,'weight':4.0})
     edge=cfg['voice_edge']
     edge.update(presentation_version=3, protection={'floor_rms':.0015,'max_lead_ms':80,'max_tail_ms':400,'settle_ms':20})
+    if preset == 'performance':
+        cfg=apply_preset(cfg,load_preset('performance'))
+        edge=cfg['voice_edge']
     opts=settings(cfg)
     summary=read_json(job/'mix/placed_summary.json')
     source_duration=summary['source_duration_sec']
@@ -46,6 +51,8 @@ def run(job, out, start, end, recheck_saved_asr=False):
     ffmpeg=cfg['executables']['ffmpeg']
     rows=summary['segments']
     selected=[s for s in rows if start <= s['start'] < end]
+    if preset == 'performance':
+        selected=attach_source_pauses({'segments':selected},job/'extract/mic_raw.wav',0.,cfg)['segments']
     if any(s.get('placed') and s['placement_start'] < start < s['placement_end'] for s in rows):
         raise ValueError('Choose a start outside a placed cue')
     if any(s.get('placed') and s['placement_end'] > end for s in selected):
@@ -75,7 +82,7 @@ def run(job, out, start, end, recheck_saved_asr=False):
         record={'id':s['id'],'start':s['start'],'end':s['end'],'spanish':s['spanish'],'english':s['english'],
                 'before_seed':s.get('seed'),'before_end':s.get('placement_end'),'candidates':[]}
         for a in s.get('attempts',[]):
-            if a['text']!=s['english'] or (not recheck_saved_asr and not (a.get('quality') or {}).get('ok')):
+            if a['text']!=s['english'] or (not recheck_saved_asr and preset != 'performance' and not (a.get('quality') or {}).get('ok')):
                 continue
             raw=Path(a['raw_path']);meta=read_json(raw.with_suffix('.json'))
             digest=sha256_file(raw)
@@ -83,7 +90,7 @@ def run(job, out, start, end, recheck_saved_asr=False):
                 raise ValueError(f'Raw waveform hash mismatch: {raw}')
             attempt=_attempt_from_audio(jobview,cfg,s,a['text'],a['seed'],a['kind'],dict(meta,path=str(raw)),occupied,nxt,end)
             quality = a['quality']
-            if recheck_saved_asr:
+            if recheck_saved_asr or preset == 'performance':
                 from aidub.quality import assess_candidate
                 x, sr = read_audio(raw)
                 quality = assess_candidate(to_mono(x), sr, a['text'], summary['reference_profile'],
@@ -91,14 +98,15 @@ def run(job, out, start, end, recheck_saved_asr=False):
                            asr_skipped=quality.get('asr_skipped',False), text_checker='sequence-v1', pacing_opts=opts,
                            min_speaker_features=int(cfg['quality'].get('min_speaker_features',2)))
                 quality['asr_mean_probability'] = a['quality'].get('asr_mean_probability')
-                if not quality['ok']:
-                    continue
+            quality=contextual_quality(attempt,quality,s,opts)
+            if not quality['ok']:
+                continue
             attempt['quality']=quality
             if attempt['placed']:
                 attempt=_present_v3(jobview,cfg,s,attempt,occupied,nxt,end,s.get('presentation',{}).get('target_rms'),edge)
             x,sr=read_audio(raw)
             sel=score_take(attempt,pacing(to_mono(x),sr,a['text'],tempo=attempt['tempo']),summary['reference_profile'],running_profile(profiles),opts)
-            attempt['selection']=source_pacing_score(sel,s,opts)
+            attempt['selection']=score_contextual(source_pacing_score(sel,s,opts),attempt,opts)
             record['candidates'].append({'seed':a['seed'],'raw_sha256':digest,'placed':attempt['placed'],
                                          'reason':attempt['timing_error'],'score':attempt['selection'],
                                          'edge':attempt.get('edge')})
@@ -144,7 +152,7 @@ def run(job, out, start, end, recheck_saved_asr=False):
              '[1:a]showwavespic=s=1600x180:colors=red:scale=lin[b];'
              '[2:a]showwavespic=s=1600x180:colors=green:scale=lin[c];[a][b][c]vstack=inputs=3[v]',
              '-map','[v]','-frames:v','1',str(out/'waveforms.png')])
-    report={'status':'experimental_cached_replay_not_job_acceptance','job':str(job),'interval':[start,end],
+    report={'status':'experimental_cached_replay_not_job_acceptance','preset':preset,'job':str(job),'interval':[start,end],
             'rechecked_saved_asr':recheck_saved_asr,'new_translation_calls':0,'new_synthesis':0,'reference_sha256_at_generation':summary['reference_sha256'],
             'counts':{'retained':len(selected),'translated':sum(bool(s['english']) for s in selected),
                       'before_placed':sum(bool(s['placed']) for s in selected),
@@ -163,6 +171,7 @@ if __name__=='__main__':
     parser.add_argument('--job',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--recheck-saved-asr',action='store_true',help='Re-evaluate the saved ASR text with current checker; no new hearing')
+    parser.add_argument('--preset',choices=['continuity','performance'],default='continuity')
     parser.add_argument('--start',type=float,default=0)
     parser.add_argument('--end',type=float,required=True)
     args=parser.parse_args()
@@ -170,4 +179,4 @@ if __name__=='__main__':
     if out==job or job in out.parents:
         raise ValueError('Evidence output must be separate from the source job')
     with JobLock(job),JobLock(out):
-        run(job,out,args.start,args.end,args.recheck_saved_asr)
+        run(job,out,args.start,args.end,args.recheck_saved_asr,args.preset)

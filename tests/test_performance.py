@@ -17,6 +17,7 @@ from aidub.textnorm import sequence_check
 from aidub.performance import contextual_quality, quiet_intervals, score_contextual
 from aidub.continuity import render_protected
 from aidub.context import join_short_pauses, utterance_groups
+from aidub.pipeline import source_uncertainty_issues
 
 
 def seg(i, start, end, text):
@@ -151,6 +152,14 @@ class VocalEventTests(unittest.TestCase):
 
 
 class PerformanceTimingTests(unittest.TestCase):
+    def test_classified_uncertainty_is_not_a_content_pass(self):
+        c={"untranscribed_energy":[{"span":[4,5],"second_pass":{"outcome":"unintelligible","text":"Y..."}},
+                                   {"span":[8,9],"second_pass":{"outcome":"non_speech_energy"}}]}
+        s=seg(3,10,11,"No sé");s["translation_review"]={"status":"disputed"}
+        issues=source_uncertainty_issues(c,[s])
+        self.assertEqual([i["kind"] for i in issues],["unintelligible_source","disputed_translation"])
+        self.assertEqual(source_uncertainty_issues({},[]),[])
+
     def test_source_supported_thinking_pause_is_not_a_global_failure(self):
         sr=16000; tone=.1*np.sin(2*np.pi*140*np.arange(sr)/sr)
         wav=np.r_[tone,np.zeros(round(1.3*sr)),tone].astype(np.float32)
