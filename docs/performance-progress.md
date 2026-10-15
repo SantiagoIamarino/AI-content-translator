@@ -244,3 +244,36 @@ and their manifests. Do not restart active jobs. After the minute finishes, insp
 the event's raw/processed verification, rerender its comparison, then repeat resume
 to prove no new provider/synthesis work. Finish remaining passage diagnostics,
 timestamped excerpts, summary index, final evidence docs and commit.
+
+## Stage 9 — passage-discovered uncertainty and protected-lead failures
+
+Completed: the actual passage queue exposed `protected_edge_outside_window` for
+settled takes as short as 5.024 seconds in a 6.394-second window. The preceding
+take ended within one sample of this source anchor, so there was no leading
+margin budget. Performance presentation can now delay the core locally by its
+required lead (at most 80 ms), preserving all protected audio and the fixed next
+anchor. It still rejects insufficient room and raw truncation.
+
+Quiet fixtures also demonstrated that a text reviewer could mark an acoustic
+reading disputed while the pipeline still voiced its plausible English. Such
+disputed/unconfirmed lines now remain explicitly unplaced under the performance
+policy, retaining text, evidence and partial status. This also avoids loading TTS
+for an entirely withheld passage. New energy-gap words require a second timed
+reading with neighboring acoustic context: the repetition passage's isolated
+`¡Gracias!` had a 20-ms word timestamp despite probability 0.65. Its status is not
+assumed to be speech; the next run will record its contextual corroboration.
+
+Changed files: fidelity, pipeline, second-pass interpretation, performance preset,
+regression tests and docs. Verification: 133 tests, 132 passed, one existing
+recorded-fixture skip (`stage9-tests.log`). Matching acoustic hearing caches keep
+their identities; provider and generation keys remain unchanged for identical
+requests and takes.
+
+Exact next step: apply the two new performance policy settings only to the nine
+stopped experimental config snapshots/local configs, preserving approved reference,
+Qwen and schedule blocks. Resume `scripts/performance-evaluate.py run-set` serially
+with the saved receipts. It must reuse original raw ASR/hearings and saved provider
+responses for matching requests; changed gap content legitimately needs its own
+translation response. Inspect actual contextual confirmation, local onset delay,
+omissions and fresh/cache counts. Finish excerpts, summary, idempotent resume and
+final results documentation after that queue exits.

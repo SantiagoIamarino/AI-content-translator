@@ -27,3 +27,20 @@ def material_conflict(seg):
             return {"kind":"opposite_source_polarity","first":source["spanish"],"alternative":alternative["text"],
                     "shared_content":sorted(common),"decision":"unvoiced_pending_source_resolution"}
     return None
+
+
+def voicing_uncertainty(seg, cfg):
+    """Keep unresolved source readings in the ledger, without speaking a guess.
+
+    A text reviewer cannot establish what a quiet acoustic event actually was.
+    The performance policy therefore withholds a disputed source or an unchecked
+    final translation revision. Historical configurations keep their own policy.
+    """
+    if seg.get("material_source_conflict"):
+        return {"kind": "material_source_asr_conflict", "evidence": seg["material_source_conflict"]}
+    if not (cfg.get("source_events") or {}).get("enabled"):
+        return None
+    review = seg.get("translation_review") or {}
+    if review.get("status") in {"disputed", "revised_unconfirmed"}:
+        return {"kind": "unresolved_source_or_translation", "evidence": review}
+    return None

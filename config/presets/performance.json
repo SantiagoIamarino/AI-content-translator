@@ -19,6 +19,7 @@
     "merge_gap_sec": 0.3,
     "max_no_speech_prob": 0.6,
     "duplicate_min_tokens": 2,
+    "confirm_recovered": true,
     "options": {
       "condition_on_previous_text": false,
       "beam_size": 5,
@@ -108,6 +109,7 @@
       "settle_ms": 20,
       "inspect_full_tail": true,
       "max_analysis_tail_sec": 2.0,
+      "max_onset_delay_ms": 80,
       "decay_floor_rms": 0.0001
     }
   },

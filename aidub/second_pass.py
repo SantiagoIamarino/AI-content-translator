@@ -129,7 +129,9 @@ def run_second_pass(job_dir: Path, built: dict, mic_path: Path, offset_sec: floa
     opts = settings(cfg)
     segments = sorted((dict(s) for s in built["segments"]), key=lambda s: (float(s["start"]), int(s["id"])))
     pad = float(opts["pad_sec"])
-    identity = fingerprint({"mic": mic_sha or str(mic_path), "settings": opts, "version": 1,
+    # Interpretation policy must not invalidate identical cached hearings.
+    hearing_settings = {k:v for k,v in opts.items() if k != "confirm_recovered"}
+    identity = fingerprint({"mic": mic_sha or str(mic_path), "settings": hearing_settings, "version": 1,
                             "model": cfg.get("asr_second_pass", {}).get("model"),
                             "segments": [(s["id"], s["start"], s["end"], s["spanish"]) for s in segments],
                             "gaps": built.get("untranscribed_energy")})
@@ -273,6 +275,24 @@ def run_second_pass(job_dir: Path, built: dict, mic_path: Path, offset_sec: floa
                          and info["max_no_speech_prob"] <= float(opts["max_no_speech_prob"])
                          and any(len(t) >= 2 for t in es_tokens(info["text"]))
                          and not any(p in lowered for p in _HALLUCINATIONS))
+            confirmation = None
+            if confident and not repeats_neighbor and opts.get("confirm_recovered"):
+                # Tiny isolated windows can confidently hallucinate a familiar
+                # sign-off (the 20-ms "Gracias" reading in the repetition test).
+                # Require a matching *timed* reading with neighboring context,
+                # without supplying an expected-text prompt.
+                ca = max(0.,g0-max(.8,pad))
+                cb = min(offset_sec+mic.handle.frames/mic.sr,g1+max(.8,pad))
+                context_words,_ = hear("gap_confirm",f"{n:04d}",ca,cb)
+                timed = [w for w in context_words if any(
+                    a-.1 <= (w["start"]+w["end"])/2 <= b+.1 for a,b in uncovered)]
+                corroborated = _summary(timed)
+                matches = bool(_find(es_tokens(corroborated["text"]),es_tokens(info["text"])))
+                confirmed = bool(matches and corroborated["mean_probability"] >= float(opts["accept_probability"])
+                                 and corroborated["min_probability"] >= float(opts["min_word_probability"]))
+                confirmation = dict(window=[ca,cb],**corroborated,confirmed=confirmed,
+                                    scope="same recognizer with neighboring acoustic context; no expected-text prompt")
+                confident = confident and confirmed
             if repeats_neighbor:
                 outcome = "already_transcribed"
             elif confident:
@@ -293,6 +313,8 @@ def run_second_pass(job_dir: Path, built: dict, mic_path: Path, offset_sec: floa
                 outcome = "no_speech_heard" if flat < 0.4 else "non_speech_energy"
             gap["second_pass"] = {"outcome": outcome, "window": [lo, hi], "flatness": round(flat, 4),
                                   "uncovered": [[round(a, 4), round(b, 4)] for a, b in uncovered], **info}
+            if confirmation is not None:
+                gap["second_pass"]["context_confirmation"] = confirmation
             audit["targets"].append({"kind": "voiced_gap", "span": gap["span"], "outcome": outcome, **gap["second_pass"]})
     finally:
         mic.close()

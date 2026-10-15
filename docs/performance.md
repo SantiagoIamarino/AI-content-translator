@@ -104,7 +104,19 @@ Materially opposite ASR polarity readings of shared content (the longer job's
 synthesis pending source resolution. Context cannot choose one for unattended
 voicing. The checker is conservative and limited; it does not adjudicate arbitrary
 semantic differences. Nonmaterial disagreements remain available to bilingual
-review and visible in the partial-status report.
+review and visible in the partial-status report. Performance jobs also withhold
+lines whose final review remains disputed or whose last revision lacks a confirming
+review. A plausible written translation does not establish what ambiguous audio
+said. Those cues remain retained/translated but explicitly unplaced; no model is
+loaded to synthesize them. This deliberately favors an honest partial preview over
+speaking an unresolved reading.
+
+New gap words require a concordant timed hearing with neighboring acoustic
+context (`asr_second_pass.confirm_recovered`). The repetition fixture exposed a
+single-window `¡Gracias!` with a 20-ms word timestamp and probability 0.65. That is
+not listening evidence for a recovered word. The extra context hearing has no
+expected-text prompt, retains its evidence, and cannot turn an unsupported reading
+into a cue. Matching original hearing windows retain their cache identities.
 
 ## Pauses, grouping and endings
 
@@ -129,6 +141,13 @@ ordinary core threshold. Fades remain outside protected signal; raw truncation,
 analysis-bound exhaustion, insufficient room and unsettled processed endpoints
 reject a take. Source/target word correctness and natural decay still require
 listening; a settled endpoint alone is not a phoneme guarantee.
+
+If a preceding take ends at the next source anchor, a protected generated lead
+can use up to 80 ms of local slack inside its own window. The core is delayed only
+by the required lead budget; no later anchor moves. All protected samples and the
+next boundary still have to fit. The actual delay is reported in presentation
+metadata. This fixes rejection of otherwise fitting takes solely for insufficient
+preroll, without allowing overlaps or cutting a valid lead.
 
 ## Technical status and resume
 

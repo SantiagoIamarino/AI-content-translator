@@ -30,6 +30,7 @@ from .second_pass import run_second_pass, settings as second_pass_settings, unre
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
 from .events import identity as events_identity, apply_events, event_placement_report
 from .vocal_verification import verify_prefix
+from .fidelity import voicing_uncertainty
 from .performance import identity as performance_identity, attach_source_pauses, score_contextual, contextual_quality
 from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
 from .textnorm import content_tokens, normalize_tokens
@@ -242,7 +243,7 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
     if second:
         fp_inputs["second_pass"] = {"settings": second, "model": (cfg.get("asr_second_pass") or {}).get("model"),
                                     "device": (cfg.get("asr_second_pass") or {}).get("device"),
-                                    "weights": file_identity(second_pass_model_file(cfg)), "version": 2}
+                                    "weights": file_identity(second_pass_model_file(cfg)), "version": 3 if second.get("confirm_recovered") else 2}
     if join.get("enabled"):
         fp_inputs["utterance_join"] = join
     fp = fingerprint(fp_inputs)
@@ -670,7 +671,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
     fp = fingerprint({
         "segments": [
             {"id": s["id"], "english": s.get("english"), "start": s["start"], "end": s["end"], "revisions": s.get("revisions") or [],
-             **{k:s[k] for k in ("material_source_conflict","vocal_events","required_event_prefix","source_pauses") if k in s}}
+             **{k:s[k] for k in ("material_source_conflict","translation_review","vocal_events","required_event_prefix","source_pauses") if k in s}}
             for s in segments
         ],
         "video_duration": source_duration,
@@ -687,7 +688,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         **continuity_identity(cfg),
         **events_identity(cfg),
         **performance_identity(cfg),
-        **({"performance_schedule_version": 3,"vocal_verification_code":sha256_file(Path(__file__).with_name("vocal_verification.py"))}
+        **({"performance_schedule_version": 4,"vocal_verification_code":sha256_file(Path(__file__).with_name("vocal_verification.py"))}
            if (cfg.get("source_events") or {}).get("enabled") else {}),
         **({"voice_selection": voice_selection_settings(cfg), "selection_code": sha256_file(Path(__file__).with_name("selection.py"))}
            if voice_selection_settings(cfg) else {}),
@@ -777,9 +778,10 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
             text = seg.get("english") or ""
             context_before = ordered[i - 1]["spanish"] if i else None
             context_after = ordered[i + 1]["spanish"] if i + 1 < len(ordered) else None
-            if seg.get("material_source_conflict"):
+            uncertainty = voicing_uncertainty(seg,cfg)
+            if uncertainty:
                 item = _unplaced_from_history(seg,prior_attempts.get(int(seg["id"]),[]),nxt,source_duration)
-                item.update(timing_error="material_source_asr_conflict",material_source_conflict=seg["material_source_conflict"])
+                item.update(timing_error=uncertainty["kind"],voicing_uncertainty=uncertainty)
                 scheduled.append(item)
                 continue
             if any(r.get("action") == "leave_unresolved" for r in seg.get("revisions") or []):
@@ -1008,6 +1010,22 @@ def _present_v3(job, cfg, seg, chosen, occupied, next_start, source_duration, ta
     window_end = min(next_start, source_duration)
     bounds = speech_bounds(mono, sr, .005)
     core_n = bounds[1] - bounds[0] if bounds else 0
+    # A source anchor can immediately follow the preceding take. Protecting the
+    # generated leading release then requires a small *local* core delay, even
+    # when the complete take fits easily before the next fixed source anchor.
+    # Later cues are never moved, and no protected samples are trimmed to fit.
+    onset_delay = 0.0
+    limit_ms = float((edge.get("protection") or {}).get("max_onset_delay_ms",0))
+    if limit_ms > 0:
+        from .continuity import protected_edges
+        probe = protected_edges(mono,sr,edge)
+        if probe.get("ok"):
+            wanted = min(probe["first"],probe["lead_samples"])
+            available = int(np.floor(max(0.,core_start-occupied)*sr*tempo+1e-9))
+            delay_samples = max(0,wanted-available)
+            if delay_samples / (sr*tempo) <= limit_ms/1000:
+                onset_delay = delay_samples/(sr*tempo)
+                core_start += onset_delay
     piece, info = render_protected(mono, sr, edge, target_rms=target_rms,
                                   lead_room=int(np.floor(max(0., core_start-occupied)*sr*tempo + 1e-9)),
                                   tail_room=int(np.floor(max(0., (window_end-core_start)*sr*tempo-core_n) + 1e-9)))
@@ -1042,6 +1060,7 @@ def _present_v3(job, cfg, seg, chosen, occupied, next_start, source_duration, ta
                                 "protected_signal_preserved": info["protected_signal_preserved"],
                                 "full_tail_inspected": info.get("full_tail_inspected",False),
                                 "processed_ending_settled": settled,
+                                "core_onset_delay_sec": onset_delay,
                                 "target_rms": target_rms, "loudness_gain": info["gain"]})
     return chosen
 
@@ -1203,6 +1222,8 @@ def _cache_misses(segments, cfg, cache_dir, ref_sha, ref_text, source_duration) 
     misses = []
     ordered = sorted(segments, key=lambda s: (float(s["start"]), int(s["id"])))
     for i, seg in enumerate(ordered):
+        if voicing_uncertainty(seg,cfg):
+            continue
         if any(r.get("action") == "leave_unresolved" for r in seg.get("revisions") or []):
             continue
         if not seg.get("english"):

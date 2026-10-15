@@ -17,9 +17,10 @@ from aidub.textnorm import sequence_check
 from aidub.performance import contextual_quality, quiet_intervals, score_contextual
 from aidub.continuity import render_protected
 from aidub.context import join_short_pauses, utterance_groups
-from aidub.pipeline import source_uncertainty_issues
+from aidub.pipeline import source_uncertainty_issues, _present_v3, _cache_misses
 from aidub.linework import collect_line_best_of_n
-from aidub.fidelity import material_conflict
+from aidub.fidelity import material_conflict, voicing_uncertainty
+from types import SimpleNamespace
 from aidub.vocal_verification import verify_prefix
 
 
@@ -28,6 +29,24 @@ def seg(i, start, end, text):
 
 
 class SurvivingCoverageTests(unittest.TestCase):
+    def test_short_gap_word_needs_timed_context_corroboration(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);mic=root/"mic.wav";sf.write(mic,np.zeros(16000*5),16000)
+            built={"segments":[seg(1,1,2,"No tiene sentido")],"untranscribed_energy":[{"span":[2.1,2.3]}],"corrections":[]}
+            cfg={"asr_second_pass":{"enabled":True,"confirm_recovered":True}}
+            def hear(path,options):
+                if "gap_confirm" in str(path):
+                    return {"segments":[{"words":[dict(word="sentido",start=.1,end=.4,probability=.99)]}]}
+                return {"segments":[{"words":[dict(word="¡Gracias!",start=.35,end=.37,probability=.65)]}]}
+            out=run_second_pass(root,built,mic,0,cfg,hear)
+            self.assertEqual(len(out["segments"]),1)
+            target=read_json(root/"transcribe/second_pass.json")["targets"][0]
+            self.assertEqual(target["outcome"],"unintelligible")
+            self.assertFalse(target["context_confirmation"]["confirmed"])
+            # Policy changes preserve saved acoustic hearings; only the new
+            # confirmation window is an additional ASR request.
+            run_second_pass(root,built,mic,0,cfg,lambda *a:self.fail("hearing cache not reused"))
+
     def test_final_coverage_includes_recovered_prefix_and_joined_cues(self):
         d={"segments":[seg(2,10.179,20.949,"Eh... Es la primera vez")],
            "untranscribed_energy":[{"span":[10.179,11.097]},{"span":[21.8,22]}]}
@@ -205,6 +224,37 @@ class VocalEventTests(unittest.TestCase):
 
 
 class PerformanceTimingTests(unittest.TestCase):
+    def test_disputed_source_is_not_spoken_or_loaded_for_synthesis(self):
+        s=seg(1,.6,.9,"Bien.");s["english"]="Okay."
+        s["translation_review"]={"status":"disputed","issues":["uncertain_source"]}
+        cfg={"source_events":{"enabled":True}}
+        self.assertEqual(voicing_uncertainty(s,cfg)["kind"],"unresolved_source_or_translation")
+        self.assertEqual(_cache_misses([s],cfg,Path("unused"),"ref","text",3),[])
+        self.assertIsNone(voicing_uncertainty(s,{}))
+        s["translation_review"]["status"]="ok"
+        self.assertIsNone(voicing_uncertainty(s,cfg))
+
+    def test_protected_lead_can_use_local_slack_without_moving_next_anchor(self):
+        sr=24000;x=np.zeros(sr,dtype=np.float32)
+        x[2400:12000]=.08*np.sin(2*np.pi*150*np.arange(9600)/sr)
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);raw=root/"raw.wav";sf.write(raw,x,sr,subtype="FLOAT")
+            (root/"schedule/work").mkdir(parents=True)
+            edge={"fade_ms":12,"protection":{"inspect_full_tail":True,"max_onset_delay_ms":80}}
+            cue=seg(1,1,1.7,"Okay")
+            chosen=dict(raw_path=str(raw),kind="candidate",seed=1,placed=True,tempo=1.)
+            out=_present_v3(SimpleNamespace(dir=root),{},cue,chosen,1.,2.,3.,None,edge)
+            self.assertTrue(out["placed"])
+            self.assertGreater(out["presentation"]["core_onset_delay_sec"],0)
+            self.assertLessEqual(out["presentation"]["core_onset_delay_sec"],.08)
+            self.assertGreaterEqual(out["placement_start"],1.-1/sr)
+            self.assertLess(out["placement_start"]+out["generated_duration_sec"],2.)
+            self.assertTrue(out["edge"]["protected_signal_preserved"])
+            self.assertEqual(cue["start"],1.)
+            short=_present_v3(SimpleNamespace(dir=root),{},cue,chosen,1.,1.4,3.,None,edge)
+            self.assertFalse(short["placed"])
+            self.assertEqual(short["timing_error"],"protected_edge_outside_window")
+
     def test_opposite_source_readings_are_not_guessed_from_game_context(self):
         s=seg(1,2182.6,2184.1,"Vamos a comer unos ya es suficiente")
         s["asr_alternatives"]=[{"text":"Pero aún no es suficiente"}]
