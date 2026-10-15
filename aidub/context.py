@@ -274,7 +274,7 @@ def quality_translation_request(job_id: str, segments: list[dict], video_duratio
         }
         if seg.get("asr_alternatives"):
             row["asr_alternatives"] = seg["asr_alternatives"]
-        for key in ("vocal_events", "fixed_event_realization", "source_pauses"):
+        for key in ("vocal_events", "fixed_event_realization", "required_event_prefix", "source_pauses"):
             if key in seg:
                 row[key] = seg[key]
         rows.append(row)
@@ -292,9 +292,9 @@ def quality_translation_request(job_id: str, segments: list[dict], video_duratio
     if context:
         request["global_context"] = {k: context.get(k) for k in ("summary", "speaker_register", "glossary", "style_notes")}
     if (cfg.get("source_events") or {}).get("enabled"):
-        request["delivery_policy"] = DELIVERY_INSTRUCTIONS
+        request["delivery_policy"] = DELIVERY_INSTRUCTIONS + "\nIf required_event_prefix is present, start the English with that hesitation, then translate the following thought. Do not omit the prefix or speak its metadata."
         request["agent_instructions"] = QUALITY_TRANSLATION_INSTRUCTIONS.replace(
-            "or drop them when English would not say anything; keep reactions", "while retaining their conversational function; keep reactions") + "\n" + DELIVERY_INSTRUCTIONS
+            "or drop them when English would not say anything; keep reactions", "while retaining their conversational function; keep reactions") + "\n" + request["delivery_policy"]
     return request
 
 

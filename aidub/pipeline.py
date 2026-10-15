@@ -758,7 +758,8 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
                              synthesize=synthesize, assess=assessor, attempt_fn=attempt_fn, revision_limit_n=rev_limit)
             if selection:
                 result = collect_line_best_of_n(seg, **line_args, score=score, candidates=selection["candidates"],
-                                                max_extra=selection["max_extra_attempts"])
+                                                max_extra=selection["max_extra_attempts"],
+                                                search_for_placeable=bool(selection.get("search_for_placeable")))
             else:
                 result = collect_line(seg, **line_args)
             chosen = result["chosen"]
@@ -1108,7 +1109,7 @@ def _scheduled_item(seg: dict, chosen: dict, attempts: list[dict], source_durati
         "edge_ok": chosen.get("edge_ok"),
         "loudness_gain": chosen.get("loudness_gain"),
         "leading_shift_sec": chosen.get("leading_shift_sec") or 0.0,
-        **{key: seg[key] for key in ("vocal_events", "fixed_event_realization", "source_pauses") if key in seg},
+        **{key: seg[key] for key in ("vocal_events", "fixed_event_realization", "required_event_prefix", "source_pauses") if key in seg},
         **{key: chosen[key] for key in ("selection_summary", "presentation", "source_loudness") if key in chosen},
     }
 

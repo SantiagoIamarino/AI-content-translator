@@ -78,6 +78,7 @@ def prepare(args):
             if bitstream_md5(ffmpeg,str(picture))!=bitstream_md5(ffmpeg,str(fixture)):
                 raise ValueError("Fixture picture changed during mux")
             cfg["audio_mapping"].update(mic_ordinal=2,game_ordinal=1,mixed_ordinal=0)
+            cfg["export"]={"container":"mkv"}  # comparison track is lossless PCM
             cfg["source_video"]=str(fixture)
         crop(baseline/"output/english_voice.wav",out/"prior_voice.wav",args.start,duration)
         crop(baseline/"output/english_mix.wav",out/"prior_mix.wav",args.start,duration)
@@ -161,6 +162,8 @@ def run_set(args):
                     if "Job is locked" not in str(exc):raise
                     time.sleep(5)
         receipts=sorted(root.glob("*/passage.json"))
+        if args.first:
+            receipts.sort(key=lambda p:read_json(p)["name"] != args.first)
         state=read_json(root/"queue/state.json") if (root/"queue/state.json").exists() else {}
         for receipt in receipts:
             p=read_json(receipt);name=p["name"];out=receipt.parent
@@ -183,7 +186,7 @@ if __name__=="__main__":
     p=sub.add_parser("prepare");p.add_argument("--baseline",type=Path,required=True);p.add_argument("--reference-config",type=Path,required=True)
     p.add_argument("--name",required=True);p.add_argument("--start",type=float,default=0);p.add_argument("--end",type=float,required=True)
     p.add_argument("--clone",action="store_true");p.add_argument("--annotations",type=Path)
-    run=sub.add_parser("run-set");run.add_argument("--wait-for-job",type=Path)
+    run=sub.add_parser("run-set");run.add_argument("--wait-for-job",type=Path);run.add_argument("--first")
     for command in (p,sub.add_parser("render"),run):command.add_argument("--output",type=Path,required=True)
     args=parser.parse_args()
     {"prepare":prepare,"render":render,"run-set":run_set}[args.action](args)

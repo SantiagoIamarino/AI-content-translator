@@ -18,6 +18,7 @@ from aidub.performance import contextual_quality, quiet_intervals, score_context
 from aidub.continuity import render_protected
 from aidub.context import join_short_pauses, utterance_groups
 from aidub.pipeline import source_uncertainty_issues
+from aidub.linework import collect_line_best_of_n
 
 
 def seg(i, start, end, text):
@@ -88,6 +89,22 @@ class SurvivingCoverageTests(unittest.TestCase):
 
 
 class VocalEventTests(unittest.TestCase):
+    def test_timed_prefix_keeps_following_thought_and_requires_generated_filler(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);mic,cfg,built,raw=self.fixture(root)
+            cfg["source_events"]["realization_mode"]="prefix_with_following"
+            out=apply_events(built,raw,mic,0,cfg,"mic")
+            self.assertEqual(len(out["segments"]),1)
+            s=out["segments"][0]
+            self.assertEqual(s["id"],2)
+            self.assertEqual(s["spanish"],"Eh... Es la primera vez.")
+            self.assertEqual(s["start"],.5)
+            self.assertEqual(contextual_quality({},dict(ok=True,reasons=[],asr_text="It's the first time"),s,{})["reasons"],
+                             ["missing_vocal_event_prefix"])
+            q=contextual_quality({},dict(ok=True,reasons=[],asr_text="Uh, it's the first time"),s,{})
+            self.assertTrue(q["event_prefix_verified"])
+            self.assertEqual(event_placement_report(out["vocal_events"],[dict(id=2,placed=True,quality=q)])["unresolved"],[])
+
     def fixture(self, root, annotation=True, noise=False):
         sr = 16000; x = np.zeros(sr*3)
         x[round(.5*sr):sr] = (np.random.default_rng(7).normal(0, .05, sr//2) if noise else
@@ -152,6 +169,28 @@ class VocalEventTests(unittest.TestCase):
 
 
 class PerformanceTimingTests(unittest.TestCase):
+    def test_valid_but_unplaceable_takes_use_remaining_budget_without_shifting_event(self):
+        def run(place_third):
+            seen=[]
+            def synth(text,seed):seen.append(seed);return {}
+            def attempt(s,text,seed,kind,meta,*unused):
+                placed=place_third and len(seen)==3
+                return dict(seed=seed,text=text,kind=kind,placed=placed,tempo=1.,
+                            generated_duration_sec=.4 if placed else .65,status="fit_unchanged" if placed else "unresolved",timing_error="overrun")
+            result=collect_line_best_of_n(dict(id=8,english="Uh...",start=1.,end=1.5,anchor_type="vocal_event"),
+                occupied=0,next_start=1.5,source_duration=3,cfg={"schedule":{"seed_base":42}},
+                synthesize=synth,assess=lambda *a:{"ok":True,"reasons":[]},attempt_fn=attempt,
+                revision_limit_n=2,score=lambda a:{"score":0.},candidates=2,max_extra=2,search_for_placeable=True)
+            return result,seen
+        result,seen=run(True)
+        self.assertEqual(len(seen),3)
+        self.assertTrue(result["chosen"]["placed"])
+        result,seen=run(False)
+        self.assertEqual(len(seen),4)
+        self.assertFalse(result["chosen"]["placed"])
+        self.assertFalse(result["needs_repair"])
+        self.assertNotIn("leading_shift_sec",result["chosen"])
+
     def test_classified_uncertainty_is_not_a_content_pass(self):
         c={"untranscribed_energy":[{"span":[4,5],"second_pass":{"outcome":"unintelligible","text":"Y..."}},
                                    {"span":[8,9],"second_pass":{"outcome":"non_speech_energy"}}]}

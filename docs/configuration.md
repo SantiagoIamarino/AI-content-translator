@@ -40,3 +40,10 @@ settings are `floor_rms=0.0015`, `max_lead_ms=80`, `max_tail_ms=400`, `settle_ms
 See [the measured continuity investigation](continuity.md) before changing existing
 job snapshots. Presentation v3 rejects unpreservable endings and requires the
 `generated_endings_preserved` gate.
+
+The `performance` preset adds `source_events.enabled` (optional local
+`annotations_file` bound to the microphone hash), `voice_selection.source_pauses`,
+`source_pacing.use_source_span`, `search_for_placeable`, reaction-preserving joins,
+and `voice_edge.protection.inspect_full_tail` with `max_analysis_tail_sec=2` and
+`decay_floor_rms=0.0001`. Uncertain events, unintelligible source spans and disputed
+translation reviews keep the job partial. See [performance.md](performance.md).

@@ -64,7 +64,7 @@ def review_request(job_id: str, translation_request: dict, english: dict[int, st
         }
         if src.get("asr_alternatives"):
             row["asr_alternatives"] = src["asr_alternatives"]
-        for key in ("vocal_events", "fixed_event_realization", "source_pauses"):
+        for key in ("vocal_events", "fixed_event_realization", "required_event_prefix", "source_pauses"):
             if key in src:
                 row[key] = src[key]
         if history.get(sid):
@@ -77,7 +77,8 @@ def review_request(job_id: str, translation_request: dict, english: dict[int, st
         "job_id": job_id,
         "round": round_no,
         "max_rounds": max_rounds,
-        "agent_instructions": REVIEW_INSTRUCTIONS + "\n" + translation_request.get("delivery_policy", ""),
+        "agent_instructions": REVIEW_INSTRUCTIONS + (
+            "\n" + translation_request["delivery_policy"] if translation_request.get("delivery_policy") else ""),
         "response_contract": {
             "schema": REVIEW_SCHEMA,
             "segment_fields": {"id": "int", "verdict": "ok | revise", "english": "string, only with revise",
@@ -124,6 +125,10 @@ def validate_review_response(request: dict, response: dict, current: dict[int, s
             source = next((s for s in request["segments"] if s["id"] == sid), {})
             if source.get("fixed_event_realization") and english != source["fixed_event_realization"]:
                 errors.append(f"id {sid} cannot change a confirmed vocal-event realization")
+            if source.get("required_event_prefix"):
+                from .events import has_event_prefix
+                if not has_event_prefix(english,source["required_event_prefix"]):
+                    errors.append(f"id {sid} cannot remove a confirmed hesitation prefix")
             if not isinstance(english, str) or not english.strip():
                 errors.append(f"id {sid} revise requires nonempty english")
             elif english.strip() == (current.get(sid) or "").strip():

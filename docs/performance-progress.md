@@ -119,3 +119,41 @@ review exact text/event deltas and omissions, render short 00:09–00:13 listeni
 excerpts and a top-level comparison index, verify repeat resume, record reference
 hashes and technical checks, update documentation/results and commit. No listening
 or perceptual approval is claimed.
+
+## Stage 5 — observed fitting failures and connected hesitation realization
+
+Completed after the first real synthesis run: four valid standalone `Uh...` takes
+did not fit the provisional 0.541021-second window, but best-of-N stopped before
+trying its remaining fit budget. The opt-in `search_for_placeable` now uses the
+remaining bounded attempts when no valid take is placeable. Events cannot borrow
+earlier silence through a leading shift or request a meaningless compact rewrite.
+A regression covers successful extra fit search and exhausted-budget partial status.
+
+All eight standalone takes still failed that narrow provisional window. That
+attempt is preserved under `standalone-attempt/`, including its preview, voice,
+schedule and failed event gate. The event's identity and source timestamps remain
+unchanged. The performance preset now realizes a leading annotated hesitation as
+a required prefix of its connected lexical thought, retaining the original lexical
+cue ID and source onset. Its estimated internal lexical onset remains evidence,
+not a hard deadline imposed on an isolated filler take. Translation/review require
+the prefix, generated ASR must hear it, and event coverage requires that check.
+This avoids deleting the event, cutting its decay or moving it earlier to fit.
+
+The PCM source fixtures now explicitly export MKV, as required for a copied PCM
+Spanish comparison track. The first queue's refused MP4 exports remain in logs;
+no compatibility gate was disabled. A legacy review prompt retains its original
+bytes when the new delivery policy is absent.
+
+Changed files: event/context/review/handoff/performance/linework/pipeline modules,
+performance preset, evaluation script, focused tests, README/configuration docs,
+new `docs/performance.md` and this note. Verification: 126 tests, 125 passed, one
+existing fixture skipped (`stage5-tests.log`). No reference/generation parameter
+was changed.
+
+Exact next step: the second serial queue is running with the minute first; inspect
+`queue-second.log` and each passage's `run.log`. Resume with the command from Stage 4
+plus `--first minute-tranquila-corregida-20261014` if inactive. Current source-event
+mode is `prefix_with_following`. All configs are already migrated under owned locks;
+do not reset them or repeat completed providers/synthesis. Inspect the resulting
+event verification and contextual previews, address demonstrated failures without
+weakening gates, then finish the final evidence/results and resume verification.

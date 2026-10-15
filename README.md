@@ -31,6 +31,11 @@ It adds a second ASR hearing for doubtful speech and voiced gaps, whole-transcri
 
 The opt-in `--preset continuity` adds source-duration take ranking and protected generated endings to the quality pipeline. It also fixes two demonstrated cue omissions. See [evidence, previews, limits and reproduction](docs/continuity.md). Existing reference pairs and Qwen generation settings are preserved.
 
+The opt-in `--preset performance` adds evidenced timed vocal events, source-supported
+pause evaluation, complete generated-tail inspection and explicit partial status
+for unresolved source meaning. See [conversational performance](docs/performance.md)
+and [implementation/recovery checkpoints](docs/performance-progress.md).
+
 ## Fresh clone setup
 
 Use Linux, FFmpeg/FFprobe, and a compatible NVIDIA CUDA environment. Qwen synthesis refuses CPU fallback. This repository does not install anything or download models on execution. Provision the environments and weights yourself before running it.

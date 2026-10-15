@@ -158,6 +158,7 @@ def collect_line_best_of_n(
     score,
     candidates: int,
     max_extra: int,
+    search_for_placeable: bool = False,
 ) -> dict:
     """Generate N valid takes (extra seeds replace failures), score every valid take, then choose.
 
@@ -172,7 +173,7 @@ def collect_line_best_of_n(
     attempts, valid = [], []
     budget = int(candidates) + int(max_extra)
     for index in range(budget):
-        if len(valid) >= int(candidates):
+        if len(valid) >= int(candidates) and (not search_for_placeable or any(a.get("placed") for a in valid)):
             break
         seed = int(primary) + 1000 * index
         meta = synthesize(text, seed)
@@ -192,7 +193,7 @@ def collect_line_best_of_n(
         return {"chosen": failed, "attempts": attempts, "needs_repair": False, "skip": None}
     from .selection import choose
     chosen = dict(choose(valid))
-    if not chosen["placed"]:
+    if not chosen["placed"] and seg.get("anchor_type") != "vocal_event" and not seg.get("required_event_prefix"):
         shortest = min(valid, key=lambda a: float(a["generated_duration_sec"]))
         shift = leading_shift(float(seg["start"]), float(shortest["generated_duration_sec"]), occupied, next_start,
                               float((cfg.get("fit_retries") or {}).get("max_leading_shift_sec", 0.4)))
@@ -209,7 +210,7 @@ def collect_line_best_of_n(
                            "tempo": a.get("tempo")} for a in ranked]
     summary["margin_to_next"] = round(ranked[1]["selection"]["score"] - ranked[0]["selection"]["score"], 4) if len(ranked) > 1 else None
     chosen["selection_summary"] = summary
-    needs_repair = (not chosen["placed"]) and len(revisions) < int(revision_limit_n)
+    needs_repair = (not chosen["placed"]) and len(revisions) < int(revision_limit_n) and seg.get("anchor_type") != "vocal_event" and not seg.get("required_event_prefix")
     return {"chosen": chosen, "attempts": attempts, "needs_repair": needs_repair, "skip": None}
 
 

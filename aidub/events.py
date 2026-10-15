@@ -66,6 +66,12 @@ def _tokens(text):
     return re.findall(r"\w+", text.lower())
 
 
+def has_event_prefix(text, prefix):
+    expected = re.findall(r"[a-z]+",prefix.lower())
+    heard = re.findall(r"[a-z]+",(text or "").lower())
+    return bool(expected and heard[:len(expected)] == expected)
+
+
 def _words_for(seg, raw, offset):
     # Keep lexical evidence separate from broad energy-derived cue coverage.
     return [dict(w, start=float(w["start"])+offset, end=float(w["end"])+offset)
@@ -142,6 +148,15 @@ def apply_events(built, raw, mic_path, offset, cfg, mic_sha):
                     e["reason"] = "Cannot reconcile cue words without changing transcript"; continue
                 before = [w for w in words if w["end"] <= e["start"]+.01]
                 after = [w for w in words if w["start"] >= e["end"]-.01]
+                if after and not before and opts.get("realization_mode") == "prefix_with_following":
+                    # A held filler and its continuation are one performance.
+                    # The internal lexical onset is approximate, not a hard
+                    # synthesis deadline for the filler alone.
+                    e.update(cue_id=s["id"],disposition="translated_with_cue",realization_mode="prefix",
+                             lexical_onset_estimate=after[0]["start"])
+                    s.update(start=e["start"],spanish="Eh... "+s["spanish"],
+                             required_event_prefix=e.get("realization","Uh..."),vocal_events=[copy.deepcopy(e)])
+                    continue
                 if before and after:
                     tail = copy.deepcopy(s); tail.update(id=next_id, start=e["end"],
                             spanish=" ".join(w["word"].strip() for w in after), source_words=after)
@@ -188,7 +203,10 @@ def event_placement_report(ledger, rows):
         if row:
             e.update(english=row.get("english"), placed=bool(row.get("placed")),
                      placement_start=row.get("placement_start"), placement_end=row.get("placement_end"))
+            if e.get("realization_mode") == "prefix":
+                e["prefix_verified"] = bool(row.get("quality",{}).get("event_prefix_verified"))
         e["accounted"] = e.get("disposition") == "intentionally_not_voiced" or bool(
-            e.get("status") == "confirmed" and row and row.get("placed"))
+            e.get("status") == "confirmed" and row and row.get("placed") and
+            (e.get("realization_mode") != "prefix" or e.get("prefix_verified")))
     return {"schema": "aidub.event_placement.v1", "events": events,
             "unresolved": [e["id"] for e in events if not e["accounted"]]}

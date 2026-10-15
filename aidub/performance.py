@@ -52,6 +52,13 @@ def attach_source_pauses(built, mic, offset, cfg):
 
 
 def contextual_quality(attempt, quality, seg, opts):
+    if seg.get("required_event_prefix"):
+        from .events import has_event_prefix
+        verified = has_event_prefix(quality.get("asr_text"),seg["required_event_prefix"]) and not quality.get("asr_skipped")
+        reasons = list(quality.get("reasons") or [])
+        if not verified:
+            reasons.append("missing_vocal_event_prefix")
+        quality = dict(quality,ok=not reasons,reasons=reasons,event_prefix_verified=verified)
     if not (opts.get("source_pauses") or {}).get("enabled"):
         return quality
     raw, sr = sf.read(attempt["raw_path"],dtype="float32",always_2d=True)

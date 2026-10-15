@@ -96,6 +96,10 @@ def validate_translation_response(request: dict, response: dict) -> list[str]:
         fixed = source.get("fixed_event_realization")
         if fixed and english != fixed:
             errors.append(f"id {row['id']} must preserve the confirmed vocal-event realization {fixed!r}")
+        if source.get("required_event_prefix"):
+            from .events import has_event_prefix
+            if not has_event_prefix(english,source["required_event_prefix"]):
+                errors.append(f"id {row['id']} must preserve the confirmed hesitation prefix")
     missing = [i for i in expected if i not in seen]
     duplicate = sorted({i for i in seen if seen.count(i) > 1})
     unexpected = [i for i in seen if i not in expected]
