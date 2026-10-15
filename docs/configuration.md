@@ -33,3 +33,10 @@ Presets live in `config/presets/`. `init`/`auto --preset NAME` merges each prese
 Qwen model, dtype, attention, English ICL, original trim RMS/window/pad, and tempo 1.10 remain fixed. New jobs freeze the local Qwen snapshot revision and model paths. Legacy jobs do not acquire a new synthesis revision key automatically.
 
 To alter a stopped existing job, edit its `jobs/NAME/config.json`. Verification-only changes miss quality cache keys but reuse synthesis. Changing source/segmentation inputs can replace the timeline and require new translations. Invalid configurations fail with diagnostics; deleting caches is not a recovery step. See `docs/architecture.md` for checkpoint migration.
+
+The optional `continuity` preset extends `quality` with `voice_selection.source_pacing`
+(`enabled`, `weight=4.0`) and `voice_edge.presentation_version=3`. Its `protection`
+settings are `floor_rms=0.0015`, `max_lead_ms=80`, `max_tail_ms=400`, `settle_ms=20`.
+See [the measured continuity investigation](continuity.md) before changing existing
+job snapshots. Presentation v3 rejects unpreservable endings and requires the
+`generated_endings_preserved` gate.

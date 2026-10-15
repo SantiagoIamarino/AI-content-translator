@@ -27,6 +27,7 @@ from .audio import (
 from .config import jobs_dir, reference_text, require_schedule_defaults, resolve_path, second_pass_model_file, whisper_model_file, verification_model_file
 from .context import glossary_names, join_short_pauses, quality_translation_request, settings as quality_translation_settings, syllable_report
 from .second_pass import run_second_pass, settings as second_pass_settings, unreviewed_gaps
+from .continuity import identity as continuity_identity, source_pacing_score, render_protected
 from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
 from .textnorm import content_tokens, normalize_tokens
 from .export import decode_ok, mux_english_cmd, mux_spanish_cmd, place_voice, write_bilingual
@@ -654,7 +655,8 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         "fit_retries": cfg.get("fit_retries"),
         "revision_limit": revision_limit(cfg),
         "verification_identity": verification_identity(cfg, ref_sha),
-        "schedule_version": 2,
+        "schedule_version": 3 if int((cfg.get("voice_edge") or {}).get("presentation_version", 1)) >= 2 else 2,
+        **continuity_identity(cfg),
         **({"voice_selection": voice_selection_settings(cfg), "selection_code": sha256_file(Path(__file__).with_name("selection.py"))}
            if voice_selection_settings(cfg) else {}),
         **({"context": (load_context_for(job, cfg, segments) or {}).get("identity")} if quality_translation_settings(cfg) else {}),
@@ -690,7 +692,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
     def score(attempt: dict) -> dict:
         raw, raw_sr = read_audio(Path(attempt["raw_path"]))
         pace = take_pacing(to_mono(raw), raw_sr, attempt["text"], float(cfg["schedule"]["trim_rms"]), float(attempt.get("tempo") or 1.0))
-        return score_take(attempt, pace, profile, running_profile(chosen_profiles), selection)
+        return source_pacing_score(score_take(attempt, pace, profile, running_profile(chosen_profiles), selection), seg, selection)
     prior = read_json(summary_path) if summary_path.is_file() else {"segments": []}
     prior_attempts = {int(s["id"]): list(s.get("attempts") or []) for s in prior.get("segments") or []}
     ordered = sorted(segments, key=lambda s: (float(s["start"]), int(s["id"])))
@@ -710,7 +712,13 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         return meta
 
     def attempt_fn(seg, text, seed, kind, meta, occupied_until, next_start, source_dur):
-        return _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, next_start, source_dur)
+        attempt = _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, next_start, source_dur)
+        edge = cfg.get("voice_edge") or {}
+        if edge.get("enabled") and int(edge.get("presentation_version", 1)) >= 3 and attempt.get("placed"):
+            cue = loudness.get(int(seg["id"])) or {}
+            line_rms = target_rms * 10 ** (float(cue["expressive_db"]) / 20.0) if target_rms and cue else target_rms
+            attempt = _present_v3(job, cfg, seg, attempt, occupied_until, next_start, source_dur, line_rms, edge)
+        return attempt
 
     try:
         for i, seg in enumerate(ordered):
@@ -897,7 +905,7 @@ def _present_v2(job, cfg, seg, chosen, occupied, next_start, source_duration, ta
         mono, sr, bounds, base_lead_ms=float(edge.get("margin_lead_ms", 20)), base_tail_ms=float(edge.get("margin_tail_ms", 60)),
         floor_rms=float(adaptive.get("floor_rms", 0.0)), max_lead_ms=float(adaptive.get("max_lead_ms", 0.0)),
         max_tail_ms=float(adaptive.get("max_tail_ms", 0.0)))
-    lead_ms = min(want_lead, lead_room_ms * tempo)
+    lead_ms = min(want_lead, np.floor(lead_room_ms * tempo * sr / 1000.0 + 1e-9) * 1000.0 / sr)
     tail_ms = min(want_tail, tail_room_ms * tempo)
     piece, info = render_voice_with_margins(mono, sr, rms_thr=rms_thr, lead_ms=lead_ms, tail_ms=tail_ms,
                                             fade_ms=fade_ms, target_rms=target_rms)
@@ -934,10 +942,55 @@ def _present_v2(job, cfg, seg, chosen, occupied, next_start, source_duration, ta
     return chosen
 
 
+def _present_v3(job, cfg, seg, chosen, occupied, next_start, source_duration, target_rms, edge):
+    chosen = dict(chosen)
+    raw, sr = read_audio(Path(chosen["raw_path"]))
+    mono = to_mono(raw)
+    tempo = float(chosen.get("tempo") or 1.0)
+    core_start = float(chosen.get("placement_start", seg["start"]))
+    window_end = min(next_start, source_duration)
+    bounds = speech_bounds(mono, sr, .005)
+    core_n = bounds[1] - bounds[0] if bounds else 0
+    piece, info = render_protected(mono, sr, edge, target_rms=target_rms,
+                                  lead_room=int(np.floor(max(0., core_start-occupied)*sr*tempo + 1e-9)),
+                                  tail_room=int(np.floor(max(0., (window_end-core_start)*sr*tempo-core_n) + 1e-9)))
+    def reject(reason):
+        chosen.update(placed=False, status="unresolved", timing_error=reason,
+                      presentation_rejected=reason, edge_ok=False, edge=info)
+        return chosen
+    if piece is None:
+        return reject(info["reason"])
+    work = job.dir / "schedule" / "work"
+    path = work / f"segment_{int(seg['id']):03d}_{chosen['kind']}_{chosen['seed']}_present_v3.wav"
+    if abs(tempo - 1.) > 1e-9:
+        pre = path.with_name(path.stem + "_pre_tempo.wav")
+        write_wav(pre, piece, sr, subtype="FLOAT")
+        atempo(cfg["executables"]["ffmpeg"], pre, path, tempo,
+               timeout=float((cfg.get("timeouts") or {}).get("tempo_sec", 180)))
+        stretched, sr = read_audio(path)
+        piece = to_mono(stretched)
+    placement_start = core_start - info["lead_ms_used"] / 1000 / tempo
+    if placement_start + piece.size / sr > window_end + 1e-4:
+        return reject("protected_edge_outside_window_after_tempo")
+    write_wav(path, piece, sr, subtype="FLOAT")
+    chosen.update(used_path=str(path), placement_start=placement_start,
+                  generated_duration_sec=piece.size/sr, edge=info,
+                  loudness_gain=info["gain"], edge_ok=info["protected_signal_preserved"],
+                  presentation={"version": 3, "tempo": tempo, "lead_ms": info["lead_ms_used"],
+                                "tail_ms": info["tail_ms_used"], "truncated_to_window": False,
+                                "protected_signal_preserved": info["protected_signal_preserved"],
+                                "target_rms": target_rms, "loudness_gain": info["gain"]})
+    return chosen
+
+
 def _apply_presentation(job, cfg, seg, chosen, occupied, next_start, source_duration, target_rms):
     edge = cfg.get("voice_edge") or {}
     if not edge.get("enabled", False) or not chosen.get("placed"):
         return chosen
+    if int(edge.get("presentation_version", 1)) >= 3:
+        if (chosen.get("presentation") or {}).get("version") == 3:
+            return chosen
+        return _present_v3(job, cfg, seg, chosen, occupied, next_start, source_duration, target_rms, edge)
     if int(edge.get("presentation_version", 1)) >= 2:
         return _present_v2(job, cfg, seg, chosen, occupied, next_start, source_duration, target_rms, edge)
     chosen = dict(chosen)
@@ -1256,7 +1309,8 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     artifacts = {"english": en_path, "spanish": es_path, "voice": job.dir / "output/english_voice.wav",
                  "mix": job.dir / "output/english_mix.wav", "srt": job.dir / "output/english.srt"}
     corrections_file = job.dir / "transcribe/corrections.json"
-    validate_fp = fingerprint({"version": 4, "source_sha256": source_sha, "protected": protected_now,
+    validate_fp = fingerprint({"version": 4,
+                               **({"protected_endings_gate": 1} if int(summary.get("presentation_version", 1)) >= 3 else {}), "source_sha256": source_sha, "protected": protected_now,
                                "artifacts": {label: sha256_file(path) for label, path in artifacts.items()},
                                "schedule": job.stage("schedule").get("fingerprint"), "mix": job.stage("mix").get("fingerprint"),
                                "gains": {k: v for k, v in gain.items() if k not in {"commands", "english_video", "english_video_rel"}},
@@ -1337,8 +1391,14 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         add("translation_reviewed", not unreviewed, unreviewed or "every line has a bilingual review record")
     if int(summary.get("presentation_version", 1)) >= 2:
         inconsistent = [s["id"] for s in summary["segments"] if s.get("placed")
-                        and ((s.get("presentation") or {}).get("version") != 2 or s.get("loudness_gain") is None)]
+                        and ((s.get("presentation") or {}).get("version") != int(summary.get("presentation_version", 2)) or s.get("loudness_gain") is None)]
         add("presentation_consistent", not inconsistent, inconsistent or "every placed take: margins, loudness, tempo, window bound")
+    if int(summary.get("presentation_version", 1)) >= 3:
+        lost_edges = [s["id"] for s in summary["segments"] if s.get("placed") and
+                      ((s.get("presentation") or {}).get("protected_signal_preserved") is not True or
+                       (s.get("presentation") or {}).get("truncated_to_window") is not False)]
+        add("generated_endings_preserved", not lost_edges,
+            lost_edges or "bounded quiet signal retained; no window clipping; raw unsettled endings rejected")
     placed = [s for s in summary["segments"] if s.get("placed")]
     bounds_bad = []
     ordered = summary["segments"]

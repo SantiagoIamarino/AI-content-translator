@@ -44,6 +44,13 @@ def account_lines(segment_ids: list[int], placed_ids: list[int], unresolved_ids:
     return [int(i) for i in segment_ids if int(i) not in placed and int(i) not in unresolved]
 
 
+def _candidate_quality(attempt, quality):
+    if attempt.get("presentation_rejected"):
+        attempt["raw_quality"] = quality
+        return dict(quality, ok=False, reasons=list(quality.get("reasons") or []) + [attempt["presentation_rejected"]])
+    return quality
+
+
 def _quality_failure(attempt: dict) -> dict:
     chosen = dict(attempt)
     chosen["placed"] = False
@@ -82,6 +89,7 @@ def collect_line(
         quality = assess(meta, text)
         kind = base_kind if index == 0 else "quality_retry"
         attempt = attempt_fn(seg, text, seed, kind, meta, occupied, next_start, source_duration)
+        quality = _candidate_quality(attempt, quality)
         attempt["quality"] = quality
         attempts.append(attempt)
         if quality.get("ok"):
@@ -96,6 +104,7 @@ def collect_line(
             meta = synthesize(text, seed)
             quality = assess(meta, text)
             attempt = attempt_fn(seg, text, seed, "alternate_seed", meta, occupied, next_start, source_duration)
+            quality = _candidate_quality(attempt, quality)
             attempt["quality"] = quality
             attempts.append(attempt)
             if not quality.get("ok"):
@@ -167,6 +176,7 @@ def collect_line_best_of_n(
         quality = assess(meta, text)
         kind = base_kind if index == 0 else "candidate"
         attempt = attempt_fn(seg, text, seed, kind, meta, occupied, next_start, source_duration)
+        quality = _candidate_quality(attempt, quality)
         attempt["quality"] = quality
         attempts.append(attempt)
         if quality.get("ok"):

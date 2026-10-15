@@ -27,6 +27,10 @@ bin/aidub auto /absolute/path/recording.mp4 --name recording_en \
 
 It adds a second ASR hearing for doubtful speech and voiced gaps, whole-transcript context with a glossary, utterance-aware translation with soft syllable budgets, a separate bilingual review with an audit trail, best-of-N voice takes with sequence-aware text checks, one consistent presentation path for every take (including tempo-adjusted ones), and a risk-ranked listening report. Qwen generation, ICL, reference B, trim and max tempo 1.10 are unchanged. Existing jobs keep their snapshots. See [docs/quality.md](docs/quality.md); short-sample evidence is in [runs/quality/REPORT.md](runs/quality/REPORT.md).
 
+## Continuity investigation
+
+The opt-in `--preset continuity` adds source-duration take ranking and protected generated endings to the quality pipeline. It also fixes two demonstrated cue omissions. See [evidence, previews, limits and reproduction](docs/continuity.md). Existing reference pairs and Qwen generation settings are preserved.
+
 ## Fresh clone setup
 
 Use Linux, FFmpeg/FFprobe, and a compatible NVIDIA CUDA environment. Qwen synthesis refuses CPU fallback. This repository does not install anything or download models on execution. Provision the environments and weights yourself before running it.

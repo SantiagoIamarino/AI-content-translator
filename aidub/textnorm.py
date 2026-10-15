@@ -16,6 +16,7 @@ _FIXED = {
     "can't": "can not", "cannot": "can not", "won't": "will not", "shan't": "shall not",
     "ain't": "is not", "let's": "let us", "it's": "it is", "that's": "that is",
     "there's": "there is", "here's": "here is", "what's": "what is", "where's": "where is",
+    "where'd": "where did",
     "who's": "who is", "how's": "how is", "he's": "he is", "she's": "she is",
     "y'all": "you all", "'cause": "because", "cause": "because", "cuz": "because", "cos": "because",
     "gonna": "going to", "wanna": "want to", "gotta": "got to", "gimme": "give me",

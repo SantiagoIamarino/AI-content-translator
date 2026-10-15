@@ -1,0 +1,110 @@
+{
+  "_name": "continuity",
+  "_note": "Quality preset plus source-duration pacing and protected generated endings. Opt in for new jobs; existing snapshots stay authoritative.",
+  "whisper": {
+    "decode_options": {
+      "condition_on_previous_text": false,
+      "beam_size": 5,
+      "best_of": 5
+    }
+  },
+  "asr_second_pass": {
+    "enabled": true,
+    "model": "turbo",
+    "model_path": "",
+    "device": "cuda",
+    "pad_sec": 0.35,
+    "accept_probability": 0.6,
+    "min_word_probability": 0.3,
+    "merge_gap_sec": 0.3,
+    "max_no_speech_prob": 0.6,
+    "duplicate_min_tokens": 2,
+    "options": {
+      "condition_on_previous_text": false,
+      "beam_size": 5,
+      "best_of": 5
+    }
+  },
+  "segmentation": {
+    "untranscribed_energy_policy": "reviewed"
+  },
+  "translation_quality": {
+    "enabled": true,
+    "english_syllables_per_sec": 5.0,
+    "context_max_chars": 60000,
+    "neighbor_lines": 3,
+    "utterance_max_gap_sec": 1.5,
+    "utterance_max_parts": 4,
+    "join": {
+      "enabled": true,
+      "max_gap_sec": 0.35,
+      "open_gap_sec": 0.35,
+      "max_duration_sec": 10.0,
+      "max_parts": 3
+    },
+    "review": {
+      "enabled": true,
+      "max_rounds": 2,
+      "back_translation": "disputed"
+    }
+  },
+  "providers": {
+    "context": {
+      "kind": "same_as",
+      "role": "translation"
+    },
+    "review": {
+      "kind": "same_as",
+      "role": "repair"
+    },
+    "back_translation": {
+      "kind": "same_as",
+      "role": "repair"
+    }
+  },
+  "batching": {
+    "max_cues": 40,
+    "max_chars": 60000
+  },
+  "quality": {
+    "text_checker": "sequence-v1",
+    "second_verification": true
+  },
+  "voice_selection": {
+    "enabled": true,
+    "candidates": 4,
+    "max_extra_attempts": 4,
+    "source_pacing": {
+      "enabled": true,
+      "weight": 4.0
+    }
+  },
+  "voice_edge": {
+    "enabled": true,
+    "presentation_version": 3,
+    "margin_lead_ms": 20,
+    "margin_tail_ms": 60,
+    "fade_ms": 12,
+    "adaptive": {
+      "floor_rms": 0.0015,
+      "max_lead_ms": 80,
+      "max_tail_ms": 200
+    },
+    "source_loudness": {
+      "enabled": true,
+      "slope": 0.5,
+      "max_db": 3.0
+    },
+    "protection": {
+      "floor_rms": 0.0015,
+      "max_lead_ms": 80,
+      "max_tail_ms": 400,
+      "settle_ms": 20
+    }
+  },
+  "risk_report": {
+    "enabled": true,
+    "excerpts": 12,
+    "previews": true
+  }
+}
