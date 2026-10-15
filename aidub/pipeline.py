@@ -30,7 +30,7 @@ from .second_pass import run_second_pass, settings as second_pass_settings, unre
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
 from .events import identity as events_identity, apply_events, event_placement_report
 from .vocal_verification import verify_prefix
-from .fidelity import voicing_uncertainty
+from .fidelity import voicing_uncertainty, pending_repair_review
 from .performance import identity as performance_identity, attach_source_pauses, score_contextual, contextual_quality
 from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
 from .textnorm import content_tokens, normalize_tokens
@@ -427,6 +427,7 @@ def accept_translation(job: Job, response_path: Path) -> None:
         line = audit_lines.get(str(seg["id"]))
         if line:
             seg["translation_review"] = {"status": line.get("status"), "draft": line.get("draft"),
+                                         "checked_text": line.get("final"),
                                          "issues": sorted({i for r in line.get("rounds") or [] for i in r.get("issues") or []})}
     dest = job.dir / "handoff" / "translation_response.json"
     response["_aidub_request_identity"] = fingerprint(request)
@@ -1387,6 +1388,8 @@ def source_uncertainty_issues(corrections, timeline):
                for s in timeline if s.get("translation_review",{}).get("status") in {"disputed","revised_unconfirmed"}]
     issues += [{"kind":"material_source_asr_conflict","id":s["id"],"span":[s["start"],s["end"]],
                 "conflict":s["material_source_conflict"]} for s in timeline if s.get("material_source_conflict")]
+    issues += [{"kind":"unreviewed_compact_repair","id":s["id"],"span":[s["start"],s["end"]],
+                "english":s.get("english")} for s in timeline if pending_repair_review(s)]
     return issues
 
 

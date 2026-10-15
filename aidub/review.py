@@ -58,8 +58,8 @@ def review_request(job_id: str, translation_request: dict, english: dict[int, st
             "english_syllables": english_syllables(english[sid]),
             "utterance_id": src.get("utterance_id"),
             "utterance_part": src.get("utterance_part"),
-            "context_before": neighbors(ordered[max(0, k - 2):k]),
-            "context_after": neighbors(ordered[k + 1:k + 3]),
+            "context_before": neighbors(ordered[max(0, k - 2):k]) or src.get("context_before",[]),
+            "context_after": neighbors(ordered[k + 1:k + 3]) or src.get("context_after",[]),
             "uncertain_words": src.get("uncertain_words") or [],
         }
         if src.get("asr_alternatives"):

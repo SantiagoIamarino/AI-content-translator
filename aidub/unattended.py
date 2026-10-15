@@ -18,7 +18,7 @@ from .pipeline import (
 from .providers import ProviderError, require_provider, validate_provider_config
 from .batches import invoke_batches
 from .context import settings as quality_settings
-from .quality_flow import translate_with_review, validate_quality_providers
+from .quality_flow import translate_with_review, validate_quality_providers, review_pending_repairs
 from .util import read_json, write_json
 
 
@@ -73,6 +73,8 @@ def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=
                 job = Job(dest)
                 timings.append({"stage": f"run:{job.state}", "seconds": round(time.perf_counter() - t0, 3), "exit": code})
                 if code in {0, 1, 3}:
+                    if code==3 and review_pending_repairs(job,stored,providers,before_invoke=lambda:require_synthesis_ready(stored)):
+                        continue
                     return code
                 role = "translation" if job.state == "awaiting_translation" else "repair" if job.state == "awaiting_repair" else None
                 if role is None:

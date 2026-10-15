@@ -111,6 +111,15 @@ said. Those cues remain retained/translated but explicitly unplaced; no model is
 loaded to synthesize them. This deliberately favors an honest partial preview over
 speaking an unresolved reading.
 
+Compact timing repairs also need bilingual review of their **current text**.
+An earlier translation verdict cannot approve a later rewrite such as changing
+`it hasn't seen me` to `I'm not seen`. Performance scheduling withholds repaired
+wording until a text-bound verdict exists. Configured unattended runs perform
+bounded review/back-translation using the same configured roles, retain exact
+requests/responses and audits under `handoff/repair_reviews/`, then resume without
+reacquiring the owned job lock. Disputed or unconfirmed revisions stay unvoiced.
+Manual runs can remain partial until the configured unattended review runs.
+
 New gap words require a concordant timed hearing with neighboring acoustic
 context (`asr_second_pass.confirm_recovered`). The repetition fixture exposed a
 single-window `¡Gracias!` with a 20-ms word timestamp and probability 0.65. That is

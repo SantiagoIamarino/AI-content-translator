@@ -21,6 +21,9 @@ from aidub.pipeline import source_uncertainty_issues, _present_v3, _cache_misses
 from aidub.linework import collect_line_best_of_n
 from aidub.fidelity import material_conflict, voicing_uncertainty
 from types import SimpleNamespace
+from unittest.mock import patch
+from aidub.job import Job
+from aidub.quality_flow import review_pending_repairs
 from aidub.vocal_verification import verify_prefix
 
 
@@ -239,6 +242,34 @@ class VocalEventTests(unittest.TestCase):
 
 
 class PerformanceTimingTests(unittest.TestCase):
+    def test_compact_repair_verdict_is_bound_to_the_actual_repaired_text(self):
+        cfg={"source_events":{"enabled":True},"translation_quality":{"enabled":True,"review":{"enabled":True,"max_rounds":2}},
+             "schedule":{"max_tempo":1.1}}
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);job=Job.create(root/"job","j","unused.mp4",cfg)
+            write_json(job.dir/"inspect/probe.json",{"described":{"video":{"duration":20.}}})
+            s=seg(1,1,6,"Espero que no me haya visto")
+            s.update(english="Hope I'm not seen.",revisions=[{"action":"revise"}],
+                     translation_review={"status":"accepted_draft","checked_text":"I hope it hasn't seen me."})
+            neighbor=seg(2,8,10,"Tengo tres balas");neighbor["english"]="I have three bullets."
+            job.data["timeline"]=[s,neighbor];job.save();calls=[]
+            def invoke(spec,request,root,role,current,cfg,**unused):
+                self.assertEqual(role,"review");calls.append(request)
+                self.assertEqual(request["segments"][0]["context_after"][0]["english"],neighbor["english"])
+                row={"id":1,"verdict":"ok","issues":[],"reason":"Faithful","disputed":False}
+                if len(calls)==1:
+                    row.update(verdict="revise",english="Hope it hasn't seen me.",issues=["meaning_error"],reason="Restore the original completed action and observer.")
+                return {"segments":[row]}
+            self.assertEqual(voicing_uncertainty(s,cfg)["kind"],"unreviewed_compact_repair")
+            with patch("aidub.quality_flow.invoke_batches",side_effect=invoke):
+                self.assertTrue(review_pending_repairs(job,cfg,{"review":{"kind":"command"}}))
+            self.assertEqual(s["english"],"Hope it hasn't seen me.")
+            self.assertEqual(neighbor["english"],"I have three bullets.")
+            self.assertIsNone(voicing_uncertainty(s,cfg))
+            self.assertFalse(review_pending_repairs(Job(job.dir),cfg,{}))
+            s["english"]="Hope I'm not seen."
+            self.assertEqual(voicing_uncertainty(s,cfg)["kind"],"unreviewed_compact_repair")
+
     def test_disputed_source_is_not_spoken_or_loaded_for_synthesis(self):
         s=seg(1,.6,.9,"Bien.");s["english"]="Okay."
         s["translation_review"]={"status":"disputed","issues":["uncertain_source"]}

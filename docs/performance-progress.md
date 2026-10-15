@@ -311,3 +311,35 @@ confirmation and the uncertain `Gracias` result explicitly. Rerender all
 comparisons with the corrected picture tool, create timestamped excerpts, run
 the unchanged-resume check and write final counts/limitations. The refreshed
 minute renderer is in `minute-render-final.log`.
+
+## Stage 11 — bilingual verdicts for the actual compact repair
+
+Completed: the longer passage trace showed a fit repair changing `I hope it
+hasn't seen me` through two rewrites to `hope I'm not seen`, while retaining the
+initial wording's bilingual review status. Such a stale verdict can no longer
+authorize a repaired line. Performance scheduling withholds the current rewrite;
+the configured unattended coordinator requests bounded bilingual review using
+the existing configured roles, stores text-bound requests/responses/audits under
+`handoff/repair_reviews/`, and resumes with its owned job lock. Review may restore
+meaning even if that makes fit harder. A disputed or unconfirmed result remains
+partial/unvoiced. Already reviewed identical text needs no new provider call.
+
+Changed files: fidelity, pipeline metadata/gate, quality flow, review context,
+unattended coordinator, regression tests and docs. Verification: 136 tests,
+135 passed, one existing fixture skip (`stage11-tests.log`). The focused test
+restores observer/completed-action wording, keeps neighboring text, refuses a
+stale verdict after another edit and checks unchanged resume needs no review.
+
+Independent verification now saved: `resume-proof.json` compares 420 minute
+synthesis/provider/output/schedule files across resume: zero additions/removals/
+changes, all stages unchanged, honest partial exit 3. `candado-replay/evidence.json`
+replays just duplicate filtering on the exact original saved hearing and source
+spans, with no new ASR/provider/TTS: `A ver este candado` survives intact.
+
+Exact next step: finish the current serial queue (it is past the long passage).
+Then repeat `run-set` with current code to apply interpretation 4 and repair-review
+binding to all experimental jobs. This should recover the corroborated `Intentar`
+reading using both existing hearings. Inspect any compact repairs and reviewer
+changes; reuse matching saved responses/takes. The minute excerpts are being
+rendered in the background. Finish corrected comparisons, remaining excerpts,
+final counts/preservation/resume evidence, results docs and commit.

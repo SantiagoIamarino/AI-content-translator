@@ -29,6 +29,11 @@ def material_conflict(seg):
     return None
 
 
+def pending_repair_review(seg):
+    return (any(r.get("action")=="revise" for r in seg.get("revisions",[])) and
+            (seg.get("translation_review") or {}).get("checked_text") != seg.get("english"))
+
+
 def voicing_uncertainty(seg, cfg):
     """Keep unresolved source readings in the ledger, without speaking a guess.
 
@@ -40,6 +45,8 @@ def voicing_uncertainty(seg, cfg):
         return {"kind": "material_source_asr_conflict", "evidence": seg["material_source_conflict"]}
     if not (cfg.get("source_events") or {}).get("enabled"):
         return None
+    if pending_repair_review(seg):
+        return {"kind":"unreviewed_compact_repair","evidence":"Bilingual review does not cover the current repaired English"}
     review = seg.get("translation_review") or {}
     if review.get("status") in {"disputed", "revised_unconfirmed"}:
         return {"kind": "unresolved_source_or_translation", "evidence": review}

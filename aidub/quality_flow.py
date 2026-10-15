@@ -16,6 +16,7 @@ from .job import Job
 from .providers import invoke_checked, require_provider, resolve_role, validate_provider_config
 from .review import run_review, settings as review_settings
 from .util import fingerprint, read_json, write_json
+from .fidelity import pending_repair_review
 
 QUALITY_ROLES = ("context", "review", "back_translation")
 
@@ -107,3 +108,54 @@ def translate_with_review(job: Job, cfg: dict, providers: dict, export_translati
     path = root / "translation_reviewed_response.json"
     write_json(path, final)
     return path
+
+
+def review_pending_repairs(job: Job, cfg: dict, providers: dict, before_invoke=None) -> bool:
+    """Review repaired text before it can reuse an earlier translation's verdict.
+
+    Called with the unattended runner's owned lock, after analysis has settled.
+    Saved responses are keyed by exact repaired English and source evidence.
+    """
+    if not (cfg.get("source_events") or {}).get("enabled"):
+        return False
+    from .pipeline import _timeline, build_translation_request, _save_timeline
+    segments=_timeline(job)
+    pending=[s for s in segments if pending_repair_review(s) and
+             not any(r.get("action")=="leave_unresolved" for r in s.get("revisions",[]))]
+    if not pending:
+        return False
+    if not review_settings(cfg):
+        return False  # remains explicitly unplaced/partial; no unconfigured call
+    duration=read_json(job.dir/"inspect/probe.json")["described"]["video"]["duration"]
+    request=build_translation_request(job,cfg,segments,duration)
+    ids={int(s["id"]) for s in pending}
+    english={int(s["id"]):s["english"] for s in pending}
+    request["segments"]=[r for r in request["segments"] if int(r["id"]) in ids]
+    for row in request["segments"]:
+        for side in ("context_before","context_after"):
+            for neighbor in row.get(side,[]):
+                neighbor["english"]=next(s.get("english") for s in segments if s["id"]==neighbor["id"])
+    request["delivery_policy"]=(request.get("delivery_policy") or "")+(
+        "\nThis draft is a compact timing repair. Compare it with the original Spanish again. "
+        "Preserve tense, subjects, hedges, connectors and repeated reactions. Do not accept missing meaning to fit a window.")
+    identity=fingerprint({"request":request,"english":english,"review":review_settings(cfg),"version":1})
+    root=job.dir/"handoff/repair_reviews"/identity
+    write_json(root/"source_request.json",request)
+    def invoke(role,req,current):
+        spec=require_provider(resolve_role(providers,role),role)
+        return invoke_batches(spec,req,root,role,current,cfg,before_invoke=before_invoke)
+    final,audit=run_review(job.data["job_id"],request,english,invoke,cfg)
+    audit["source_request_identity"]=fingerprint(request)
+    write_json(root/"audit.json",audit)
+    for s in pending:
+        sid=int(s["id"]);line=audit["lines"][str(sid)]
+        s.setdefault("repair_review_history",[]).append(dict(before=s["english"],after=final[sid],
+            audit=str((root/"audit.json").relative_to(job.dir)),status=line["status"]))
+        s["english"]=final[sid]
+        s["translation_review"]={"status":line["status"],"draft":english[sid],"checked_text":final[sid],
+                                 "issues":sorted({i for r in line["rounds"] for i in r.get("issues",[])})}
+    for stage in ("schedule","mix","validate"):
+        job.stage(stage).update(status="pending",fingerprint=None)
+    _save_timeline(job)
+    print(f"compact repair reviewed: {len(pending)} lines; unresolved verdicts remain unvoiced")
+    return True
