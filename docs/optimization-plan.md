@@ -1,9 +1,11 @@
 # Dubbing optimization implementation plan
 
-Status: proposed work only. Consolidated from the engineering audit and independent
-second opinion, with Git state and saved artifacts inspected on 2026-10-16 at
-approximately 20:15 UTC. Creating this document does not authorize implementation,
-tests, provider calls, synthesis, job migration, or recovery actions.
+Status: batch 1 implemented and evaluated in an isolated worktree on 2026-10-16;
+not integrated into the operational checkout. Batches 2–6 remain proposed and
+unimplemented. The original observations below were inspected at approximately
+20:15 UTC. The user subsequently authorized batch 1, focused tests, and a check
+of at most eight existing WAVs, with no providers, Qwen synthesis, full-video export,
+or mutation of existing jobs. Completion evidence is recorded below.
 
 ## Outcome and constraints
 
@@ -81,7 +83,9 @@ When implementation is separately authorized:
    is inactive and the integration is separately authorized. Job migration requires
    an owned job lock, a retained previous snapshot, and an explicit migration record.
 
-No isolation, transfers, commits, or migrations were performed for this document.
+The preparation instructions above describe the original plan. Batch 1's isolated
+baseline and implementation commits are now recorded in the completion section;
+no existing job was migrated and nothing was merged or pushed.
 
 ## Observed baseline and measurement limits
 
@@ -541,7 +545,150 @@ budgets. Changes to candidate selection require fresh listening evidence; faster
 processing cannot be bought through stripped vocal events, universal shortening,
 chopped endings, unverified audio, or voice drift.
 
-## Exact proposed scope of the first implementation batch
+## Batch 1 completion evidence — 2026-10-16
+
+### Isolation and identifiers
+
+Implementation is in the separate worktree `ai-dubbing-e2e-asr-batch1`, branch
+`fix/asr-correctness-20261016`:
+
+- Operational source HEAD: `8926c7f1d9e56d2fd544fc4bed92c0d3832bff3e`.
+- Reviewed recovery baseline: `418f205b968e66bd1511a9a1cdfd321263328be6`.
+- Batch-1 implementation: `17d23353372cf19ab02def3555bc6e37e40706f1`.
+
+The baseline carries only the seven modified tracked files and seven named
+source/test/documentation files, including this plan. Operational logs, jobs,
+credentials, media, and local configuration were excluded. A local baseline
+receipt records transferred-file hashes. The operational recovery files still
+match those baseline hashes; its plan received only the requested clarification
+that the configured shared interpreter is permitted. No historical implementation
+was imported and no environment was migrated, installed into, or edited.
+
+No active dubbing/ASR worker was found at preparation. This was rechecked after
+the user interruption. Existing jobs were not resumed, locked, or modified. All
+evaluation jobs/locks/writes belong to the isolated worktree.
+
+### Changed behavior and files
+
+- `aidub/asr_client.py`: initiating exceptions survive failed cleanup; process,
+  pipes, and diagnostics remain owned until reap succeeds; no replacement while
+  cleanup is incomplete. The synchronous JSON-lines protocol remains unchanged.
+- `aidub/pipeline.py`: each actual hearing has an atomic recovery record and a
+  bounded persisted budget. Default CUDA episodes allow initial request, one CUDA
+  restart, then one CPU fallback; CPU episodes allow initial request plus one
+  restart. An unreaped worker also blocks other WAVs through a job-wide ownership
+  record. A successful reap releases that block. Fallback retains glossary names
+  and cannot be undone by a cached GPU hearing during the CPU pass.
+- `aidub/pipeline.py` and `aidub/verification.py`: an infrastructure failure in a
+  triggered second hearing is explicitly incomplete. It stops resumably instead
+  of generating replacement candidates. Resume retains completed first-hearing
+  evidence. Focused-prefix and processed-take checks use the same recovery and
+  completeness rules. Mix/final gates reject known incomplete verification.
+- `aidub/quality.py` and `aidub/verification.py`: raw hearing and waveform facts
+  are reusable separately from assessment. Assessment identity includes effective
+  rejection thresholds, names, reference/checker provenance, and coordinator
+  numeric/audio-library versions. Raw hearing identity binds waveform bytes,
+  actual device, model/weights, worker/environment, and decode settings; glossary
+  names remain an assessment input because these hearings use no glossary prompt.
+  Ranking weights/counts do not invalidate raw evidence.
+- `tests/test_hardening.py`: focused lifecycle, recovery, cache, and stop-before-
+  finalization regressions. No production provider, generation, orchestration,
+  source-resolution, segmentation, comparison-export, or supervisor code changed.
+
+### Focused regression results
+
+Final run: **56 tests, 55 passed, one skipped, zero failures**, in 1.293 seconds.
+The skipped pre-existing recorded-speaker test lacks its optional reference/cache
+fixture. All new regressions ran. The test fixture that forces a verification
+failure intentionally prints `STATE failed`; this is an asserted safe stop, not
+a failed test.
+
+The selected classes/cases were `WorkerTests`, `VerificationIdentityTests`,
+`AsrEvidenceTests`, the three existing shutdown/timeout worker regressions,
+`SequenceCheckTests`, `SelectionTests`, `SpeakerTests`,
+`VerificationTimeoutIdentityTests`, `VocalEventTests`, and
+`PerformanceTimingTests`. Fake worker/cache checks passed before real ASR was run.
+The isolated `bin/aidub --config config/batch1.local.json --help` also loaded
+successfully using the configured shared interpreter. Imports were explicitly
+bound to the isolated checkout; bytecode writes were disabled during verification.
+
+The regression receipt is local and ignored:
+`jobs/.batch1-eval/final-focused-tests.log`. Tests used fake workers and temporary
+fixtures; no real provider or Qwen synthesis was exercised.
+
+### Existing-WAV check: fresh execution versus reuse
+
+Six existing WAVs were read: selected raw takes for cues 1, 3, 30 (a short
+reaction), and 154 (previously affected), plus processed takes for cues 3 and 154.
+No source or take bytes were changed. All six assessments completed and passed
+the unchanged checks. None required a second hearing; second-hearing failure and
+recovery were covered by fake-worker/cache regressions, not a claimed live result.
+
+| Measured operation | Result |
+| --- | --- |
+| One fresh CUDA Whisper worker startup | 4.994 s to readiness |
+| First inference request after startup | 1.956 s |
+| Subsequent five requests on the loaded worker | 0.261–0.322 s each |
+| Fresh six-WAV verification loop | 8.684 s, including startup, inference, analysis, and cache writes; excluding receipt setup and initial identity/version inspection |
+| Warm six-assessment reuse | About 0.002 s; zero ASR calls |
+| Changed ranking weights/counts | Six assessment-cache hits; zero ASR calls |
+| Assessment-only recomputation from stored evidence | Six hearing hits and six waveform-fact hits; zero ASR calls; original decisions retained |
+
+The worker, weights, and decoding options were the existing configured Whisper
+Turbo setup. Only one worker was started and it was reaped. No live CPU fallback
+or host/GPU fault was induced. These small timings are observations, not a
+whole-video speed forecast or a cold-versus-warm speedup claim. Processed audio
+passing technical checks is not human listening or voice-identity approval.
+
+Local ignored evidence is under `jobs/.batch1-eval/`:
+`existing-wavs-receipt.local.json`, `existing-wavs-console.local.log`,
+`final-replay-receipt.local.json`, and `final-reassessment.local.json`. The last
+two bind final source hashes/implementation and check reuse without another
+model request. The final code's additional cache-environment binding was checked
+by replaying retained hearing evidence, without another cold model run.
+
+### Zero-call and preservation evidence
+
+The existing-WAV harness disabled both provider roles in ignored evaluation config,
+guarded provider entry points and Qwen synthesis/backend entry points, and allowed
+subprocesses only for the configured Whisper worker or package-version inspection.
+Its counters report **zero provider calls and zero fresh Qwen synthesis**. The
+only fresh model work was six local Whisper requests. Final replay additionally
+forbade `_LineAssessor._transcribe` and recorded zero fresh ASR requests.
+
+Before/after signatures of all source-job and overnight-record file names,
+sizes, and mtimes matched. Byte hashes of the six input WAVs matched, and hashes
+of protected manifest/config/validation files and transferred operational recovery
+files were unchanged. No FFmpeg/export, source-job runner, provider adapter, or
+supervisor was launched. No merge or push was performed.
+
+### Compatibility, rollback, and remaining limits
+
+Synthesis keys and WAV bytes are unchanged. New hearing/fact records use
+`aidub.hearing.v1` and `aidub.waveform.v1`; assessments have a versioned identity
+and explicit completeness fields. Old quality records are retained but are not
+silently promoted into the new identity: their missing evidence provenance cannot
+be reconstructed safely. On a future authorized migration, legacy WAVs are
+reverified on demand without synthesis. That first-migration cost has not been
+measured over a long job. Subsequent ranking changes reuse evidence.
+
+Changed model/weights/decoding/device invalidates relevant hearing identities;
+changed assessment thresholds/names/reference recomputes assessment using sufficient
+stored raw evidence. Incompatible waveform-analysis inputs recompute facts.
+Existing schedule/downstream fingerprints incorporate the new verification identity.
+No existing job configuration or cache was migrated during this work. Rollback
+uses the retained recovery baseline and old records; do not delete either cache
+generation or treat new assessments as compatible with old code.
+
+Exhausted hearing identities stop without automatic budget reset on resume. An
+unreaped-worker marker remains blocking across resume until ownership is resolved;
+this batch adds no administrative reset command or reboot/orphan reconciliation.
+The real check did not exercise concurrent resident Qwen/Whisper, CPU latency,
+reboots, long-job throughput, or every possible follow-up/prefix outcome. These
+remain limits, not passes. Batches 2–6 and adaptive candidate reduction are still
+unimplemented. Further implementation needs its own authorization.
+
+## Exact scope of the first implementation batch
 
 Batch 1 is limited to `aidub/asr_client.py`, `aidub/verification.py`, ASR assessment,
 recovery, and completeness gates in `aidub/pipeline.py`, and the smallest necessary
@@ -558,4 +705,5 @@ plus the at-most-eight-existing-WAV local-ASR receipt, with zero provider calls 
 zero synthesis. Preserve all voice settings and required gates. Do not change
 orchestration, provider configuration, comparison export, source decisions,
 segmentation, candidate budgets, the supervisor, or any existing job/config artifact
-in this batch. Implementation has not started.
+in this batch. Batch 1 is implemented and verified only in the isolated worktree,
+with the completion evidence above; it has not been integrated into operation.
