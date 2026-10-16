@@ -97,6 +97,10 @@ Cursor is an optional adapter. It uses the configured host binary/account, not a
 
 ## Recordings and commands
 
+For persistent overnight execution with a per-job user service, bounded process
+recovery, durable console/journal logs and lightweight progress monitoring, see
+[docs/overnight.md](docs/overnight.md).
+
 Use separate mixed/game/mic audio tracks. An **audio ordinal** counts audio streams from zero; an **absolute index** counts all container streams. For example, video index 0 and audio indices 1/2/3 correspond to audio ordinals 0/1/2. Generic OBS track names do not establish the roles. Listen to short extracts first; mixed minus game should match the mic. Set the ordinals for each recording.
 
 MP4 and MKV inputs can be probed. The default output is MP4, with a conservative copied-codec compatibility check. Set `export.container` to `mkv` for another supported container instead of re-encoding the picture. Negative relative audio offsets, mismatched mic/game origins, mono game tracks, and game audio extending past the established video endpoint fail explicitly.

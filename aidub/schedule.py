@@ -13,6 +13,18 @@ def plan_fit(trim_dur: float, orig_avail: float, safe_window: float, max_tempo: 
     return "unresolved", 1.0, "overrun_tempo_limit"
 
 
+def corrective_tempo(duration: float, safe_window: float, applied_tempo: float,
+                     max_tempo: float = 1.1, *, headroom_sec: float = 0.01) -> float | None:
+    """Return a bounded extra atempo factor after FFmpeg rounding leaves a take overlong."""
+    if duration <= safe_window + 1e-4 or safe_window <= 0 or applied_tempo <= 0:
+        return None
+    target = max(1e-6, safe_window - max(0.0, headroom_sec))
+    correction = duration / target
+    if correction <= 1.0 or applied_tempo * correction > max_tempo + 1e-9:
+        return None
+    return correction
+
+
 def apply_blockers(status: str, timing_error: str, start: float, duration: float, occupied_until: float, source_duration: float) -> tuple[str, str]:
     if occupied_until > start + 1e-4:
         return "unresolved", timing_error or "blocked_by_previous"

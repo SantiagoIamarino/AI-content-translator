@@ -17,7 +17,7 @@ from aidub.textnorm import sequence_check
 from aidub.performance import contextual_quality, quiet_intervals, score_contextual
 from aidub.continuity import render_protected
 from aidub.context import join_short_pauses, utterance_groups
-from aidub.pipeline import source_uncertainty_issues, _present_v3, _cache_misses
+from aidub.pipeline import source_uncertainty_issues, _present_v3, _cache_misses, schedule_verification_timeouts
 from aidub.linework import collect_line_best_of_n, collect_line
 from aidub.fidelity import material_conflict, voicing_uncertainty
 from types import SimpleNamespace
@@ -29,6 +29,15 @@ from aidub.vocal_verification import verify_prefix
 
 def seg(i, start, end, text):
     return dict(id=i, start=start, end=end, spanish=text, notes="", uncertain_words=[])
+
+
+class VerificationTimeoutIdentityTests(unittest.TestCase):
+    def test_candidate_asr_timeout_is_a_schedule_identity_input(self):
+        self.assertEqual(schedule_verification_timeouts({}),
+                         {"worker_startup_sec": 180.0, "candidate_sec": 180.0})
+        baseline = schedule_verification_timeouts({"timeouts": {"asr_candidate_sec": 180}})
+        recovered = schedule_verification_timeouts({"timeouts": {"asr_candidate_sec": 600}})
+        self.assertNotEqual(baseline, recovered)
 
 
 class SurvivingCoverageTests(unittest.TestCase):

@@ -31,6 +31,11 @@ PY
 export AIDUB_CONFIG="$CONFIG"
 export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+# A persistent overnight service holds one inhibitor across both worker runs and
+# recovery waits. Avoid nesting a second inhibitor around each CLI invocation.
+if [[ "${AIDUB_INHIBITOR_HELD:-0}" == "1" ]]; then
+  exec "$PY" -P -m aidub "$@"
+fi
 # Keep the inhibitor alive around the complete CLI process, including provider waits.
 # Inhibit sleep only so Hypridle can still blank and lock the screen while a job runs.
 exec systemd-inhibit --what=sleep --mode=block --who=aidub \

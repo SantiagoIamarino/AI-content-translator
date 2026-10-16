@@ -51,7 +51,7 @@ from .quality import assess_candidate, speaker_profile
 from .verification import candidate_quality_key, verification_identity, file_identity
 from .metrics import stage_call, provider_metrics
 from .storage import storage_budget
-from .schedule import alternate_seed, apply_blockers, plan_fit, primary_seed
+from .schedule import alternate_seed, apply_blockers, corrective_tempo, plan_fit, primary_seed
 from .srt import omitted_lines, render_srt
 from .synth import get_shared_backend, lookup_cache, shared_backend_loaded, synthesize_cached
 from .segment import build_segments_file
@@ -463,7 +463,22 @@ def _attempt_from_audio(job, cfg, seg, text, seed, kind, meta, occupied_until, n
         tw, tsr = read_audio(tempo_path)
         gen_dur = to_mono(tw).size / tsr
         used = tempo_path
-        status2, _, _ = plan_fit(gen_dur, orig_avail, safe_window, float(cfg["schedule"]["max_tempo"]))
+        max_tempo = float(cfg["schedule"]["max_tempo"])
+        status2, _, _ = plan_fit(gen_dur, orig_avail, safe_window, max_tempo)
+        correction_no = 0
+        while status2 not in {"fit_unchanged", "spill_into_gap"} and correction_no < 2:
+            correction = corrective_tempo(gen_dur, safe_window, applied_tempo, max_tempo)
+            if correction is None:
+                break
+            correction_no += 1
+            corrected_path = work / f"segment_{int(seg['id']):03d}_{kind}_{int(seed)}_tempo_correction_{correction_no}.wav"
+            atempo(cfg["executables"]["ffmpeg"], used, corrected_path, correction,
+                   timeout=float((cfg.get("timeouts") or {}).get("tempo_sec", 180)))
+            tw, tsr = read_audio(corrected_path)
+            gen_dur = to_mono(tw).size / tsr
+            applied_tempo *= correction
+            used = corrected_path
+            status2, _, _ = plan_fit(gen_dur, orig_avail, safe_window, max_tempo)
         if status2 in {"fit_unchanged", "spill_into_gap"}:
             status, err = "tempo_adjusted", ""
         else:
@@ -662,6 +677,15 @@ class _LineAssessor:
             self.client = None
 
 
+def schedule_verification_timeouts(cfg: dict) -> dict:
+    """Timeouts that affect fresh verification of cached synthesis WAVs."""
+    timeouts = cfg.get("timeouts") or {}
+    return {
+        "worker_startup_sec": float(timeouts.get("worker_startup_sec", 180)),
+        "candidate_sec": float(timeouts.get("asr_candidate_sec", 180)),
+    }
+
+
 def stage_schedule(job: Job, cfg: dict) -> dict:
     inspected = read_json(job.dir / "inspect/probe.json")
     source_duration = float(inspected["described"]["video"]["duration"])
@@ -681,11 +705,14 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         "schedule": cfg["schedule"],
         "qwen3": cfg["qwen3"],
         "quality": cfg.get("quality"),
+        # A supported timeout correction must re-run verification over cached
+        # WAVs without changing their synthesis identities.
+        "verification_timeouts": schedule_verification_timeouts(cfg),
         "voice_edge": cfg.get("voice_edge"),
         "fit_retries": cfg.get("fit_retries"),
         "revision_limit": revision_limit(cfg),
         "verification_identity": verification_identity(cfg, ref_sha),
-        "schedule_version": 3 if int((cfg.get("voice_edge") or {}).get("presentation_version", 1)) >= 2 else 2,
+        "schedule_version": 4 if int((cfg.get("voice_edge") or {}).get("presentation_version", 1)) >= 2 else 3,
         **continuity_identity(cfg),
         **events_identity(cfg),
         **performance_identity(cfg),

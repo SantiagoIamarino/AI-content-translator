@@ -19,11 +19,12 @@ from aidub.job import Job, JobLock
 from aidub.media import align_to_video, assert_extract_preserves_origin, describe_streams, extract_audio_cmd, resolve_ordinal
 from aidub.pipeline import _fp_ok
 from aidub.placement import Interval, collisions
-from aidub.schedule import plan_fit, synth_cache_key
+from aidub.schedule import corrective_tempo, plan_fit, synth_cache_key
 from aidub.segment import build_segments
 from aidub.report import validation_markdown
 from aidub.srt import render_srt
-from aidub.util import assert_write_in_job, fingerprint
+from aidub.targeted_review import accept_targeted_review
+from aidub.util import assert_write_in_job, fingerprint, write_json
 
 
 def probe_fixture():
@@ -84,6 +85,19 @@ class TimingTests(unittest.TestCase):
         self.assertEqual(status, "needs_tempo")
         self.assertLessEqual(tempo, 1.1)
         self.assertGreater(tempo, 1.0)
+
+    def test_corrective_tempo_covers_ffmpeg_rounding_under_cap(self):
+        duration = 4.339833333333333
+        window = 4.334290999999212
+        applied = 1.0405392715903985
+        correction = corrective_tempo(duration, window, applied, 1.10)
+        self.assertIsNotNone(correction)
+        self.assertLessEqual(applied * correction, 1.10)
+        self.assertLessEqual(duration / correction, window - 0.009)
+
+    def test_corrective_tempo_refuses_to_cross_cap_or_touch_fit(self):
+        self.assertIsNone(corrective_tempo(2.0, 2.1, 1.05, 1.10))
+        self.assertIsNone(corrective_tempo(2.2, 2.1, 1.099, 1.10))
 
     def test_collision_does_not_count_adjacent(self):
         self.assertEqual(collisions([Interval(1, 0, 10), Interval(2, 10, 20)]), [])
@@ -306,6 +320,62 @@ class SegmentTests(unittest.TestCase):
         mask = voiced_mask(wav, sr, 0.005, 0.01)
         self.assertTrue(mask[1500])
         self.assertFalse(mask[10])
+
+
+class TargetedReviewTests(unittest.TestCase):
+    def fixture(self, root):
+        job_dir = root / "job"
+        job = Job.create(job_dir, "fixture", "/tmp/source.mp4", {})
+        job.data["timeline"] = [{"id": 1, "start": 0.0, "end": 1.0,
+                                  "spanish": "Hola.", "english": "Hello.",
+                                  "english_original": "Hello.", "asr_alternatives": [],
+                                  "translation_review": {"status": "disputed"}}]
+        job.save()
+        request_path = job_dir / "handoff/targeted_source_review/request.json"
+        response_path = job_dir / "handoff/targeted_source_review/response.json"
+        acoustic_path = job_dir / "report/targeted_acoustic_review.json"
+        evidence = {"method": "local Whisper Turbo", "review_span": [0.0, 2.0],
+                    "primary": "Hola.", "saved_alternatives": [],
+                    "contextual_hypothesis": "Hola."}
+        request = {"schema": "aidub.review_request.v1", "job_id": "fixture",
+                   "response_contract": {"schema": "aidub.review_response.v1"},
+                   "segments": [{"id": 1, "spanish": "Hola.", "english": "Hello.",
+                                  "targeted_acoustic_evidence": evidence}]}
+        acoustic = {"job_id": "fixture", "complete": True,
+                    "results": [{"id": 1, "review_span": [0.0, 2.0],
+                                 "stored_spanish": "Hola.", "stored_alternatives": [],
+                                 "hypothesis": {"text": "Hola."}}]}
+        response = {"schema": "aidub.review_response.v1", "job_id": "fixture",
+                    "translator": {"kind": "command", "model": "gpt-6-luna"},
+                    "segments": [{"id": 1, "verdict": "ok", "issues": [], "disputed": False}]}
+        response["_aidub_request_identity"] = fingerprint(request)
+        write_json(request_path, request)
+        write_json(response_path, response)
+        write_json(acoustic_path, acoustic)
+        return job, request_path, response_path, acoustic_path
+
+    def test_valid_targeted_review_updates_only_selected_cue_and_invalidates_outputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            job, request, response, acoustic = self.fixture(Path(tmp))
+            summary = accept_targeted_review(job, request, response, acoustic)
+            self.assertEqual(summary["accepted_for_scheduling"], 1)
+            self.assertEqual(job.data["timeline"][0]["english"], "Hello.")
+            self.assertEqual(job.data["timeline"][0]["translation_review"]["status"], "accepted_targeted_review")
+            self.assertEqual(job.stage("schedule")["status"], "pending")
+            self.assertEqual(job.stage("mix")["status"], "pending")
+            self.assertEqual(job.stage("validate")["status"], "pending")
+
+    def test_targeted_review_rejects_stale_acoustic_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            job, request, response, acoustic = self.fixture(Path(tmp))
+            request_data = json.loads(request.read_text())
+            request_data["segments"][0]["targeted_acoustic_evidence"]["contextual_hypothesis"] = "Adiós."
+            write_json(request, request_data)
+            response_data = json.loads(response.read_text())
+            response_data["_aidub_request_identity"] = fingerprint(request_data)
+            write_json(response, response_data)
+            with self.assertRaisesRegex(RuntimeError, "acoustic evidence"):
+                accept_targeted_review(job, request, response, acoustic)
 
 
 class ConfigTests(unittest.TestCase):

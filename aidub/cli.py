@@ -6,6 +6,7 @@ from pathlib import Path
 from .config import apply_preset, load_config, load_preset, preflight, require_schedule_defaults, resolve_path
 from .job import Job, JobLock
 from .pipeline import accept_repair, accept_translation, export_repair, export_translation, job_path, next_hint, run_job
+from .targeted_review import accept_targeted_review
 from .providers import ProviderError
 from .unattended import run_unattended
 from .util import read_json
@@ -120,6 +121,27 @@ def cmd_accept_translation(args) -> int:
             print(str(exc), file=sys.stderr)
             return 1
     print(f"next: bin/aidub resume {job.data['job_id']}")
+    return 0
+
+
+def cmd_accept_targeted_review(args) -> int:
+    cfg = _cfg(args)
+    job = _job(cfg, args.job)
+    request = Path(args.request).expanduser().resolve()
+    response = Path(args.response).expanduser().resolve()
+    acoustic = Path(args.acoustic_report).expanduser().resolve()
+    if not all(path.is_file() for path in (request, response, acoustic)):
+        print("Targeted review request, response, or acoustic report is missing", file=sys.stderr)
+        return 1
+    with JobLock(job.dir):
+        job = Job(job.dir)
+        try:
+            summary = accept_targeted_review(job, request, response, acoustic)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+    print(f"targeted review accepted: {summary['accepted_for_scheduling']} ready, {summary['kept_disputed']} disputed, {summary['english_revised']} English revisions")
+    print(f"next: python3 scripts/overnight.py start --resume --name {job.data['job_id']}")
     return 0
 
 
@@ -254,6 +276,13 @@ def build_parser() -> argparse.ArgumentParser:
     acc.add_argument("job")
     acc.add_argument("response")
     acc.set_defaults(func=cmd_accept_translation)
+
+    targeted = sub.add_parser("accept-targeted-review", help="validate and apply an identity-bound targeted review to a cue subset")
+    targeted.add_argument("job")
+    targeted.add_argument("request")
+    targeted.add_argument("response")
+    targeted.add_argument("acoustic_report")
+    targeted.set_defaults(func=cmd_accept_targeted_review)
 
     rx = sub.add_parser("export-repair", help="write the repair request for unplaced lines")
     rx.add_argument("job")
