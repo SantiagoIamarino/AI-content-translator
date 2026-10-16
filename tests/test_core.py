@@ -333,6 +333,8 @@ class TargetedReviewTests(unittest.TestCase):
             write_json(response, data)
             summary = accept_targeted_review(job, request, response, acoustic)
             self.assertEqual(summary['accepted_for_scheduling'], 0)
+            self.assertEqual(summary['kept_disputed'], 0)
+            self.assertEqual(summary['revised_unconfirmed'], 1)
             self.assertEqual(job.data['timeline'][0]['translation_review']['status'], 'revised_unconfirmed')
 
     def fixture(self, root):

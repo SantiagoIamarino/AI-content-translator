@@ -57,7 +57,7 @@ def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
     request_rel = str(request_path.relative_to(job.dir))
     response_rel = str(response_path.relative_to(job.dir))
     acoustic_rel = str(acoustic_report_path.relative_to(job.dir))
-    accepted = disputed = revised = 0
+    accepted = disputed = revised = unconfirmed = 0
     for row in rows:
         sid = int(row["id"])
         seg = by_id[sid]
@@ -96,8 +96,10 @@ def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
             "targeted_review_request_identity": identity,
             "targeted_review_response": response_rel,
         }
-        if status in {"disputed", "revised_unconfirmed"}:
+        if status == "disputed":
             disputed += 1
+        elif status == "revised_unconfirmed":
+            unconfirmed += 1
         else:
             accepted += 1
 
@@ -109,6 +111,7 @@ def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
     summary = {"request_identity": identity, "provider": response["translator"],
                "acoustic_report_sha256": evidence_sha, "reviewed": len(ids),
                "accepted_for_scheduling": accepted, "kept_disputed": disputed,
+               "revised_unconfirmed": unconfirmed,
                "english_revised": revised, "request": request_rel,
                "response": response_rel, "acoustic_report": acoustic_rel}
     write_json(job.dir / "report/targeted_review_acceptance.json", summary)
