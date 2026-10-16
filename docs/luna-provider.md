@@ -13,6 +13,11 @@ local models/reference and runtime configuration. Development verified CLI
 that install or update themselves. Run its `login status` separately; do not
 inspect or copy credential files.
 
+For CLI 0.163.0 the image-tool control is `features.view_image=false`.
+`tools.view_image=false` from newer documentation is rejected by this installation.
+All configured feature controls were checked against its effective feature list;
+strict invalid-config probes fail before a session/model can start.
+
 In your ignored local configuration, configure each role explicitly:
 
 ```json

@@ -1,12 +1,14 @@
 # Dubbing optimization implementation plan
 
-Status: batch 1 accepted for continued development; batch 2 implemented and
-verified with focused fake-provider/media tests in the same isolated worktree on
-2026-10-16. Neither batch is integrated into the operational checkout. Batches
-3–6 remain proposed and unimplemented. The original observations were inspected at approximately
+Status: batches 1–3 implemented in isolation on 2026-10-16; batch 3 has focused
+tests and a completed **partial** 150-second integrated trial. No batch is
+integrated into the operational checkout. Batches 4–6 remain proposed and
+unimplemented. The original observations were inspected at approximately
 20:15 UTC. The user subsequently authorized batch 1, focused tests, and a check
 of at most eight existing WAVs, with no providers, Qwen synthesis, full-video export,
 or mutation of existing jobs. Completion evidence is recorded below.
+The separate batch-3 authorization permits the integrated live trial recorded
+in its completion section.
 
 ## Outcome and constraints
 
@@ -325,11 +327,12 @@ fixtures cover response-before-state interruption, corrupt canonical response wi
 valid saved attempt, expired attempts, uncertain completion, and semantic validation
 feedback. Changed model/reasoning/adapter contract must not reuse another identity.
 
-**Calls and synthesis.** No calls for contract/auth-configuration fixtures. After
-those pass and account readiness is confirmed, make at most one representative live
-call per role whose final contract lacks matching evidence: at most five calls.
-Saved responses then support acceptance/recovery tests. No fresh synthesis.
-Quota, account concurrency, and long-context latency remain measured unknowns.
+**Calls and synthesis.** No calls for contract/auth-configuration fixtures. The
+subsequent user authorization superseded the original provider-only evaluation:
+run the prepared 150-second clip through the normal performance pipeline with
+fresh job-local results/synthesis, then at most one additional representative live
+call per inadequately exercised role. Do not manually rescue the trial or change
+quality settings. Quota, concurrency and long-context latency remain unknowns.
 
 **Cache/migration and rollback.** New jobs use the explicit primary mapping; portable
 config remains unconfigured until local prerequisites are supplied. Existing jobs
@@ -344,6 +347,10 @@ decision; no API-billing fallback or hidden inherited model choice. Saved-respon
 recovery passes without duplicate calls, uncertainty is retained, and each live call
 has explicit model/auth provenance. Configuration supports one normal unattended
 invocation after initial setup, with clear bounded failure when prerequisites fail.
+
+**Implementation status.** Completed in isolation. See batch-3 completion evidence
+below and [provider setup/identity rules](luna-provider.md). The integrated trial
+finished partial under unchanged fidelity gates.
 
 ## Batch 4 — Optional Spanish comparison, off for new jobs
 
@@ -825,9 +832,10 @@ provider metrics retain their earlier scopes; this batch adds no general
 durable orchestration budget or metrics redesign.
 
 Focused control-flow/cache/lock evidence supports moving to a separately
-authorized batch 3. Luna hardening/configuration, optional comparison export,
-automatic uncertainty resolution, concurrency and candidate reduction have not
-been implemented. Preserve the accepted reference and voice settings for any
+authorized batch 3. At batch-2 completion, Luna hardening/configuration, optional
+comparison export, automatic uncertainty resolution, concurrency and candidate
+reduction had not been implemented. Batch-3 evidence follows. Preserve the
+accepted reference and voice settings for any
 future model/audio comparisons.
 
 ## Exact scope of the first implementation batch
@@ -849,3 +857,223 @@ orchestration, provider configuration, comparison export, source decisions,
 segmentation, candidate budgets, the supervisor, or any existing job/config artifact
 in this batch. Batch 1 is implemented and verified only in the isolated worktree,
 with the completion evidence above; it has not been integrated into operation.
+
+## Batch 3 completion evidence — 2026-10-16
+
+### Implementation and isolation
+
+Continued from `961cf07` in `ai-dubbing-e2e-asr-batch1`, branch
+`fix/asr-correctness-20261016`. Implementation commits:
+
+- `ad92495dfb3089119edcbdafbfb6b8b6a7b9b0fa`: explicit subscription provider,
+  provenance, shared review contract/reducer, configuration and focused tests.
+- `0746705`: installed-CLI image-tool control and configuration-error handling.
+- `cb9fe6f`: targeted-review counters distinguish unconfirmed revisions from
+  source disputes; no change to the trial's normal path or provider identity.
+
+`aidub/codex_provider.py`, `aidub/providers.py` and `scripts/provider_codex.py`
+implement `codex_chatgpt`. Effective settings for **context, translation, review,
+back_translation and repair** were **gpt-6-luna / medium / ChatGPT**. The ignored
+`config/batch3.local.json` pins the already installed native CLI 0.163.0 and the
+approved relaxed reference. Credential contents were not inspected, printed or
+copied. The PATH wrapper has package-update logic; the trial uses the existing
+native executable directly. No installation, model download, environment
+migration, API billing or provider fallback was performed.
+
+Before a fresh call, CLI login status must report ChatGPT. Inherited API keys,
+gateway and remote-session overrides are stripped; the built-in OpenAI provider
+and ChatGPT auth are forced. A fresh temporary directory, read-only sandbox,
+ignored configuration/rules, no project instructions and disabled capabilities
+confine execution. Native feature-list checks confirmed shell, multi-agent,
+apps, plugins, hooks, memories, browser, computer, image generation and image
+viewing disabled. See [provider setup](luna-provider.md) for prerequisites and
+[official configuration controls](https://learn.chatgpt.com/docs/config-file/config-reference).
+
+Versioned provenance binds model/reasoning/auth, CLI version/hash, adapter and
+configuration source, review contract/code and confinement settings. It is
+checked on response reuse. The adapter atomically saves normalized JSON before
+optional diagnostics. Recovery reuses saved valid responses before auth preflight
+or another attempt. Interrupted/missing results and bounded budgets remain
+explicit. Permanent quota/auth/configuration failures stop actionably.
+
+`aidub/config.py` now retains explicit provider roles when applying preset
+aliases. `aidub/review.py` rejects `ok` with translation-fidelity issues,
+`uncertain_source` without `disputed=true`, unexplained disputes, unchanged
+revisions and incorrect IDs. Normal and targeted acceptance share a decision
+reducer; newly revised targeted text remains unconfirmed. Material source
+conflicts remain blocking. `scripts/overnight.py` prohibits legacy fallback for
+subscription providers. No automatic acoustic-resolution coordinator was added.
+
+### Focused tests and installed-CLI correction
+
+**36 focused tests passed in 2.611 s** after the CLI correction:
+`scripts.test_provider_codex`, `test_batch2`, `test_quality.ReviewTests`,
+`test_quality.ProviderAliasTests`, `test_core.TargetedReviewTests`,
+`test_hardening.ProviderRecoveryTests`, plus the exact compact-repair-text case
+in `test_performance.PerformanceTimingTests`. Fake CLI/provider fixtures cover
+all five roles, null normalization, auth selection, identity changes with
+model/reasoning/adapter/contract, semantic feedback, saved-response recovery,
+interrupted outcomes, budgets, fallback prohibition and batch-2 ordering.
+The final targeted counter correction also passed its **3 tests in 0.003 s**.
+No batch-1 model evaluation was repeated.
+
+The first integrated invocation found that CLI 0.163.0 rejects
+`tools.view_image=false` from current documentation. Both configured attempts
+stopped during config loading before a session/model response. Their exhausted
+identity and conservative `outcome_uncertain` records are retained; these are
+configuration rejections, not two completed model calls. Deliberately invalid
+strict-config probes, which cannot reach model execution, established the
+supported controls. The installed control is `features.view_image=false`, also
+confirmed in the effective feature list. Unknown configuration failures now
+stop without repeated attempts.
+
+The adapter/control correction created a new identity without resetting the
+old exhausted identity. The same trial resumed from completed source checkpoints.
+This is an observed initial failure plus recovery, not a pristine single-command
+benchmark. No per-line rescue or quality-setting changes were used.
+
+### Integrated trial and quality outcome
+
+Input: the requested operational checkout's
+`test-media/gameplay_oct15_first150s.mp4`; SHA-256
+`fc1e51fd5e878cdbf2b65e7b639ed2d2ba2e5e12004d7cd12ab0b24e53a6a7f1`.
+Duration 150.016667 s, H.264 2560×1440 at 60 fps, 9,001 frames. Ordinals:
+**mic 2 / game 1 / mixed 0**. Prior source-role evidence was checked alongside
+this clip's decoded tracks. The game is very quiet: 30-second correlation of
+mixed-minus-mic with game is 0.869, residual RMS 0.000610. Independently encoded
+AAC tracks do not add exactly; an initial arbitrary 0.97 correlation assertion
+failed. No pipeline quality gate was changed. Microphone ASR produced coherent
+Spanish commentary; final game-PCM and source/video-preservation gates passed.
+
+Invocation used this worktree's `bin/aidub`, ignored `config/batch3.local.json`,
+`auto`, new name `batch3_luna_first150s`, the specified ordinals and
+`--preset performance`. Provider/translation, synthesis and verification caches
+started empty and remained job-local. Existing weights and OS caches were not
+flushed. The approved reference, Qwen generation settings, four-valid-candidate
+target, bounded extras, trim and cumulative tempo cap 1.10 were unchanged.
+
+| Coverage | Count |
+| --- | ---: |
+| Retained cues | 21 |
+| Cues with English text | 21 |
+| Placed | 17 |
+| Omitted | 4 |
+
+English text presence does not imply review acceptance. Cue **5**,
+47.620–57.574 s, remains disputed. Cues **17**, 126.499–128.133 s; **18**,
+129.496–136.060 s; and **20**, 141.168–142.219 s, were revised in the last
+round and remain unconfirmed. All four omission reasons are
+`unresolved_source_or_translation`. Review statuses: 14 accepted drafts,
+3 confirmed revisions, 3 unconfirmed revisions, 1 disputed. No omission came
+from synthesis/fit or verification infrastructure failure.
+
+**88 fresh raw takes**: 67 passed candidate quality, 21 rejected; zero synthesis,
+assessment, hearing or waveform cache hits. Sixteen voiced cues reached four
+valid candidates. Cue 7 exhausted the existing eight-candidate limit with three
+valid candidates; the unchanged selector chose a passing take. No target,
+threshold or bound was lowered. **89 generated-audio hearings** completed,
+including one second verification; no failures, timeouts, restarts or CPU fallback.
+All 17 placed cues have completed ASR evidence. Selected tempo factors were 1.0.
+
+Normal export produced English and the still-required Spanish comparison,
+followed by validation and 12 risk-preview pairs. Listening artifact, relative
+to this worktree:
+`jobs/batch3_luna_first150s/output/english_PARTIAL.mp4`.
+This is **not listening approval**; use the earlier listening protocol for
+meaning, calmness, identity, fillers, pauses and endings.
+
+Required gates: **31/33 passed**. Failures:
+
+- `source_events_accounted`: unresolved unknown periodicity nomination
+  `candidate-74a81dba60f5`, 47.620–48.120 s. Periodicity is not proof of speech.
+- `source_uncertainty_resolved`: the four review-blocked cues above and two
+  unintelligible source spans, 45.923–45.977 s and 135.940–136.115 s. Second
+  hearings returned “Gracias”/“¡Gracias!”; these tiny spans were not promoted to
+  supported speech.
+
+The optional Docker check is unavailable (`not configured`); no named container
+was started. Other required gates passed, including generated verification,
+protected endings, placement windows, clipping/headroom, continuous game PCM,
+copied video bitstream/frames and unchanged protected files. Missing content
+still makes the job partial despite those passing protections.
+
+### Timing, calls and batch-2 evidence
+
+Rows below cover both pipeline invocations and are disjoint. Schedule
+subcomponents below are nested, not additional savings or elapsed time.
+
+| Scope | Seconds |
+| --- | ---: |
+| Inspect + extract | 1.30 |
+| Source transcription/segmentation/events | 21.82 |
+| Provider command intervals, including config rejections | 41.77 |
+| Synthesis/verification/scheduling, including initialization | 288.85 |
+| Mix + English/Spanish exports | 2.69 |
+| Validation | 13.61 |
+| Other: imports/preflights/risk previews and uninstrumented overhead, residual | 36.51 |
+| **Active pipeline total** | **406.55 (6m47s)** |
+
+Initial invocation: **27.49 s**; resume: **379.06 s**. Source work was fresh
+initially (21.05 s); subsequent source checkpoint checks total 0.76 s. Approximate
+CLI-diagnosis/fix pause: **83.48 s**. First start to final completion:
+**490.03 s (8m10s)**. The pause was not a GPU/display freeze.
+
+Within scheduling: raw Qwen inference **240.92 s**, model initialization
+**3.13 s**, clone prompt **1.07 s**, hearing intervals **32.87 s** including
+Whisper initialization, other local work about **10.87 s**. First generated-audio
+hearing: **6.60 s including startup**; 88 warm requests: median **0.291 s**,
+maximum **0.417 s**. Whisper loading alone is not separately instrumented.
+Primary source chunk stats: one fresh call, one worker load, zero cache hits,
+9.32 s loop nested within the source stage; second hearings and segmentation
+also occupy that stage.
+
+| Role | Model invocations | Command seconds | Evidence |
+| --- | ---: | ---: | --- |
+| Context | 1 | 7.37 successful + 0.43 config rejection | Valid context/glossary |
+| Translation | 1 | 5.78 | One 21-cue batch |
+| Review | 3 | 24.27 | Two valid rounds, one invalid response |
+| Back-translation | 1 | 3.92 | Cue 5, after round 1 |
+| Repair, separate role evidence | 1 | 4.46 | One tighter-window request; not applied |
+
+The pipeline used **8 command attempts**: 6 model invocations plus 2 initial
+pre-session config rejections. One review response used unchanged `revise` text
+for cues 17 and 20; validation feedback corrected it within attempt 2. No accepted
+response was re-called. The single extra repair call, limited to one attempt,
+used an actual cue with an explicitly artificial shorter timing window. It
+returned a compact revision and was **not accepted into the trial**, synthesized
+or used to rescue coverage. Including it gives **7 model invocations**, all
+Luna/medium/ChatGPT. Its 4.46 s is outside the pipeline total.
+
+Live batch-2 evidence: round 1 reviewed 21 cues, round 2 reviewed 7. Cue 5's
+back-translation is recorded only for round 1 and consumed in round 2. Round 2
+remained disputed, with **no unused final back-translation**. The clip requested
+**no compact repair**; compact-review-before-finalization remains covered
+**only by focused tests**, not by the extra repair contract check.
+
+### Preservation, cache compatibility and limits
+
+Operational Git status/diff and existing-job/overnight artifact-tree metadata
+signatures match the pre-work receipt. No operational lock was acquired and no
+existing job was resumed, migrated or edited. Ignored receipts/logs are in
+`jobs/.batch3-eval/`; output is in the new isolated job. Batches 1–2 and their
+baseline remain intact. Nothing was merged or pushed.
+
+New pending Codex calls have versioned identities. Accepted historical
+translations/context keep original provider provenance; raw synthesis/hearing
+and assessment inputs are unchanged. New review decision contracts create new
+review requests; incompatible older reviews are retained, not relabeled. Rollback
+uses retained stopped-checkout code/snapshots, without deleting histories or
+silently substituting providers. Legacy command adapter configs need explicit
+model/reasoning for new calls; they are not silently migrated to the new kind.
+
+This is the first integrated baseline with batches 1–3, including a configuration
+failure and recovery. It establishes **no speedup ratio** against a long job or
+warm run. Whole-video 4–7 h and 2–4 h targets remain unproven. One 21-cue batch
+does not test concurrency, long context, overnight quota or reboot recovery.
+The existing manifest retains its historical `provider_error` after successful
+resume while current `error` is clear. Interpret the current partial state and
+validation report alongside the attempt history; stale-error cleanup and broader
+metrics accounting were not expanded in this batch.
+Naturalness/identity and omissions require human review; do not promote this
+partial result to complete. Automatic source resolution, optional comparison
+export, concurrency and adaptive candidate reduction remain unimplemented.
