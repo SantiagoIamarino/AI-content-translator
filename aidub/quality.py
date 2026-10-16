@@ -165,12 +165,19 @@ def text_issues(expected: str, heard: str | None, language: str | None) -> list[
     return issues
 
 
-def assess_waveform(wav: np.ndarray, sr: int, reference: dict, *, min_speaker_features: int = 2) -> dict:
+def waveform_features(wav: np.ndarray, sr: int) -> dict:
     mono = to_mono(wav) if np.asarray(wav).ndim > 1 else np.asarray(wav, dtype=np.float32)
     mono = np.asarray(mono, dtype=np.float32)
-    duration = mono.size / float(sr) if sr else 0.0
-    reasons = edge_issues(mono, sr)
-    profile = speaker_profile(mono, sr)
+    return {"duration_sec": mono.size / float(sr) if sr else 0.0,
+            "edge_issues": edge_issues(mono, sr), "speaker": speaker_profile(mono, sr)}
+
+
+def assess_waveform(wav: np.ndarray, sr: int, reference: dict, *, min_speaker_features: int = 2,
+                    features: dict | None = None) -> dict:
+    features = features if features is not None else waveform_features(wav, sr)
+    duration = features["duration_sec"]
+    reasons = list(features["edge_issues"])
+    profile = features["speaker"]
     disagreed = speaker_disagreements(profile, reference, duration)
     # Pitch and brightness have to disagree together. Two brightness
     # measures are one phenomenon, and either one alone is not a rejection.
@@ -200,8 +207,9 @@ def assess_candidate(
     text_checker: str = "",
     names: list[str] | None = None,
     pacing_opts: dict | None = None,
+    features: dict | None = None,
 ) -> dict:
-    result = assess_waveform(wav, sr, reference, min_speaker_features=min_speaker_features)
+    result = assess_waveform(wav, sr, reference, min_speaker_features=min_speaker_features, features=features)
     if not speaker_proxy_enabled:
         result["reasons"] = [r for r in result["reasons"] if r != "wrong_speaker"]
     if text_checker == "sequence-v1":

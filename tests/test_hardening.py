@@ -22,7 +22,7 @@ from aidub.handoff import translation_request
 from aidub.job import Job, JobLock
 from aidub.ledger import checkpoint_matches
 from aidub.media import describe_streams, frame_check, probe, validate_container, video_packet_span
-from aidub.pipeline import _LineAssessor, run_job, stage_inspect, stage_extract, stage_mix, stage_validate
+from aidub.pipeline import _LineAssessor, VerificationUnavailable, run_job, stage_inspect, stage_extract, stage_mix, stage_validate
 from aidub.providers import ProviderError, invoke_checked
 from aidub.quality import assess_candidate, speaker_profile
 from aidub.schedule import synth_cache_key
@@ -30,7 +30,7 @@ from aidub.segment import build_segments, build_segments_file
 from aidub.streaming import alignment_meta, stream_mix, validate_audio_files
 from aidub.transcription import transcribe_chunks, owned_segments
 from aidub.util import fingerprint, read_json, write_json
-from aidub.verification import verification_identity
+from aidub.verification import verification_identity, verification_complete
 
 
 def request(n=1):
@@ -197,6 +197,43 @@ with patch("aidub.unattended.run_job", side_effect=fake), patch("aidub.unattende
 
 
 class WorkerTests(unittest.TestCase):
+    def test_timeout_preserves_original_error_and_unreaped_ownership(self):
+        from unittest.mock import Mock
+        client = AsrClient(sys.executable)
+        proc = Mock(); proc.poll.return_value = None
+        proc.wait.side_effect = subprocess.TimeoutExpired(['fake-worker'], 5)
+        client.proc = proc
+        client._stderr = tempfile.TemporaryFile()
+        client._stderr.write(b'original worker diagnostics'); client._stderr.flush()
+        with self.assertRaisesRegex(RuntimeError, 'Whisper worker timed out') as error:
+            client._read(.001)
+        self.assertIs(client.proc, proc)
+        self.assertIn('cleanup failed', ' '.join(error.exception.__notes__))
+        self.assertIn('original worker diagnostics', str(error.exception))
+        with patch('aidub.asr_client.subprocess.Popen') as spawn:
+            with self.assertRaisesRegex(RuntimeError, 'not been reaped'):
+                client.start()
+            spawn.assert_not_called()
+        proc.wait.side_effect = None
+        client.close(force=True)
+        self.assertIsNone(client.proc)
+
+    def test_startup_error_is_not_replaced_by_cleanup_error(self):
+        import io
+        from unittest.mock import Mock
+        client = AsrClient(sys.executable)
+        proc = Mock(); proc.poll.return_value = None
+        proc.stdout = io.StringIO('')
+        proc.wait.side_effect = subprocess.TimeoutExpired(['fake-worker'], 5)
+        with patch('aidub.asr_client.subprocess.Popen', return_value=proc), \
+             patch.object(client, '_read', side_effect=RuntimeError('initiating startup failure')):
+            with self.assertRaisesRegex(RuntimeError, 'initiating startup failure') as error:
+                client.start()
+        self.assertIs(client.proc, proc)
+        self.assertIn('cleanup failed', ' '.join(error.exception.__notes__))
+        proc.wait.side_effect = None
+        client.close(force=True)
+
     def test_stderr_beyond_pipe_capacity_and_shutdown(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td); script = root / 'worker.py'; log = root / 'worker.log'
@@ -259,9 +296,232 @@ class VerificationIdentityTests(unittest.TestCase):
                 _LineAssessor(job, cfg, profile, 'reference')(meta, 'Hello there friend')
                 sf.write(wav, audio * 0.9, 16000, subtype='FLOAT')
                 _LineAssessor(job, cfg, profile, 'reference')(meta, 'Hello there friend')
-                self.assertEqual(transcribe.call_count, 5)
+                # A checker-only decision change reuses the raw hearing.
+                self.assertEqual(transcribe.call_count, 4)
                 self.assertEqual(before_synth, synth_cache_key('Hello there friend', 'reference', 'ref', 43, cfg['qwen3']))
             self.assertFalse(checkpoint_matches({'english':'Hello','reference_sha256':'reference'}, 'Hello', 'reference', verification_identity='new'))
+
+
+class AsrEvidenceTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.cfg = load_config()
+        weights = self.root / 'weights.pt'; weights.write_bytes(b'fixture-weights')
+        self.cfg['models'] = {'whisper_path': str(weights)}
+        self.cfg['quality'] = {'asr_device': 'cpu', 'text_checker': 'sequence-v1', 'second_verification': True}
+        self.cfg['voice_selection'] = {'enabled': False}
+        self.audio = (.08 * np.sin(2 * np.pi * 130 * np.arange(16000) / 16000)).astype('float32')
+        self.wav = self.root / 'take.wav'; sf.write(self.wav, self.audio, 16000, subtype='FLOAT')
+        self.meta = {'path': str(self.wav), 'cache_key': 'unchanged-synthesis'}
+        self.profile = speaker_profile(self.audio, 16000)
+        self.job = Job.create(self.root / 'job', 'fixture', 'unused.mp4', self.cfg)
+        self.version = patch('aidub.verification._whisper_version', return_value='fixture-version')
+        self.version.start()
+
+    def tearDown(self):
+        self.version.stop()
+        self.tmp.cleanup()
+
+    def assessor(self):
+        return _LineAssessor(self.job, self.cfg, self.profile, 'reference')
+
+    def hearing(self, text='Hello there my friend'):
+        return {'text': text, 'language': 'en', 'mean_probability': .98}
+
+    def test_ranking_only_changes_reuse_assessment_and_raw_evidence(self):
+        self.cfg['voice_selection'] = {'enabled': True, 'candidates': 4}
+        with patch.object(_LineAssessor, '_transcribe', return_value=self.hearing()) as hear:
+            first = self.assessor()(self.meta, 'Hello there my friend')
+            self.cfg['voice_selection'].update(candidates=2, max_extra_attempts=1, weights={'pace': 10})
+            with patch('aidub.pipeline.waveform_features', side_effect=AssertionError('waveform recomputed')):
+                again = self.assessor()(self.meta, 'Hello there my friend')
+            self.assertEqual(first['verification_key'], again['verification_key'])
+            self.assertEqual(hear.call_count, 1)
+
+    def test_pacing_threshold_change_reassesses_without_rehearing(self):
+        self.cfg['voice_selection'] = {'enabled': True}
+        with patch.object(_LineAssessor, '_transcribe', return_value=self.hearing()) as hear:
+            first = self.assessor()(self.meta, 'Hello there my friend')
+            self.assertTrue(first['ok'])
+            self.cfg['voice_selection']['reject_rate_high'] = 1.0
+            with patch('aidub.pipeline.waveform_features', side_effect=AssertionError('facts recomputed')):
+                changed = self.assessor()(self.meta, 'Hello there my friend')
+            self.assertNotEqual(first['verification_key'], changed['verification_key'])
+            self.assertIn('abnormal_rate', changed['reasons'])
+            self.assertTrue(verification_complete(changed))
+            self.assertEqual(hear.call_count, 1)
+
+    def test_actual_audio_failure_stays_failed_in_cache(self):
+        sf.write(self.wav, np.zeros(16000, dtype='float32'), 16000)
+        with patch.object(_LineAssessor, '_transcribe', return_value=self.hearing()) as hear:
+            first = self.assessor()(self.meta, 'Hello there my friend')
+            again = self.assessor()(self.meta, 'Hello there my friend')
+            self.assertFalse(first['ok']); self.assertFalse(again['ok'])
+            self.assertTrue(verification_complete(again))
+            self.assertEqual(hear.call_count, 1)
+
+    def test_fallback_retains_names_and_device_identity(self):
+        self.cfg['quality']['asr_device'] = 'cuda'
+        assessor = self.assessor(); assessor.set_names(['Planet Zoo', 'Planet Zoo'])
+        calls = []
+        def hear(path, second=False):
+            calls.append(assessor.device)
+            if assessor.device == 'cuda':
+                raise RuntimeError('CUDA fixture failed')
+            return self.hearing()
+        with patch.object(assessor, '_transcribe', side_effect=hear):
+            result = assessor(self.meta, 'Hello there my friend')
+        self.assertEqual(calls, ['cuda', 'cuda', 'cpu'])
+        self.assertEqual(result['asr_device'], 'cpu')
+        self.assertEqual(result['hearings'][0]['device'], 'cpu')
+        cpu = copy.deepcopy(self.cfg); cpu['quality']['asr_device'] = 'cpu'
+        expected = fingerprint({'verification': verification_identity(cpu, 'reference'), 'names': ['Planet Zoo']})
+        self.assertEqual(assessor.identity, expected)
+        resumed = self.assessor(); resumed.set_names(['Planet Zoo'])
+        with patch.object(resumed, '_transcribe', side_effect=AssertionError('fallback evidence lost')):
+            self.assertTrue(verification_complete(resumed(self.meta, 'Hello there my friend')))
+        renamed = self.assessor(); renamed.set_names(['Different name'])
+        with patch.object(renamed, '_transcribe', side_effect=AssertionError('names changed raw ASR')):
+            renamed(self.meta, 'Hello there my friend')
+        self.assertNotEqual(renamed.identity, resumed.identity)
+
+    def test_cached_gpu_hearing_does_not_undo_cpu_fallback(self):
+        self.cfg['quality']['asr_device'] = 'cuda'
+        assessor = self.assessor()
+        with patch.object(assessor, '_transcribe', return_value=self.hearing()) as hear:
+            assessor._hear(str(self.wav))
+            assessor._set_device('cpu')
+            result = assessor._hear(str(self.wav))
+            self.assertEqual(hear.call_count, 2)
+            self.assertEqual(result['_aidub_hearing']['device'], 'cpu')
+            self.assertEqual(assessor.device, 'cpu')
+
+    def test_exhaustion_is_persisted_across_resume_without_new_hearings(self):
+        self.cfg['quality']['asr_device'] = 'cuda'
+        with patch.object(_LineAssessor, '_transcribe', side_effect=RuntimeError('inference failed')) as hear:
+            with self.assertRaisesRegex(VerificationUnavailable, 'inference failed'):
+                self.assessor()(self.meta, 'Hello there my friend')
+            self.assertEqual(hear.call_count, 3)
+            with self.assertRaises(VerificationUnavailable):
+                self.assessor()(self.meta, 'Hello there my friend')
+            self.assertEqual(hear.call_count, 3)
+        state = read_json(next((self.job.dir / 'cache/asr').glob('*.state.json')))
+        self.assertEqual(len(state['attempts']), 3)
+
+    def test_interrupted_second_hearing_resumes_only_missing_evidence(self):
+        first = self.assessor()
+        # "okay" is an accepted soft extra, triggering the independent hearing.
+        calls = []
+        def hear(path, second=False):
+            calls.append(second)
+            if second:
+                raise KeyboardInterrupt('interrupted follow-up')
+            return self.hearing('Okay hello there my friend')
+        with patch.object(first, '_transcribe', side_effect=hear):
+            with self.assertRaises(KeyboardInterrupt):
+                first(self.meta, 'Hello there my friend')
+        self.assertEqual(calls, [False, True])
+        resumed = self.assessor()
+        with patch.object(resumed, '_transcribe', return_value=self.hearing()) as follow:
+            result = resumed(self.meta, 'Hello there my friend')
+        follow.assert_called_once_with(str(self.wav), second=True)
+        self.assertTrue(verification_complete(result))
+        self.assertEqual(len(result['hearings']), 2)
+
+    def test_failed_second_hearing_is_explicitly_incomplete_and_not_a_cache_pass(self):
+        def hear(path, second=False):
+            if second:
+                raise RuntimeError('second hearing unavailable')
+            return self.hearing('Okay hello there my friend')
+        with patch.object(_LineAssessor, '_transcribe', side_effect=hear) as calls:
+            with self.assertRaises(VerificationUnavailable):
+                self.assessor()(self.meta, 'Hello there my friend')
+            self.assertEqual(calls.call_count, 3)  # First hearing + two CPU attempts.
+            with self.assertRaises(VerificationUnavailable):
+                self.assessor()(self.meta, 'Hello there my friend')
+            self.assertEqual(calls.call_count, 3)
+        record = read_json(next((self.job.dir / 'cache/quality').glob('*.json')))
+        self.assertFalse(record['verification_complete'])
+        self.assertEqual(record['second_verification']['status'], 'incomplete')
+        self.assertFalse(verification_complete(record))
+
+    def test_processed_and_prefix_infrastructure_failures_do_not_request_new_candidates(self):
+        with patch.object(_LineAssessor, '_transcribe', side_effect=RuntimeError('worker unavailable')):
+            with self.assertRaises(VerificationUnavailable):
+                self.assessor().verify_prefix(self.meta, 'uh')
+            processed = dict(self.meta, cache_key='same-raw-take')
+            with self.assertRaises(VerificationUnavailable):
+                self.assessor()(processed, 'Hello there my friend')
+
+    def test_legacy_incomplete_follow_up_is_not_complete(self):
+        self.assertFalse(verification_complete({'ok': True, 'asr_text': 'Hello',
+                                               'second_verification': {'error': 'timeout'}}))
+        self.assertTrue(verification_complete({'ok': False, 'asr_text': 'Wrong words'}))
+
+    def test_corrupt_waveform_record_recomputes_facts_without_new_hearing(self):
+        with patch.object(_LineAssessor, '_transcribe', return_value=self.hearing()) as hear:
+            self.assessor()(self.meta, 'Hello there my friend')
+            feature = next((self.job.dir / 'cache/waveform').glob('*.json'))
+            feature.write_text('{incomplete')
+            self.cfg['quality']['checker'] = 'reassess'
+            result = self.assessor()(self.meta, 'Hello there my friend')
+            self.assertTrue(result['ok'])
+            self.assertEqual(hear.call_count, 1)
+
+    def test_infrastructure_failure_stops_before_export_or_synthesis_retry(self):
+        self.job.data['timeline'] = [{'id': 1, 'start': 0, 'end': 1, 'spanish': 'Hola',
+                                     'english': 'Hello', 'english_original': 'Hello'}]
+        self.job.stage('translation').update(status='complete',
+            fingerprint=__import__('aidub.pipeline', fromlist=['translation_fingerprint']).translation_fingerprint(self.job.data['timeline']))
+        self.job.save()
+        with patch('aidub.pipeline.require_schedule_defaults'), \
+             patch('aidub.pipeline.stage_inspect', return_value={}), \
+             patch('aidub.pipeline.stage_extract', return_value={}), \
+             patch('aidub.pipeline.stage_transcribe'), \
+             patch('aidub.pipeline.restore_translation_if_response_matches'), \
+             patch('aidub.pipeline.stage_schedule', side_effect=VerificationUnavailable('pending ASR evidence')), \
+             patch('aidub.pipeline.stage_mix') as mix, \
+             patch('aidub.pipeline.stage_validate') as validate, \
+             patch('aidub.pipeline.synthesize_cached') as synth:
+            self.assertEqual(run_job(self.job), 1)
+            mix.assert_not_called(); validate.assert_not_called(); synth.assert_not_called()
+        self.assertIn('pending ASR evidence', Job(self.job.dir).error)
+
+    def test_unreaped_worker_stops_recovery_and_keeps_initiating_error(self):
+        from unittest.mock import Mock
+        assessor = self.assessor()
+        client = Mock(); client.close.side_effect = RuntimeError('cannot reap')
+        assessor.client = client
+        with patch.object(assessor, '_transcribe', side_effect=RuntimeError('original inference error')) as hear:
+            with self.assertRaisesRegex(VerificationUnavailable, 'original inference error'):
+                assessor(self.meta, 'Hello there my friend')
+            self.assertEqual(hear.call_count, 1)
+        self.assertIs(assessor.client, client)
+        with patch.object(_LineAssessor, '_transcribe') as hear:
+            with self.assertRaisesRegex(VerificationUnavailable, 'not reaped'):
+                self.assessor()(self.meta, 'Hello there my friend')
+            hear.assert_not_called()
+        # Another WAV or checker must not evade job-wide unreaped ownership.
+        other = self.root / 'other.wav'; sf.write(other, self.audio * .5, 16000)
+        with self.assertRaisesRegex(VerificationUnavailable, 'not reaped'):
+            self.assessor()({'path': str(other)}, 'Other words')
+        client.close.side_effect = None
+        assessor.close()
+        self.assertFalse(read_json(assessor._ownership_path)['unreaped'])
+
+    def test_assessor_final_cleanup_does_not_mask_initiating_failure(self):
+        from unittest.mock import Mock
+        assessor = self.assessor(); client = Mock()
+        client.close.side_effect = RuntimeError('reap failed'); assessor.client = client
+        original = VerificationUnavailable('original verification failure')
+        with self.assertRaisesRegex(VerificationUnavailable, 'original verification failure'):
+            try:
+                raise original
+            finally:
+                assessor.close()
+        self.assertIs(assessor.client, client)
+        self.assertIn('reap failed', ' '.join(original.__notes__))
 
 
 class StreamingTests(unittest.TestCase):

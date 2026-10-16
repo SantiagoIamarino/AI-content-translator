@@ -23,6 +23,16 @@ class AsrClient:
         self._lines = queue.Queue(maxsize=256)
         self._reader = None
         self._reader_stop = threading.Event()
+        self._closing = False
+        self.cleanup_error = None
+
+    def _abort(self, error: BaseException) -> None:
+        """Keep the initiating exception even if bounded cleanup also fails."""
+        try:
+            self.close(force=True)
+        except Exception as cleanup:
+            self.cleanup_error = str(cleanup)
+            error.add_note(f"Whisper cleanup failed; process ownership retained: {cleanup}")
 
     def _diagnostic(self) -> str:
         if self._stderr is None:
@@ -37,6 +47,8 @@ class AsrClient:
         return os.pread(self._stderr.fileno(), min(size, 8000), max(0, size - 8000)).decode("utf-8", "replace")
 
     def start(self) -> None:
+        if self._closing:
+            raise RuntimeError(f"Whisper worker has not been reaped; refusing replacement. {self.cleanup_error}")
         if self.proc is not None and self.proc.poll() is None:
             return
         if self.proc is not None:
@@ -51,8 +63,12 @@ class AsrClient:
         else:
             self._stderr = tempfile.TemporaryFile("w+b")
         command = self.worker_command or [self.python, "-m", "aidub.asr_worker", "--model", self.model, "--device", self.device]
-        self.proc = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                     stderr=self._stderr, text=True, env=env)
+        try:
+            self.proc = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                         stderr=self._stderr, text=True, env=env)
+        except BaseException as exc:
+            self._abort(exc)
+            raise
         self._lines = queue.Queue(maxsize=256)
         self._reader_stop = threading.Event()
         stream, lines = self.proc.stdout, self._lines
@@ -78,8 +94,9 @@ class AsrClient:
             ready = self._read(self.startup_timeout)
             if not ready.get("ready"):
                 raise RuntimeError(f"Whisper worker was not ready: {ready}")
-        except Exception:
-            self.close()
+        except BaseException as exc:
+            if not self._closing:
+                self._abort(exc)
             raise
 
     def _read(self, timeout: float | None = None) -> dict:
@@ -87,22 +104,29 @@ class AsrClient:
             line = self._lines.get(timeout=timeout or self.request_timeout)
         except queue.Empty:
             detail = self._diagnostic()
-            self.close(force=True)
-            raise RuntimeError(f"Whisper worker timed out on {self.device}. Log: {self.log_path}. {detail}")
+            error = RuntimeError(f"Whisper worker timed out on {self.device}. Log: {self.log_path}. {detail}")
+            self._abort(error)
+            raise error
         if line is None:
-            raise RuntimeError(f"Whisper worker stopped on {self.device}. Log: {self.log_path}. {self._diagnostic()}")
+            error = RuntimeError(f"Whisper worker stopped on {self.device}. Log: {self.log_path}. {self._diagnostic()}")
+            self._abort(error)
+            raise error
         try:
             data = json.loads(line)
             if not isinstance(data, dict):
                 raise ValueError("JSON object expected")
             return data
         except ValueError as exc:
-            raise RuntimeError(f"Invalid worker JSON protocol: {line[:500]}. {self._diagnostic()}") from exc
+            error = RuntimeError(f"Invalid worker JSON protocol: {line[:500]}. {self._diagnostic()}")
+            self._abort(error)
+            raise error from exc
 
     def transcribe(self, path: str, language: str = "", *, word_timestamps=False,
                    full_result=False, timeout: float | None = None, options: dict | None = None) -> dict:
         if self.proc is None or self.proc.poll() is not None:
             self.start()
+        if self._closing:
+            raise RuntimeError("Whisper worker is awaiting reap; refusing another request")
         payload = {"cmd": "transcribe", "path": path, "language": language or None,
                    "word_timestamps": word_timestamps, "full_result": full_result}
         if options:
@@ -111,29 +135,42 @@ class AsrClient:
             self.proc.stdin.write(json.dumps(payload) + "\n")
             self.proc.stdin.flush()
         except (BrokenPipeError, OSError) as exc:
-            raise RuntimeError(f"Whisper worker pipe failed. {self._diagnostic()}") from exc
+            error = RuntimeError(f"Whisper worker pipe failed. {self._diagnostic()}")
+            self._abort(error)
+            raise error from exc
         data = self._read(timeout)
         if data.get("error"):
             raise RuntimeError(f"{data['error']}. Log: {self.log_path}. {self._diagnostic()}")
         return data
 
     def close(self, *, force=False) -> None:
-        proc, self.proc = self.proc, None
+        proc = self.proc
         interrupted = None
         if proc is not None:
-            if proc.poll() is None and force:
-                proc.kill()
-                proc.wait(timeout=5)
-            elif proc.poll() is None:
-                try:
-                    proc.stdin.write('{"cmd":"shutdown"}\n')
-                    proc.stdin.flush()
-                    proc.wait(timeout=10)
-                except BaseException as exc:
+            self._closing = True
+            try:
+                if proc.poll() is None and not force:
+                    try:
+                        proc.stdin.write('{"cmd":"shutdown"}\n')
+                        proc.stdin.flush()
+                        proc.wait(timeout=10)
+                    except BaseException as exc:
+                        if not isinstance(exc, Exception):
+                            interrupted = exc
+                        proc.kill()
+                        proc.wait(timeout=5)
+                elif proc.poll() is None:
                     proc.kill()
                     proc.wait(timeout=5)
-                    if not isinstance(exc, Exception):
-                        interrupted = exc
+                else:
+                    proc.wait(timeout=5)
+            except BaseException as exc:
+                self.cleanup_error = f"pid={proc.pid}: {type(exc).__name__}: {exc}"
+                # Retain process, pipes and diagnostics until a later close reaps it.
+                if interrupted is not None:
+                    interrupted.add_note(self.cleanup_error)
+                    raise interrupted
+                raise
             if proc.stdin:
                 proc.stdin.close()
             if self._reader:
@@ -141,9 +178,12 @@ class AsrClient:
                 self._reader.join(timeout=2)
             if proc.stdout:
                 proc.stdout.close()
+            self.proc = None
         if self._stderr:
             self._stderr.close()
             self._stderr = None
+        self._closing = False
+        self.cleanup_error = None
         if interrupted is not None:
             raise interrupted
 

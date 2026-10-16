@@ -2,6 +2,7 @@ import shutil
 import copy
 import soundfile as sf
 import subprocess
+import sys
 import time
 import traceback
 from contextlib import nullcontext
@@ -47,8 +48,9 @@ from .linework import account_lines, collect_line, collect_line_best_of_n, revis
 from .quality_flow import load_context as load_context_for
 from .media import align_to_video, assert_extract_preserves_origin, bitstream_md5, describe_streams, extract_audio_cmd, probe, resolve_ordinal, run_cmd, validate_container, frame_check, encoded_audio_metrics
 from .report import validation_markdown
-from .quality import assess_candidate, speaker_profile
-from .verification import candidate_quality_key, verification_identity, file_identity
+from .quality import assess_candidate, speaker_profile, waveform_features
+from .verification import (candidate_quality_key, verification_identity, file_identity,
+                           hearing_identity, asr_request_settings, waveform_identity, verification_complete)
 from .metrics import stage_call, provider_metrics
 from .storage import storage_budget
 from .schedule import alternate_seed, apply_blockers, corrective_tempo, plan_fit, primary_seed
@@ -524,29 +526,127 @@ def _needed_keys(job, cfg, ref_sha, ref_text) -> list[tuple]:
     return needed
 
 
+class VerificationUnavailable(RuntimeError):
+    """Infrastructure evidence is incomplete; resume verification, never regenerate speech."""
+
+
 class _LineAssessor:
     def __init__(self, job: Job, cfg: dict, profile: dict, ref_sha: str):
         self.job = job
         self.cfg = cfg
         self.profile = profile
         self.ref_sha = ref_sha
+        self._ownership_path = job.dir / "cache/asr/unreaped.json"
+        if self._ownership_path.is_file() and read_json(self._ownership_path).get("unreaped"):
+            raise VerificationUnavailable(f"An ASR worker was not reaped; refusing another worker. "
+                                          f"Evidence: {self._ownership_path}")
         self.client: AsrClient | None = None
         self.device = str((cfg.get("quality") or {}).get("asr_device") or "cuda")
-        self.disabled = False
-        self.identity = verification_identity(cfg, ref_sha)
-        self.last_asr_error = None
-        self.stats = {"asr_calls": 0, "quality_cache_hits": 0, "second_verifications": 0}
+        self.names: list[str] = []
+        self.identity = self._identity(self.device)
+        self._unreaped_episode = None
+        self.stats = {"asr_calls": 0, "quality_cache_hits": 0, "second_verifications": 0,
+                      "hearing_cache_hits": 0, "waveform_cache_hits": 0}
         quality_cfg = cfg.get("quality") or {}
         self.text_checker = str(quality_cfg.get("text_checker") or "")
         self.second_verification = bool(quality_cfg.get("second_verification")) and self.text_checker == "sequence-v1"
         selection = voice_selection_settings(cfg)
         self.pacing_opts = selection or None
-        self.names: list[str] = []
+
+    def _identity(self, device: str) -> str:
+        effective = copy.deepcopy(self.cfg)
+        effective.setdefault("quality", {})["asr_device"] = device
+        base = verification_identity(effective, self.ref_sha)
+        return fingerprint({"verification": base, "names": self.names}) if self.names else base
 
     def set_names(self, names: list[str]) -> None:
         self.names = sorted(set(names))
-        if self.names:
-            self.identity = fingerprint({"verification": self.identity, "names": self.names})
+        self.identity = self._identity(self.device)
+
+    def _set_device(self, device: str) -> None:
+        if device != self.device and self.client is not None:
+            self.client.close(force=True)  # Never lose ownership of an unreaped worker.
+            self.client = None
+        self.device = device
+        self.identity = self._identity(device)
+
+    def _hear(self, path: str, *, second: bool = False) -> dict:
+        """Checkpoint each actual hearing before assessment; persist its recovery budget."""
+        waveform = file_identity(Path(path))
+        requested = str((self.cfg.get("quality") or {}).get("asr_device") or "cuda")
+        devices = [requested] + (["cpu"] if requested != "cpu" else [])
+        root = self.job.dir / "cache/asr"
+        keys = {d: fingerprint({"waveform": waveform, "hearing": hearing_identity(self.cfg, d, second)})
+                for d in devices}
+        # Once this pass has fallen back, cached GPU results must not switch it
+        # back and destabilize focused-prefix verification's environment binding.
+        cache_devices = ["cpu"] if self.device == "cpu" else devices
+        for device in cache_devices:
+            key = keys[device]
+            saved_path = root / f"{key}.json"
+            if saved_path.is_file():
+                try:
+                    saved = read_json(saved_path)
+                    if (saved.get("key") == key and saved.get("schema") == "aidub.hearing.v1"
+                            and saved.get("result_sha256") == fingerprint(saved["result"])
+                            and isinstance(saved["result"].get("text"), str)):
+                        self._set_device(device)
+                        self.stats["hearing_cache_hits"] += 1
+                        return dict(saved["result"], _aidub_hearing={"key": key, "device": device})
+                except (ValueError, KeyError, TypeError):
+                    pass
+        # Stable across resumes, fallback, ranking and assessment-only changes.
+        episode = fingerprint({"requested": keys[requested], "recovery_version": 1})
+        state_path = root / f"{episode}.state.json"
+        state = read_json(state_path) if state_path.is_file() else {
+            "schema": "aidub.hearing_recovery.v1", "identity": episode, "attempts": [],
+            "devices": [self.device, self.device] + (["cpu"] if self.device != "cpu" else [])}
+        if state.get("unreaped"):
+            raise VerificationUnavailable(f"ASR worker was not reaped; refusing replacement. Evidence: {state_path}")
+        for attempt in state["attempts"]:
+            if attempt["status"] == "invoking":
+                attempt.update(status="interrupted", error="Prior hearing did not checkpoint a result")
+        write_json(state_path, state)
+        while len(state["attempts"]) < len(state["devices"]):
+            device = state["devices"][len(state["attempts"])]
+            if self.device == "cpu" and device != "cpu":
+                state["attempts"].append({"device": device, "status": "skipped_after_fallback"})
+                write_json(state_path, state)
+                continue
+            self._set_device(device)
+            attempt = {"device": device, "status": "invoking", "started_at": time.time()}
+            state["attempts"].append(attempt)
+            write_json(state_path, state)
+            try:
+                self.stats["asr_calls"] += 1
+                result = self._transcribe(path, second=True) if second else self._transcribe(path)
+                if not isinstance(result.get("text"), str):
+                    raise RuntimeError("ASR returned no text evidence")
+                key = keys[device]
+                write_json(root / f"{key}.json", {"schema": "aidub.hearing.v1", "key": key,
+                    "waveform": waveform, "hearing_identity": hearing_identity(self.cfg, device, second),
+                    "device": device, "result": result, "result_sha256": fingerprint(result)})
+                attempt.update(status="complete", ended_at=time.time(), hearing_key=key)
+                write_json(state_path, state)
+                return dict(result, _aidub_hearing={"key": key, "device": device})
+            except Exception as exc:
+                attempt.update(status="failed", ended_at=time.time(), error=f"{type(exc).__name__}: {exc}",
+                               notes=list(getattr(exc, "__notes__", [])))
+                if self.client is not None:
+                    try:
+                        self.client.close(force=True)
+                        self.client = None
+                    except Exception as cleanup:
+                        attempt["cleanup_error"] = str(cleanup)
+                        state["unreaped"] = True
+                        self._unreaped_episode = (state_path, state)
+                        write_json(self._ownership_path, {"unreaped": True, "episode": str(state_path),
+                                                         "error": str(cleanup)})
+                write_json(state_path, state)
+                if state.get("unreaped"):
+                    break
+        raise VerificationUnavailable(f"ASR evidence incomplete: {path}. Recovery exhausted or worker unreaped. "
+                                      f"Evidence: {state_path}; initiating error: {state['attempts'][-1]['error']}")
 
     def __call__(self, meta: dict, text: str) -> dict:
         key = candidate_quality_key(meta, text, self.identity)
@@ -554,40 +654,47 @@ class _LineAssessor:
         if path.is_file():
             try:
                 quality = read_json(path)
-                if quality.get("verification_key") == key and not quality.get("asr_skipped"):
+                if quality.get("verification_key") == key and verification_complete(quality):
                     self.stats["quality_cache_hits"] += 1
                     return quality
             except (ValueError, OSError):
                 pass
         wav, sr = read_audio(Path(meta["path"]))
-        asr_text = None
-        asr_language = None
-        asr_probability = None
-        skipped = self.disabled
-        if not self.disabled:
+        feature_key = waveform_identity(Path(meta["path"]))
+        feature_path = self.job.dir / "cache/waveform" / f"{feature_key}.json"
+        features = None
+        if feature_path.is_file():
             try:
-                self.stats["asr_calls"] += 1
-                result = self._transcribe(str(meta["path"]))
-                asr_text = result.get("text")
-                asr_language = result.get("language")
-                asr_probability = result.get("mean_probability")
-            except Exception as exc:
-                print(f"asr unavailable ({exc}); waveform checks still apply")
-                self.disabled = True
-                self.last_asr_error = str(exc)
-                skipped = True
+                saved = read_json(feature_path)
+                if (saved.get("key") == feature_key and saved.get("schema") == "aidub.waveform.v1"
+                        and saved.get("features_sha256") == fingerprint(saved["features"])):
+                    features = saved["features"]
+                    self.stats["waveform_cache_hits"] += 1
+            except (ValueError, KeyError, TypeError):
+                pass
+        if features is None:
+            features = waveform_features(to_mono(wav), sr)
+            write_json(feature_path, {"schema": "aidub.waveform.v1", "key": feature_key,
+                                     "features": features, "features_sha256": fingerprint(features)})
+        result = self._hear(str(meta["path"]))
+        asr_text, asr_language = result["text"], result.get("language")
+        asr_probability = result.get("mean_probability")
+        first_hearing = result["_aidub_hearing"]
         kwargs = dict(
             min_speaker_features=int((self.cfg.get("quality") or {}).get("min_speaker_features", 2)),
             speaker_proxy_enabled=bool((self.cfg.get("quality") or {}).get("speaker_proxy_enabled", True)),
-            text_checker=self.text_checker, names=self.names, pacing_opts=self.pacing_opts,
+            text_checker=self.text_checker, names=self.names, pacing_opts=self.pacing_opts, features=features,
         )
         result = assess_candidate(to_mono(wav), sr, text, self.profile, asr_text=asr_text, asr_language=asr_language,
-                                  asr_skipped=skipped, **kwargs)
+                                  asr_skipped=False, **kwargs)
         result["asr_mean_probability"] = asr_probability
-        if self.second_verification and result.get("disputed") and result.get("ok") and not self.disabled:
+        result.update(verification_complete=True, verification_status="complete", hearings=[first_hearing])
+        unavailable = None
+        if self.second_verification and result.get("disputed") and result.get("ok"):
             try:
                 self.stats["second_verifications"] += 1
-                again = self._transcribe(str(meta["path"]), second=True)
+                again = self._hear(str(meta["path"]), second=True)
+                result["hearings"].append(again["_aidub_hearing"])
                 second = assess_candidate(to_mono(wav), sr, text, self.profile, asr_text=again.get("text"),
                                           asr_language=again.get("language"), **kwargs)
                 result["second_verification"] = {"asr_text": again.get("text"), "text_check": second.get("text_check"),
@@ -603,64 +710,52 @@ class _LineAssessor:
                     result["short_phrase_unverified"] = True
                 else:
                     result["text_disputed"] = True
-            except Exception as exc:
-                result["second_verification"] = {"error": str(exc)}
+            except VerificationUnavailable as exc:
+                unavailable = exc
+                result["second_verification"] = {"error": str(exc), "status": "incomplete"}
+                result.update(verification_complete=False, verification_status="incomplete")
         key = candidate_quality_key(meta, text, self.identity)
         path = self.job.dir / "cache/quality" / f"{key}.json"
         result["verification_key"] = key
         result["asr_device"] = self.device
-        result["asr_error"] = self.last_asr_error if skipped else None
-        if not result.get("asr_skipped"):
-            write_json(path, result)
+        result["asr_error"] = str(unavailable) if unavailable else None
+        write_json(path, result)
+        if unavailable is not None:
+            raise unavailable
         return result
 
     def verify_prefix(self, meta, prefix):
-        if self.disabled:
-            return {"verified":False,"reason":"candidate_asr_unavailable"}
         def hear(path):
-            self.stats["asr_calls"] += 1
             self.stats["prefix_hearings"] = self.stats.get("prefix_hearings",0)+1
-            return self._transcribe(path,second=True)
+            return self._hear(path, second=True)
         try:
             result = verify_prefix(self.job.dir,meta,prefix,lambda:self.identity,hear)
             self.stats["prefix_cache_hits"] = self.stats.get("prefix_cache_hits",0)+int(result.get("cache_hit",False))
             return result
+        except VerificationUnavailable:
+            raise
         except Exception as exc:
-            return {"verified":False,"reason":"prefix_asr_unavailable","error":str(exc)}
+            raise VerificationUnavailable(f"Focused-prefix evidence incomplete: {exc}") from exc
 
     def _transcribe(self, path: str, second: bool = False) -> dict:
-        lang = (self.cfg.get("quality") or {}).get("asr_language") or None
-        if self.text_checker == "sequence-v1":
-            options = {"condition_on_previous_text": False}
-            if second:
-                lang = "en"
-                options.update(beam_size=5, best_of=5, temperature=0.0)
-            raw = self._call(path, lang, options)
+        request = asr_request_settings(self.cfg, second)
+        if request["full_result"]:
+            raw = self._call(path, request["language"], request["options"])
             words = [w for seg in raw.get("segments") or [] for w in seg.get("words") or []]
             probs = [float(w.get("probability") or 0.0) for w in words]
-            return {"text": (raw.get("text") or "").strip(), "language": raw.get("language"),
-                    "mean_probability": round(sum(probs) / len(probs), 4) if probs else None}
-        return self._call(path, lang, None)
+            return dict(raw, text=(raw.get("text") or "").strip(),
+                        mean_probability=round(sum(probs) / len(probs), 4) if probs else None)
+        return self._call(path, request["language"], None)
 
     def _call(self, path: str, lang: str | None, options: dict | None) -> dict:
         full = options is not None
-        try:
-            return self._client().transcribe(path, language=lang or "", word_timestamps=full, full_result=full, options=options)
-        except Exception:
-            if self.device == "cpu":
-                raise
-            print("asr: CUDA worker failed; retrying on CPU")
-            if self.client is not None:
-                self.client.close()
-            self.client = None
-            self.device = "cpu"
-            effective = copy.deepcopy(self.cfg)
-            effective.setdefault("quality", {})["asr_device"] = "cpu"
-            self.identity = verification_identity(effective, self.ref_sha)
-            return self._client().transcribe(path, language=lang or "", word_timestamps=full, full_result=full, options=options)
+        return self._client().transcribe(path, language=lang or "", word_timestamps=full, full_result=full, options=options)
 
     def _client(self) -> AsrClient:
         if self.client is None or self.client.proc is None or self.client.proc.poll() is not None:
+            if self.client is not None:
+                self.client.close()
+                self.client = None
             py = whisper_python(self.cfg["executables"]["whisper"])
             model = str(verification_model_file(self.cfg))
             budgets = self.cfg.get("timeouts") or {}
@@ -672,9 +767,22 @@ class _LineAssessor:
         return self.client
 
     def close(self) -> None:
+        initiating = sys.exc_info()[1]
         if self.client is not None:
-            self.client.close()
+            try:
+                self.client.close()
+            except Exception as cleanup:
+                if initiating is None:
+                    raise
+                initiating.add_note(f"ASR final cleanup failed; ownership retained: {cleanup}")
+                return
             self.client = None
+        if self._unreaped_episode is not None:
+            path, state = self._unreaped_episode
+            state["unreaped"] = False
+            write_json(path, state)
+            write_json(self._ownership_path, {"unreaped": False, "episode": str(path)})
+            self._unreaped_episode = None
 
 
 def schedule_verification_timeouts(cfg: dict) -> dict:
@@ -790,7 +898,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
                         dict(meta,path=attempt["used_path"]),seg["required_event_prefix"]))
                 processed = contextual_quality(dict(attempt,raw_path=attempt["used_path"]),processed,seg,selection)
                 attempt["processed_quality"] = processed
-                verified = bool(processed.get("ok") and not processed.get("asr_skipped"))
+                verified = bool(processed.get("ok") and verification_complete(processed))
                 attempt["presentation"]["post_tempo_text_verified"] = verified
                 if seg.get("required_event_prefix"):
                     attempt["presentation"]["event_prefix_processed_verified"] = bool(
@@ -1385,7 +1493,7 @@ def stage_mix(job: Job, cfg: dict, summary: dict) -> dict:
                       fade_ms=0 if placed.get("voice_presentation") else float(cfg["schedule"]["fade_ms"]))
     partial = (any(not row.get("placed") for row in placed["segments"]) or not gain["source_headroom_ok"]
                or inspected["described"]["video"].get("duration_approximate")
-               or any(row.get("placed") and (not row.get("quality") or row["quality"].get("asr_skipped")) for row in placed["segments"]))
+               or any(row.get("placed") and not verification_complete(row.get("quality")) for row in placed["segments"]))
     video_name = f"output/english{'_PARTIAL' if partial else ''}.{container}"
     gain["english_video_rel"] = video_name
     write_bilingual(out_dir / "bilingual.txt", placed["segments"])
@@ -1579,7 +1687,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     add("placed_lines_passed_quality", not quality_failed_placed, quality_failed_placed or "none")
     asr_skipped = [
         s["id"] for s in summary["segments"]
-        if s.get("placed") and ((s.get("quality") or {}).get("asr_skipped") or (s.get("quality") or {}).get("asr_text") is None)
+        if s.get("placed") and not verification_complete(s.get("quality"))
     ]
     add("generated_audio_transcribed", not asr_skipped, asr_skipped or "each placed line")
     bad_edges = [s["id"] for s in summary["segments"] if s.get("placed") and summary.get("voice_presentation") and s.get("edge_ok") is not True]
