@@ -74,6 +74,8 @@ class Job:
 
     @classmethod
     def create(cls, directory: Path, job_id: str, video: str, config: dict) -> "Job":
+        from .config import new_job_config
+        config = new_job_config(config)
         directory.mkdir(parents=True, exist_ok=True)
         if any(p.name != "LOCK" for p in directory.iterdir()):
             raise RuntimeError(f"Job directory already exists and is not empty: {directory}")

@@ -135,6 +135,7 @@
     "block_frames": 65536
   },
   "export": {
+    "spanish_compare": false,
     "container": "mp4"
   }
 }

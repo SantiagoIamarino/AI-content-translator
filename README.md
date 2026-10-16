@@ -14,7 +14,12 @@ This development branch has regression tests, controlled media fixtures and a co
 | Translate | Stable cue IDs are batched, with read-only neighboring context. Every matching saved batch response is checked and reused. Manual `accept-translation` uses the same schema. |
 | Synthesize / verify / fit | One shared Qwen backend and clone prompt per process. Generated WAVs have content-addressed caches. One candidate ASR worker per schedule pass; bounded quality and fit seeds, tempo up to 1.10, optional movement into preceding silence, then compact repair. |
 | Mix | Bounded PCM blocks and one cue at a time. Quiet generated margins/fades apply only to voice. Peak management changes each cue's voice gain; game samples are not scaled, gated, faded, or time-stretched. |
-| Export / validate | Source video copy, one English AAC track, Spanish comparison by stream copy, SRT for placed cues only. Decode, video bitstream identity, timing/length, voice verification, headroom and PCM game-bed checks are recorded separately. Missing frame counts are reported as unavailable. |
+| Export / validate | Source video copy, one English AAC track, SRT for placed cues only. Spanish comparison is optional and off for new jobs. Decode, video bitstream identity, timing/length, voice verification, headroom and PCM game-bed checks are recorded separately. Missing frame counts are reported as unavailable. |
+
+New jobs snapshot `export.spanish_compare=false`. Set it explicitly to `true` in
+local configuration to request a full Spanish comparison. Existing snapshots
+without the setting retain comparison export. Short Spanish listening previews
+use the source's configured mixed track and do not require the full comparison.
 
 ## Quality preset
 

@@ -17,7 +17,7 @@ from aidub.audio import read_audio, to_mono
 from aidub.continuity import source_pacing_score
 from aidub.config import apply_preset, load_preset
 from aidub.performance import attach_source_pauses, contextual_quality, score_contextual
-from aidub.export import mux_english_cmd
+from aidub.export import mux_english_cmd, picture_source
 from aidub.job import JobLock
 from aidub.media import run_cmd, bitstream_md5, encoded_audio_metrics
 from aidub.pipeline import _attempt_from_audio, _present_v3
@@ -67,7 +67,7 @@ def run(job, out, start, end, recheck_saved_asr=False, preset='continuity'):
     source=Path(read_json(job/'manifest.json')['video'])
     using_copy=not source.is_file()
     if using_copy:
-        source=job/'output/spanish_compare.mp4'
+        source=picture_source(job)
     run_cmd([ffmpeg,'-v','error','-y','-ss',str(start),'-i',str(source),'-t',str(end-start),
              '-map','0:v:0','-c:v','copy','-an',str(out/'picture.mp4')])
     audit=[]

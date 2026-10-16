@@ -18,6 +18,7 @@ import numpy as np
 import soundfile as sf
 
 from aidub.config import apply_preset, load_preset
+from aidub.export import picture_source
 from aidub.job import JobLock
 from aidub.media import run_cmd, bitstream_md5, encoded_audio_metrics
 from aidub.util import read_json, write_json, sha256_file
@@ -70,7 +71,7 @@ def comparison_picture(out, receipt, cfg, duration):
     """
     baseline=Path(receipt["baseline"])
     original=Path(read_json(baseline/"manifest.json")["video"])
-    source=original if original.is_file() else baseline/"output/spanish_compare.mp4"
+    source=picture_source(baseline)
     start=receipt["interval"][0];ffmpeg=cfg["executables"]["ffmpeg"]
     path=out/"comparison_picture.mp4"
     run_cmd([ffmpeg,"-v","error","-y","-ss",str(start),"-i",str(source),"-t",str(duration),
@@ -106,7 +107,7 @@ def prepare(args):
         duration=args.end-args.start; ffmpeg=cfg["executables"]["ffmpeg"]
         source=Path(read_json(baseline/"manifest.json")["video"])
         saved_picture=not source.is_file()
-        if saved_picture:source=baseline/"output/spanish_compare.mp4"
+        if saved_picture:source=picture_source(baseline)
         if not args.clone:
             # Align samples to the actual copied keyframe, so a container that
             # normalizes preroll cannot move gameplay relative to the microphone.
@@ -143,7 +144,7 @@ def prepare(args):
             if first_frame_md5(ffmpeg,fixture)!=first_frame_md5(ffmpeg,source,args.start):
                 raise ValueError("Fixture copied-picture origin disagrees with microphone crop; stop before ASR/providers")
             cfg["audio_mapping"].update(mic_ordinal=2,game_ordinal=1,mixed_ordinal=0)
-            cfg["export"]={"container":"mkv"}  # comparison track is lossless PCM
+            cfg.setdefault("export", {})["container"]="mkv"  # PCM fixture; retain the explicit comparison choice.
             cfg["source_video"]=str(fixture)
         crop(baseline/"output/english_voice.wav",out/"prior_voice.wav",args.start,duration)
         crop(baseline/"output/english_mix.wav",out/"prior_mix.wav",args.start,duration)

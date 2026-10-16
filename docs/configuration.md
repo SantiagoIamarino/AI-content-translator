@@ -37,6 +37,28 @@ Presets live in `config/presets/`. `init`/`auto --preset NAME` merges each prese
 
 Qwen model, dtype, attention, English ICL, original trim RMS/window/pad, and tempo 1.10 remain fixed. New jobs freeze the local Qwen snapshot revision and model paths. Legacy jobs do not acquire a new synthesis revision key automatically.
 
+### Optional Spanish comparison
+
+`export.spanish_compare` is a strict boolean. New job creation writes an explicit
+`false`, including when the selected local config predates this option. Set
+`true` explicitly before creating a job to request the full comparison in its
+configured MP4/MKV container. Portable defaults are off.
+
+An existing snapshot with this field absent retains the historical **on** behavior.
+Only an explicitly authorized stopped-job migration should add/change the field
+in `jobs/NAME/config.json`; changing local/default config does not migrate it.
+Resume then updates optional export and validation dependencies. The English
+render, ASR, translation and takes remain reusable. Disabling retains any older
+Spanish file but excludes it from current outputs, validation and storage credit.
+Re-enable the prior setting to restore requested-comparison behavior; do not
+delete jobs/caches or old files to migrate or roll back.
+
+Comparison-only checks report **not requested**, never a pass, when disabled.
+All English protections still validate against the original source and required
+English files. Source previews select `mixed_ordinal` and the source picture's
+time origin directly. A missing original makes Spanish previews unavailable;
+an old comparison file does not stand in for current source validation.
+
 To alter a stopped existing job, edit its `jobs/NAME/config.json`. Verification-only changes miss quality cache keys but reuse synthesis. Changing source/segmentation inputs can replace the timeline and require new translations. Invalid configurations fail with diagnostics; deleting caches is not a recovery step. See `docs/architecture.md` for checkpoint migration.
 
 The optional `continuity` preset extends `quality` with `voice_selection.source_pacing`

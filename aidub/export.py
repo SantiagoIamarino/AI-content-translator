@@ -5,6 +5,37 @@ import numpy as np
 from .audio import read_audio, resample_audio, to_mono, write_wav
 from .media import run_cmd
 from .placement import Interval, clamp_interval, collisions
+from .util import read_json
+
+
+def picture_source(job_dir: Path) -> Path:
+    """Original picture, or explicitly historical copied picture for experiments.
+
+    Audio is never taken from this fallback. It cannot revalidate a missing
+    original or imply that an optional comparison was requested/validated.
+    """
+    manifest = read_json(job_dir / "manifest.json")
+    original = Path(manifest["video"])
+    if original.is_file():
+        return original
+    relative = (manifest.get("stages", {}).get("mix", {}).get("outputs") or {}).get("english_video")
+    candidates = [job_dir / relative] if relative else []
+    config = read_json(job_dir / "config.json") if (job_dir / "config.json").is_file() else {}
+    container = (config.get("export") or {}).get("container", "mp4")
+    candidates += [job_dir / f"output/{name}.{container}" for name in ("english_PARTIAL", "english", "spanish_compare")]
+    for path in candidates:
+        if path.is_file():
+            return path
+    raise RuntimeError("Original source and saved copied picture are unavailable; cannot render an experiment")
+
+
+def preview_cmd(ffmpeg: str, source: Path, dest: Path, start: float, duration: float,
+                *, audio_ordinal: int = 0, video_start: float = 0.0) -> list[str]:
+    # start is relative to displayed picture, not the earliest container stream.
+    return [ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-seek_timestamp", "1",
+            "-ss", f"{video_start + start:.6f}", "-i", str(source), "-t", f"{duration:.6f}",
+            "-map", "0:v:0", "-map", f"0:a:{int(audio_ordinal)}", "-c:v", "libx264", "-preset", "veryfast",
+            "-crf", "23", "-vf", "scale=-2:720", "-c:a", "aac", "-b:a", "160k", str(dest)]
 
 
 def mux_english_cmd(ffmpeg: str, video: str, mix_wav: str, dest: str) -> list[str]:

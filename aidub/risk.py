@@ -13,6 +13,7 @@ import numpy as np
 import soundfile as sf
 
 from .util import fingerprint, read_json, sha256_file, write_json
+from .export import preview_cmd
 
 
 def _read(path: Path, start: float, end: float, offset: float = 0.0) -> tuple[np.ndarray, int]:
@@ -128,8 +129,14 @@ def build_risk_report(job_dir: Path, cfg: dict, limit: int = 12, previews: bool 
     preview_dir = job_dir / "report/previews"
     excerpt_dir.mkdir(parents=True, exist_ok=True)
     english_video = Path(validation.get("english_video") or "")
-    container = (cfg.get("export") or {}).get("container", "mp4")
-    spanish_video = job_dir / f"output/spanish_compare.{container}"
+    source_video = Path(read_json(job_dir / "manifest.json")["video"])
+    inspected = read_json(job_dir / "inspect/probe.json")
+    source_start = float(inspected["described"]["video"]["start_time"])
+    # The English remux normalizes the source picture origin. Read its actual
+    # origin from the validation probe only when needed by a bounded preview.
+    from .media import probe, describe_streams
+    english_start = (float(describe_streams(probe(cfg["executables"]["ffprobe"], str(english_video)))
+                           ["video"]["start_time"]) if previews and english_video.is_file() else 0.0)
     ffmpeg = cfg["executables"]["ffmpeg"]
     for item in [i for i in items if i["score"] > 0][:limit]:
         tag = f"id{item['id']:03d}" if item["id"] is not None else f"gap_{item['start']:08.2f}".replace(".", "_")
@@ -147,13 +154,13 @@ def build_risk_report(job_dir: Path, cfg: dict, limit: int = 12, previews: bool 
         if previews and english_video.is_file():
             preview_dir.mkdir(parents=True, exist_ok=True)
             p_lo, p_dur = max(0.0, lo - 1.0), (hi - lo) + 2.0
-            for label, source in (("preview_en", english_video), ("preview_es", spanish_video)):
+            for label, source, ordinal, origin in (
+                ("preview_en", english_video, 0, english_start),
+                ("preview_es", source_video, int(cfg["audio_mapping"]["mixed_ordinal"]), source_start)):
                 if not source.is_file():
                     continue
                 dest = preview_dir / f"{tag}_{label[-2:]}.mp4"
-                cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{p_lo:.3f}", "-t", f"{p_dur:.3f}",
-                       "-i", str(source), "-map", "0:v:0", "-map", "0:a:0", "-c:v", "libx264", "-preset", "veryfast",
-                       "-crf", "23", "-vf", "scale=-2:720", "-c:a", "aac", "-b:a", "160k", str(dest)]
+                cmd = preview_cmd(ffmpeg, source, dest, p_lo, p_dur, audio_ordinal=ordinal, video_start=origin)
                 proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
                 if proc.returncode == 0:
                     files[label] = dest
@@ -163,6 +170,8 @@ def build_risk_report(job_dir: Path, cfg: dict, limit: int = 12, previews: bool 
         "job_id": job_dir.name,
         "status": validation.get("status"),
         "note": "Risk ranking is evidence for listening, not an approval or a repair queue.",
+        "spanish_preview": {"source": str(source_video), "mixed_ordinal": int(cfg["audio_mapping"]["mixed_ordinal"]),
+                            "available": source_video.is_file(), "note": "Original mixed track; no full Spanish export needed."},
         "counts": {
             "lines": len(summary["segments"]),
             "review_revised": sum(1 for v in lines_audit.values() if v.get("status", "").startswith("revised")),
@@ -181,6 +190,8 @@ def build_risk_report(job_dir: Path, cfg: dict, limit: int = 12, previews: bool 
 def risk_markdown(report: dict) -> str:
     lines = [f"# Risk report ({report.get('status')})", "", report["note"], "",
              "Technical checks and these scores do not prove that a line sounds natural.", "", "## Counts", ""]
+    if (report.get("spanish_preview") or {}).get("available") is False:
+        lines += ["Spanish previews unavailable: original source is missing; retained comparison files are not substituted.", ""]
     for key, value in report["counts"].items():
         lines.append(f"- {key}: {value}")
     lines += ["", "## Ranked items", ""]
@@ -205,7 +216,14 @@ def risk_markdown(report: dict) -> str:
     return "\n".join(lines)
 
 
-def risk_fingerprint(job_dir: Path) -> str:
+def risk_fingerprint(job_dir: Path, cfg: dict | None = None) -> str:
+    cfg = cfg if cfg is not None else read_json(job_dir / "config.json")
     paths = ["mix/placed_summary.json", "timeline.json", "handoff/translation_audit.json", "transcribe/second_pass.json",
              "transcribe/corrections.json", "report/validation.json", "output/english_mix.wav"]
-    return fingerprint({p: sha256_file(job_dir / p) if (job_dir / p).is_file() else None for p in paths} | {"version": 1})
+    paths += ["inspect/probe.json"]
+    # Manifest state/report fingerprints are mutable; bind only the source path.
+    manifest = read_json(job_dir / "manifest.json")
+    source = Path(manifest["video"])
+    return fingerprint({p: sha256_file(job_dir / p) if (job_dir / p).is_file() else None for p in paths} |
+                       {"version": 2, "source": str(source), "source_available": source.is_file(),
+                        "mixed_ordinal": cfg["audio_mapping"]["mixed_ordinal"], "risk_settings": cfg.get("risk_report")})

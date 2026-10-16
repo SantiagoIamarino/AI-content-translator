@@ -29,4 +29,21 @@ Fit retains the original RMS/tempo rules, bounded quality/alternate seeds, limit
 
 Quality-preset jobs extend the same stages. Transcribe adds a second Whisper hearing (`transcribe/second_pass.json`) and short-pause utterance joins before cue IDs are assigned. The translation handoff, under the held job lock, runs context → contextual translation batches → bounded bilingual review rounds (with optional back-translation for disputed lines only before another review round can consume it) and then the normal `accept_translation`; the request identity includes the context so a saved response is reused only with the same context. Schedule uses best-of-N selection (`selection_summary`) and the unified presentation path (`presentation_version=2`). After validation, `report/risk.md` is rebuilt only when its inputs change. See docs/quality.md.
 
-Mixing loads only a block and one cue, applies safe cue gain to the voice, and writes the actual voice and mix as FLOAT PCM. Game samples remain unchanged. Validation reads corresponding blocks and checks `mix-(game+voice)`. MP4/MKV exports explicitly map one copied picture and one English audio track; Spanish comparison is separately copied. A successful bitstream comparison is independent of unavailable frame counts. Decoded export audio is separately checked in bounded pipe reads for non-finite samples/full-scale overshoot. Approximate duration, codec overshoot and unreviewed energy gaps prevent complete status. See README for partial/headroom policies.
+Mixing loads only a block and one cue, applies safe cue gain to the voice, and writes the actual voice and mix as FLOAT PCM. Game samples remain unchanged. Validation reads corresponding blocks and checks `mix-(game+voice)`. MP4/MKV exports explicitly map one copied picture and one English audio track. A successful bitstream comparison is independent of unavailable frame counts. Decoded English audio is separately checked in bounded pipe reads for non-finite samples/full-scale overshoot. Approximate duration, codec overshoot and unreviewed energy gaps prevent complete status. See README for partial/headroom policies.
+
+New snapshots default to `export.spanish_compare=false`; absent fields in existing
+snapshots mean legacy-on. English mix fingerprints retain their prior identity.
+The optional `mix/spanish_compare.json` checkpoint binds source hash, mixed
+ordinal, container and comparison bytes independently. Missing/changed requested
+comparisons are rebuilt without remixing/remuxing English. A known legacy output
+with its exact saved command can be adopted without remux. An English checkpoint
+survives a later optional-output failure. Disabling never deletes an older file.
+
+Validation v7 conditionally hashes/probes/decodes the comparison; disabled checks
+are `not_requested`, non-required and `ok=null`. English source/decode/bitstream,
+PCM, timing, verification and coverage gates are unchanged. An unused leftover
+comparison cannot invalidate or satisfy validation. Risk previews use original
+mixed audio with explicit audio ordinal and absolute picture-origin seeking;
+their cache binds the source, mapping and preview settings. Offline picture-only
+evaluation helpers can use a saved English copied picture if the original is
+missing, with their existing limitation that this cannot revalidate the original.

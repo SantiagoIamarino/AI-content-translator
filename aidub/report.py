@@ -53,9 +53,11 @@ def validation_markdown(summary: dict) -> str:
     ]
     for key, value in (summary.get("outputs") or {}).items():
         lines.append(f"- {key}: `{value}`")
+    if (summary.get("spanish_comparison") or {}).get("requested") is False:
+        lines.append("- Spanish comparison: not requested; retained older files are not current outputs.")
     lines += ["", "## Checks", ""]
     for row in summary.get("checks") or []:
-        flag = "unavailable" if row["ok"] is None else "ok" if row["ok"] else "FAIL"
+        flag = "not requested" if row.get("status") == "not_requested" else "unavailable" if row["ok"] is None else "ok" if row["ok"] else "FAIL"
         lines.append(f"- [{flag}] {row['name']}: {row['detail']}")
     lines += [
         "",

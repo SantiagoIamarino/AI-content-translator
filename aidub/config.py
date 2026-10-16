@@ -1,4 +1,5 @@
 import os
+import copy
 import shutil
 import subprocess
 from pathlib import Path
@@ -11,6 +12,21 @@ CONFIRMED_REFERENCE_TEXT = (
     "i guess okay they almost hit me okay shouldn't oh he bite me i'm gonna try to use "
     "the shotgun this time try to shotgun him there you go there you go another one"
 )
+
+
+def spanish_comparison_enabled(cfg: dict) -> bool:
+    """Missing means legacy-on; new snapshots materialize an explicit default."""
+    value = (cfg.get("export") or {}).get("spanish_compare", True)
+    if not isinstance(value, bool):
+        raise ValueError("export.spanish_compare must be true or false")
+    return value
+
+
+def new_job_config(cfg: dict) -> dict:
+    result = copy.deepcopy(cfg)
+    result.setdefault("export", {}).setdefault("spanish_compare", False)
+    spanish_comparison_enabled(result)
+    return result
 
 
 def load_config(path: Path | None = None) -> dict:

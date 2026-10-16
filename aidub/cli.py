@@ -3,7 +3,7 @@ import sys
 from contextlib import nullcontext
 from pathlib import Path
 
-from .config import apply_preset, load_config, load_preset, preflight, require_schedule_defaults, resolve_path
+from .config import apply_preset, load_config, load_preset, preflight, require_schedule_defaults, resolve_path, new_job_config
 from .job import Job, JobLock
 from .pipeline import accept_repair, accept_translation, export_repair, export_translation, job_path, next_hint, run_job
 from .targeted_review import accept_targeted_review
@@ -24,6 +24,7 @@ def cmd_init(args, *, cfg=None, lock=None) -> int:
     cfg = cfg if cfg is not None else _cfg(args)
     if getattr(args, "preset", None):
         cfg = apply_preset(cfg, load_preset(args.preset))
+    cfg = new_job_config(cfg)
     video = Path(args.video).expanduser().resolve()
     if not video.is_file():
         print(f"Video not found: {video}", file=sys.stderr)

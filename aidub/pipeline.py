@@ -25,7 +25,7 @@ from .audio import (
     trim_silence,
     write_wav,
 )
-from .config import jobs_dir, reference_text, require_schedule_defaults, resolve_path, second_pass_model_file, whisper_model_file, verification_model_file
+from .config import jobs_dir, reference_text, require_schedule_defaults, resolve_path, second_pass_model_file, whisper_model_file, verification_model_file, spanish_comparison_enabled
 from .context import glossary_names, join_short_pauses, quality_translation_request, settings as quality_translation_settings, syllable_report
 from .second_pass import run_second_pass, settings as second_pass_settings, unreviewed_gaps, final_coverage
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
@@ -106,6 +106,7 @@ def stage_inspect(job: Job, cfg: dict) -> dict:
     fp = fingerprint({
         "inspect_version": 2,
         "container": (cfg.get("export") or {}).get("container", "mp4"),
+        **({"spanish_comparison": False} if not spanish_comparison_enabled(cfg) else {}),
         "video": source_sha,
         "size": Path(video).stat().st_size,
         "mapping": {
@@ -123,7 +124,8 @@ def stage_inspect(job: Job, cfg: dict) -> dict:
     print(f"inspect: probing {video}")
     raw = probe(cfg["executables"]["ffprobe"], video, timeout=float((cfg.get("timeouts") or {}).get("probe_sec", 1200)))
     described = describe_streams(raw)
-    validate_container(described, int(cfg["audio_mapping"]["mixed_ordinal"]), (cfg.get("export") or {}).get("container", "mp4"))
+    validate_container(described, int(cfg["audio_mapping"]["mixed_ordinal"]), (cfg.get("export") or {}).get("container", "mp4"),
+                       comparison=spanish_comparison_enabled(cfg))
     mapping = cfg["audio_mapping"]
     ordinals = {role: resolve_ordinal(described, int(mapping[f"{role}_ordinal"]), role) for role in ("mic", "game", "mixed")}
     if len({ordinals[r]["audio_ordinal"] for r in ordinals}) < 3:
@@ -1463,6 +1465,38 @@ def accept_repair(job: Job, response_path: Path, revision_limit_n: int | None = 
     print("repair accepted")
 
 
+def ensure_spanish_comparison(job: Job, cfg: dict, gain: dict, *, legacy_cached=False) -> None:
+    """Independent optional output; never invalidates a reusable English render."""
+    if not spanish_comparison_enabled(cfg):
+        print("Spanish comparison: not requested")
+        return
+    inspected = read_json(job.dir / "inspect/probe.json")
+    container = (cfg.get("export") or {}).get("container", "mp4")
+    ordinal = int(cfg["audio_mapping"]["mixed_ordinal"])
+    validate_container(inspected["described"], ordinal, container, comparison=True)
+    dest = job.dir / f"output/spanish_compare.{container}"
+    cmd = mux_spanish_cmd(cfg["executables"]["ffmpeg"], job.data["video"], ordinal, str(dest))
+    identity = fingerprint({"version": 1, "source": inspected["video_sha256"],
+                            "mixed_ordinal": ordinal, "container": container})
+    checkpoint = job.dir / "mix/spanish_compare.json"
+    saved = read_json(checkpoint) if checkpoint.is_file() else {}
+    digest = sha256_file(dest) if dest.is_file() else None
+    reusable = saved.get("identity") == identity and digest is not None and saved.get("output_sha256") == digest
+    # Preserve a known legacy comparison without remuxing either output.
+    adopt = (legacy_cached and not saved and digest is not None and
+             (gain.get("commands") or {}).get("spanish_compare") == cmd)
+    if not reusable and not adopt:
+        storage_budget(job.dir, Path(job.data["video"]), inspected["described"], inspected["mapping"], cfg)
+        run_cmd(cmd, timeout=float((cfg.get("timeouts") or {}).get("media_sec", 10800)))
+        digest = sha256_file(dest)
+    if not reusable:
+        write_json(checkpoint, {"schema": "aidub.spanish_comparison.v1", "identity": identity,
+                               "output": str(dest.relative_to(job.dir)), "output_sha256": digest,
+                               "adopted_legacy": adopt, "command": cmd})
+    gain.setdefault("commands", {})["spanish_compare"] = cmd
+    print("Spanish comparison: unchanged" if reusable or adopt else "Spanish comparison: exported")
+
+
 def stage_mix(job: Job, cfg: dict, summary: dict) -> dict:
     alignment = read_json(job.dir / "extract/alignment.json")
     container = (cfg.get("export") or {}).get("container", "mp4")
@@ -1470,7 +1504,7 @@ def stage_mix(job: Job, cfg: dict, summary: dict) -> dict:
                       "game": alignment["game_sha256"], "mix": cfg["mix"], "export": container,
                       "needs_repair": summary.get("needs_repair") or []})
     required = ["output/english_voice.wav", "output/english_mix.wav", "output/english.srt",
-                f"output/spanish_compare.{container}", "mix/gain.json", "mix/placed_summary.json"]
+                "mix/gain.json", "mix/placed_summary.json"]
     if _fp_ok(job, "mix", fp, required):
         gain = read_json(job.dir / "mix/gain.json")
         name = gain.get("english_video_rel")
@@ -1478,6 +1512,10 @@ def stage_mix(job: Job, cfg: dict, summary: dict) -> dict:
             summary.clear()
             summary.update(read_json(job.dir / "mix/placed_summary.json"))
             print("mix: unchanged")
+            previous = fingerprint(gain)
+            ensure_spanish_comparison(job, cfg, gain, legacy_cached=True)
+            if fingerprint(gain) != previous:
+                write_json(job.dir / "mix/gain.json", gain)
             return gain
     if summary.get("needs_repair"):
         raise RuntimeError("Refusing to mix while repair handoff is unresolved")
@@ -1500,16 +1538,16 @@ def stage_mix(job: Job, cfg: dict, summary: dict) -> dict:
     (out_dir / "english.srt").write_text(render_srt(placed["segments"]), encoding="utf-8")
     ffmpeg, video = cfg["executables"]["ffmpeg"], job.data["video"]
     en_cmd = mux_english_cmd(ffmpeg, video, str(out_dir / "english_mix.wav"), str(job.dir / video_name))
-    es_cmd = mux_spanish_cmd(ffmpeg, video, int(cfg["audio_mapping"]["mixed_ordinal"]), str(out_dir / f"spanish_compare.{container}"))
     timeout = float((cfg.get("timeouts") or {}).get("media_sec", 10800))
     run_cmd(en_cmd, timeout=timeout)
-    run_cmd(es_cmd, timeout=timeout)
-    gain.update(english_video=str(job.dir / video_name), commands={"english": en_cmd, "spanish_compare": es_cmd})
+    gain.update(english_video=str(job.dir / video_name), commands={"english": en_cmd})
     write_json(job.dir / "mix/gain.json", gain)
     write_json(job.dir / "mix/placed_summary.json", placed)
     summary.clear()
     summary.update(placed)
     job.set_stage("mix", "complete", fp, {"english_video": video_name, "gain": "mix/gain.json"})
+    ensure_spanish_comparison(job, cfg, gain)
+    write_json(job.dir / "mix/gain.json", gain)
     return gain
 
 
@@ -1535,6 +1573,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     en_path = job.dir / en_rel
     container = (cfg.get("export") or {}).get("container", "mp4")
     es_path = job.dir / f"output/spanish_compare.{container}"
+    comparison = spanish_comparison_enabled(cfg)
     timeout = float((cfg.get("timeouts") or {}).get("media_sec", 10800))
     ffprobe = cfg["executables"]["ffprobe"]
     ffmpeg = cfg["executables"]["ffmpeg"]
@@ -1542,11 +1581,13 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     source_sha = sha256_file(video)
     protected_now = {row["path"]: sha256_file(Path(row["path"])) if Path(row["path"]).is_file() else None
                      for row in inspected.get("protected") or []}
-    artifacts = {"english": en_path, "spanish": es_path, "voice": job.dir / "output/english_voice.wav",
+    artifacts = {"english": en_path, "voice": job.dir / "output/english_voice.wav",
                  "mix": job.dir / "output/english_mix.wav", "srt": job.dir / "output/english.srt"}
+    if comparison:
+        artifacts["spanish"] = es_path
     corrections_file = job.dir / "transcribe/corrections.json"
     event_file = job.dir / "transcribe/vocal_events.json"
-    validate_fp = fingerprint({"version": 6,
+    validate_fp = fingerprint({"version": 7, "spanish_comparison_requested": comparison,
                                **({"protected_endings_gate": 1} if int(summary.get("presentation_version", 1)) >= 3 else {}), "source_sha256": source_sha, "protected": protected_now,
                                "artifacts": {label: sha256_file(path) for label, path in artifacts.items()},
                                "schedule": job.stage("schedule").get("fingerprint"), "mix": job.stage("mix").get("fingerprint"),
@@ -1568,9 +1609,10 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         print("validate: unchanged (current artifact hashes verified)")
         return saved
     en_probe = describe_streams(probe(ffprobe, str(en_path), timeout=probe_timeout))
-    es_probe = describe_streams(probe(ffprobe, str(es_path), timeout=probe_timeout))
     en_ok, en_err = decode_ok(ffmpeg, str(en_path), timeout=timeout, log_path=job.dir / "report/english_decode.log")
-    es_ok, es_err = decode_ok(ffmpeg, str(es_path), timeout=timeout, log_path=job.dir / "report/spanish_decode.log")
+    if comparison:
+        es_probe = describe_streams(probe(ffprobe, str(es_path), timeout=probe_timeout))
+        es_ok, es_err = decode_ok(ffmpeg, str(es_path), timeout=timeout, log_path=job.dir / "report/spanish_decode.log")
     src_video = inspected["described"]["video"]
     checks = []
 
@@ -1581,8 +1623,15 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
 
     add("source_unchanged", source_sha == inspected["video_sha256"], source_sha)
     add("english_decode", en_ok, en_err or "clean")
-    add("spanish_decode", es_ok, es_err or "clean")
-    for name, output in (("english_video_frames", en_probe["video"]), ("spanish_video_frames", es_probe["video"])):
+    outputs = [("english_video_frames", en_probe["video"])]
+    if comparison:
+        add("spanish_decode", es_ok, es_err or "clean")
+        outputs.append(("spanish_video_frames", es_probe["video"]))
+    else:
+        for name in ("spanish_decode", "spanish_video_frames"):
+            checks.append({"name": name, "ok": None, "status": "not_requested", "required": False,
+                           "detail": "Spanish comparison export disabled; source is used for English protections"})
+    for name, output in outputs:
         result = frame_check(src_video, output)
         add(name, result["ok"], result["detail"], required=result["required"])
     add("video_duration_established", not src_video.get("duration_approximate", False), src_video.get("duration_source", "legacy stream metadata"))
@@ -1745,13 +1794,14 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         "repairs": repairs,
         "outputs": {
             "english_video": str(en_path),
-            "spanish_compare": str(es_path),
+            **({"spanish_compare": str(es_path)} if comparison else {}),
             "english_voice": str(job.dir / "output/english_voice.wav"),
             "english_mix": str(job.dir / "output/english_mix.wav"),
             "srt": str(job.dir / "output/english.srt"),
             "bilingual": str(job.dir / "output/bilingual.txt"),
         },
         "checks": checks,
+        "spanish_comparison": {"requested": comparison, "status": "requested" if comparison else "not_requested"},
         "docker_llm": docker,
         "reference_wav": summary.get("reference_wav"),
         "reference_sha256": summary.get("reference_sha256"),
@@ -1780,7 +1830,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     print(f"validate: {status}")
     for row in checks:
         if row["ok"] is not True:
-            label = "UNAVAILABLE" if row["ok"] is None else "FAIL"
+            label = "NOT_REQUESTED" if row["status"] == "not_requested" else "UNAVAILABLE" if row["ok"] is None else "FAIL"
             print(f"  {label} {row['name']}: {row['detail']}")
     return report
 
@@ -1790,7 +1840,7 @@ def _risk_report(job: Job, cfg: dict) -> None:
     if not block.get("enabled") or job.state not in {"complete", "partial"}:
         return
     from .risk import build_risk_report, risk_fingerprint
-    fp = risk_fingerprint(job.dir)
+    fp = risk_fingerprint(job.dir, cfg)
     if job.data.get("risk_report_fingerprint") == fp and (job.dir / "report/risk.md").is_file():
         print("risk report: unchanged")
         return

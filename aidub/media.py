@@ -221,13 +221,13 @@ def video_packet_span(ffprobe: str, path: str, *, timeout: float = 1200) -> dict
         return {"start": first, "end": end, "approximate": approximate}
 
 
-def validate_container(described: dict, mixed_ordinal: int, container: str = "mp4") -> None:
+def validate_container(described: dict, mixed_ordinal: int, container: str = "mp4", *, comparison: bool = True) -> None:
     if container not in {"mp4", "mkv"}:
         raise RuntimeError("export.container must be mp4 or mkv")
     if container == "mp4":
         video = described["video"]["codec_name"]
         audio = resolve_ordinal(described, mixed_ordinal, "mixed")["codec_name"]
-        if video not in {"h264", "hevc", "av1", "mpeg4"} or audio not in {"aac", "mp3", "ac3", "eac3", "alac"}:
+        if video not in {"h264", "hevc", "av1", "mpeg4"} or (comparison and audio not in {"aac", "mp3", "ac3", "eac3", "alac"}):
             raise RuntimeError(f"Cannot safely stream-copy {video}/{audio} to the supported MP4 output. "
                                "Set export.container=mkv or provide compatible source streams; picture re-encoding is refused.")
 
