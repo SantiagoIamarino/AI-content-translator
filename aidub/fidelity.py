@@ -34,6 +34,14 @@ def pending_repair_review(seg):
             (seg.get("translation_review") or {}).get("checked_text") != seg.get("english"))
 
 
+def repairs_needing_review(segments, cfg):
+    """Exact-text handoff shared by manual/auto orchestration and review."""
+    if not (cfg.get("source_events") or {}).get("enabled"):
+        return []
+    return [s for s in segments if pending_repair_review(s) and
+            not any(r.get("action") == "leave_unresolved" for r in s.get("revisions", []))]
+
+
 def voicing_uncertainty(seg, cfg):
     """Keep unresolved source readings in the ledger, without speaking a guess.
 

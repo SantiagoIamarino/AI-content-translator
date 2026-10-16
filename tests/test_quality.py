@@ -169,6 +169,32 @@ class ReviewTests(unittest.TestCase):
         _, audit = run_review("j", self._request(), {1: "a", 2: "b"}, invoke, cfg)
         self.assertEqual({v["status"] for v in audit["lines"].values()}, {"revised_unconfirmed"})
 
+    def test_back_translation_requires_a_next_review_consumer(self):
+        for max_rounds in (1, 2, 4):
+            with self.subTest(max_rounds=max_rounds):
+                calls = []
+
+                def invoke(role, request, current):
+                    calls.append(role)
+                    if role == 'back_translation':
+                        return {'segments': [{'id': s['id'], 'spanish': 'Sigue siendo ambiguo.'}
+                                             for s in request['segments']]}
+                    if request['round'] > 1:
+                        self.assertTrue(all(s['back_translation'] == 'Sigue siendo ambiguo.'
+                                            for s in request['segments']))
+                    return {'segments': [{'id': s['id'], 'verdict': 'ok', 'disputed': True,
+                                          'issues': [], 'reason': 'Source unresolved'}
+                                         for s in request['segments']]}
+
+                cfg = {'translation_quality': {'enabled': True, 'review': {
+                    'enabled': True, 'max_rounds': max_rounds, 'back_translation': 'disputed'}}}
+                english, audit = run_review('j', self._request(), {1: 'a', 2: 'b'}, invoke, cfg)
+                self.assertEqual(calls, ['review', 'back_translation'] * (max_rounds - 1) + ['review'])
+                self.assertEqual(english, {1: 'a', 2: 'b'})
+                self.assertEqual({v['status'] for v in audit['lines'].values()}, {'disputed'})
+                self.assertTrue(all(len(v['back_translations']) == max_rounds - 1
+                                    for v in audit['lines'].values()))
+
 
 class ProviderAliasTests(unittest.TestCase):
     def test_explicit_alias_and_cycle(self):

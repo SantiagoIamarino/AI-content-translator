@@ -1,6 +1,17 @@
 # Pipeline and persistence
 
-Jobs contain atomic config/manifest snapshots and derived files. The state machine remains pending, running, awaiting_translation, awaiting_repair, failed, partial, complete. Manual and auto runners share the same stages; auto alone completes provider handoffs while holding the job operation lock.
+Jobs contain atomic config/manifest snapshots and derived files. States are pending, running, awaiting_translation, awaiting_repair, awaiting_repair_review, failed, partial, complete. Manual and auto runners share the same stages; auto alone completes provider handoffs while holding the job operation lock.
+
+For source-events jobs, a compact revision whose exact English lacks a matching
+review reaches `awaiting_repair_review` before scheduling, mixing, export or
+validation. Manual `run`/`resume` stops with exit 2 and a hint to use configured
+`auto` with the original video/name; it never invokes a provider itself. If review
+is disabled, this handoff stays blocked. Auto reviews under its existing lock,
+then resumes scheduling. Disputed and last-round revised-unconfirmed verdicts
+remain unvoiced/partial; resuming does not grant them more rounds. Explicit
+`leave_unresolved` decisions and historical jobs without source-events retain
+their previous policy. No separate manual review-response acceptance command is
+introduced.
 
 A saved stage is reusable only when its input fingerprint and required outputs match. Source changes in an existing job are rejected. Inspect separates stream/container metadata from video-only packet timing. Extract uses independent track fingerprints and header-only alignment; migration can reuse legacy extracted PCM while recalculating timing metadata.
 
@@ -16,6 +27,6 @@ Legacy job config snapshots, synthesis cache keys and matching completed transcr
 
 Fit retains the original RMS/tempo rules, bounded quality/alternate seeds, limited earlier placement into unused silence and faithful compact repair. Scheduling outcomes remain in `schedule/summary.json`; final assembler/headroom outcomes are separate in `mix/placed_summary.json`, preventing a temporary mix failure from permanently erasing a schedulable cue.
 
-Quality-preset jobs extend the same stages without new states. Transcribe adds a second Whisper hearing (`transcribe/second_pass.json`) and short-pause utterance joins before cue IDs are assigned. The translation handoff, under the held job lock, runs context → contextual translation batches → bounded bilingual review rounds (with optional back-translation for disputed lines) and then the normal `accept_translation`; the request identity includes the context so a saved response is reused only with the same context. Schedule uses best-of-N selection (`selection_summary`) and the unified presentation path (`presentation_version=2`). After validation, `report/risk.md` is rebuilt only when its inputs change. See docs/quality.md.
+Quality-preset jobs extend the same stages. Transcribe adds a second Whisper hearing (`transcribe/second_pass.json`) and short-pause utterance joins before cue IDs are assigned. The translation handoff, under the held job lock, runs context → contextual translation batches → bounded bilingual review rounds (with optional back-translation for disputed lines only before another review round can consume it) and then the normal `accept_translation`; the request identity includes the context so a saved response is reused only with the same context. Schedule uses best-of-N selection (`selection_summary`) and the unified presentation path (`presentation_version=2`). After validation, `report/risk.md` is rebuilt only when its inputs change. See docs/quality.md.
 
 Mixing loads only a block and one cue, applies safe cue gain to the voice, and writes the actual voice and mix as FLOAT PCM. Game samples remain unchanged. Validation reads corresponding blocks and checks `mix-(game+voice)`. MP4/MKV exports explicitly map one copied picture and one English audio track; Spanish comparison is separately copied. A successful bitstream comparison is independent of unavailable frame counts. Decoded export audio is separately checked in bounded pipe reads for non-finite samples/full-scale overshoot. Approximate duration, codec overshoot and unreviewed energy gaps prevent complete status. See README for partial/headroom policies.

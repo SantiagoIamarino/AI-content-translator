@@ -228,7 +228,9 @@ def run_review(job_id: str, translation_request: dict, draft: dict[int, str], in
         disputed_last = set(disputed)
         rounds.append({"round": round_no, "reviewed": len(ids), "revised": revised, "disputed": disputed})
         need_back = sorted(set(disputed)) if back_mode == "disputed" else []
-        if need_back:
+        # Only the next bilingual round consumes this evidence. The last round
+        # remains disputed/unconfirmed without an unused independent rendering.
+        if need_back and round_no < max_rounds:
             bt = invoke("back_translation", back_translation_request(job_id, english, need_back), None)
             for row in bt["segments"]:
                 sid = int(row["id"])
@@ -246,5 +248,6 @@ def run_review(job_id: str, translation_request: dict, draft: dict[int, str], in
         else:
             entry["status"] = "accepted_draft"
     audit = {"schema": "aidub.translation_audit.v1", "max_rounds": max_rounds, "back_translation": back_mode,
+             "decision_policy": "back_translation_before_next_round_v1",
              "rounds": rounds, "lines": {str(k): v for k, v in sorted(lines.items())}}
     return english, audit

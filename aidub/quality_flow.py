@@ -16,7 +16,7 @@ from .job import Job
 from .providers import invoke_checked, require_provider, resolve_role, validate_provider_config
 from .review import run_review, settings as review_settings
 from .util import fingerprint, read_json, write_json
-from .fidelity import pending_repair_review
+from .fidelity import repairs_needing_review
 
 QUALITY_ROLES = ("context", "review", "back_translation")
 
@@ -113,19 +113,16 @@ def translate_with_review(job: Job, cfg: dict, providers: dict, export_translati
 def review_pending_repairs(job: Job, cfg: dict, providers: dict, before_invoke=None) -> bool:
     """Review repaired text before it can reuse an earlier translation's verdict.
 
-    Called with the unattended runner's owned lock, after analysis has settled.
+    Called with the unattended runner's owned lock, before scheduling/finalization.
     Saved responses are keyed by exact repaired English and source evidence.
     """
-    if not (cfg.get("source_events") or {}).get("enabled"):
-        return False
     from .pipeline import _timeline, build_translation_request, _save_timeline
     segments=_timeline(job)
-    pending=[s for s in segments if pending_repair_review(s) and
-             not any(r.get("action")=="leave_unresolved" for r in s.get("revisions",[]))]
+    pending=repairs_needing_review(segments,cfg)
     if not pending:
         return False
     if not review_settings(cfg):
-        return False  # remains explicitly unplaced/partial; no unconfigured call
+        return False  # stays at the review handoff; no unconfigured call
     duration=read_json(job.dir/"inspect/probe.json")["described"]["video"]["duration"]
     request=build_translation_request(job,cfg,segments,duration)
     ids={int(s["id"]) for s in pending}
@@ -146,6 +143,7 @@ def review_pending_repairs(job: Job, cfg: dict, providers: dict, before_invoke=N
         return invoke_batches(spec,req,root,role,current,cfg,before_invoke=before_invoke)
     final,audit=run_review(job.data["job_id"],request,english,invoke,cfg)
     audit["source_request_identity"]=fingerprint(request)
+    audit["orchestration_policy"]="compact_review_before_schedule_v1"
     write_json(root/"audit.json",audit)
     for s in pending:
         sid=int(s["id"]);line=audit["lines"][str(sid)]

@@ -1,0 +1,14 @@
+{
+  "1": {
+    "schema": "aidub.review_response.v1",
+    "job_id": "batch2",
+    "translator": {"kind": "command", "fixture": true},
+    "segments": [{"id": 1, "verdict": "revise", "english": "Hope it hasn't seen me.", "issues": ["meaning_error"], "reason": "Preserve the completed action and its subject.", "disputed": false}]
+  },
+  "2": {
+    "schema": "aidub.review_response.v1",
+    "job_id": "batch2",
+    "translator": {"kind": "command", "fixture": true},
+    "segments": [{"id": 1, "verdict": "ok", "issues": [], "reason": "Faithful to the Spanish.", "disputed": false}]
+  }
+}

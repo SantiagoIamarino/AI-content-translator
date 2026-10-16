@@ -73,7 +73,10 @@ def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=
                 job = Job(dest)
                 timings.append({"stage": f"run:{job.state}", "seconds": round(time.perf_counter() - t0, 3), "exit": code})
                 if code in {0, 1, 3}:
-                    if code==3 and review_pending_repairs(job,stored,providers,before_invoke=lambda:require_synthesis_ready(stored)):
+                    return code
+                if job.state == "awaiting_repair_review":
+                    if review_pending_repairs(job, stored, providers,
+                                              before_invoke=lambda: require_synthesis_ready(stored)):
                         continue
                     return code
                 role = "translation" if job.state == "awaiting_translation" else "repair" if job.state == "awaiting_repair" else None
@@ -85,7 +88,7 @@ def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=
             raise ProviderError("Unattended run exceeded configured max_handoff_rounds. Check job diagnostics.")
         except KeyboardInterrupt:
             job = Job(dest)
-            if job.state in {"awaiting_translation", "awaiting_repair"}:
+            if job.state in {"awaiting_translation", "awaiting_repair", "awaiting_repair_review"}:
                 job.error = "Interrupted during provider handoff; a call without a durable response has uncertain external completion/billing. Resume to recover matching responses."
                 job.save()
             raise

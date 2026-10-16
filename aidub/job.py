@@ -18,6 +18,7 @@ STATES = (
     "running",
     "awaiting_translation",
     "awaiting_repair",
+    "awaiting_repair_review",
     "failed",
     "partial",
     "complete",

@@ -31,7 +31,7 @@ from .second_pass import run_second_pass, settings as second_pass_settings, unre
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
 from .events import identity as events_identity, apply_events, event_placement_report
 from .vocal_verification import verify_prefix
-from .fidelity import voicing_uncertainty, pending_repair_review
+from .fidelity import voicing_uncertainty, pending_repair_review, repairs_needing_review
 from .performance import identity as performance_identity, attach_source_pauses, score_contextual, contextual_quality
 from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
 from .textnorm import content_tokens, normalize_tokens
@@ -1818,6 +1818,12 @@ def next_hint(job: Job) -> str:
             f"Read {job.dir}/handoff/repair_request.json. "
             f"Then: bin/aidub accept-repair {name} RESPONSE.json && bin/aidub resume {name}"
         )
+    if state == "awaiting_repair_review":
+        return (
+            "Compact repair requires bilingual confirmation of its exact current English before scheduling. "
+            "Resume with bin/aidub auto using this job's original video/name and configured review provider. "
+            "No provider is called by manual run/resume; disabled review leaves this handoff blocked."
+        )
     if state in {"complete", "partial"}:
         report = job.dir / "report/validation.md"
         return f"Report: {report}"
@@ -1859,6 +1865,12 @@ def run_job(job: Job, *, lock: JobLock | None = None) -> int:
                 print("STATE awaiting_translation")
                 print(f"REQUEST {path}")
                 print("Translation fingerprint changed. Accept an updated response.")
+                return 2
+            if repairs_needing_review(segments, cfg):
+                job.state = "awaiting_repair_review"
+                job.save()
+                print("STATE awaiting_repair_review")
+                print(next_hint(job))
                 return 2
             summary = stage_call(job, "schedule", stage_schedule, job, cfg)
             if summary.get("needs_repair"):
