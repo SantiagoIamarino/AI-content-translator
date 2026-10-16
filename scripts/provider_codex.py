@@ -181,7 +181,8 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write((proc.stderr or proc.stdout or f"Codex exited {proc.returncode}")[-8000:])
             message = (proc.stderr + proc.stdout).lower()
             if any(term in message for term in ("quota", "usage limit", "rate limit", "not logged in", "unauthorized",
-                                                "authentication", "invalid configuration", "unknown field", "unsupported")):
+                                                "authentication", "invalid configuration", "unknown field",
+                                                "unknown configuration field", "error loading config.toml", "unsupported")):
                 return 78
             return proc.returncode or 1
         if not final_path.is_file():

@@ -24,7 +24,7 @@ CONTROLS = {
     "features.browser_use": "false",
     "features.computer_use": "false",
     "features.image_generation": "false",
-    "tools.view_image": "false",
+    "features.view_image": "false",
 }
 
 

@@ -49,6 +49,7 @@ assert not any(k in os.environ for k in ('OPENAI_API_KEY','CODEX_API_KEY','OPENA
 opts=[a[i+1] for i,x in enumerate(a) if x=='--config']
 assert 'forced_login_method=\"chatgpt\"' in opts
 assert 'features.shell_tool=false' in opts
+assert 'features.view_image=false' in opts
 assert 'model_provider=\"openai\"' in opts
 assert 'web_search=\"disabled\"' in opts
 assert 'model_reasoning_effort=\"medium\"' in opts
