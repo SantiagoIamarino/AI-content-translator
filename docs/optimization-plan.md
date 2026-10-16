@@ -1,14 +1,17 @@
 # Dubbing optimization implementation plan
 
-Status: batches 1–3 implemented in isolation on 2026-10-16; batch 3 has focused
+Status: batches 1–4 implemented in isolation on 2026-10-16; batch 3 has focused
 tests and a completed **partial** 150-second integrated trial. No batch is
-integrated into the operational checkout. Batches 4–6 remain proposed and
+integrated into the operational checkout. Batches 5–6 remain proposed and
 unimplemented. The original observations were inspected at approximately
 20:15 UTC. The user subsequently authorized batch 1, focused tests, and a check
 of at most eight existing WAVs, with no providers, Qwen synthesis, full-video export,
 or mutation of existing jobs. Completion evidence is recorded below.
 The separate batch-3 authorization permits the integrated live trial recorded
 in its completion section.
+The separate batch-4 authorization permits focused media fixtures and matched
+finalization using existing batch-3 PCM/evidence, without providers, transcription,
+fresh synthesis or modification of existing jobs; results are recorded below.
 
 ## Outcome and constraints
 
@@ -354,7 +357,9 @@ finished partial under unchanged fidelity gates.
 
 ## Batch 4 — Optional Spanish comparison, off for new jobs
 
-**Problem and intended behavior.** `stage_mix` always generates the full comparison;
+**Status:** implemented in `bb86e72`; focused and matched-media evidence below.
+
+**Problem and intended behavior.** Before this batch, `stage_mix` always generated the full comparison;
 mix cache requirements and `stage_validate` require it. Risk previews, storage
 estimation, reporting, and evaluation helpers assume it exists. Introduce an explicit
 comparison-export setting: false for new jobs, optional full export on request,
@@ -387,7 +392,7 @@ English failure that remains a failure when comparison is off.
 **Calls and synthesis.** No model calls or fresh synthesis. After fixture checks,
 use matched cached English text/takes on the prepared clip to compare finalization
 with comparison off/on, recording mux/hash/decode costs separately. These media
-checks require later execution authorization and do not validate cold synthesis.
+checks were authorized and executed for this batch; they do not validate cold synthesis.
 
 **Cache/migration and rollback.** Resolve missing comparison settings as legacy-on
 for existing snapshots; write explicit false into new snapshots. Explicit migration
@@ -1075,5 +1080,137 @@ resume while current `error` is clear. Interpret the current partial state and
 validation report alongside the attempt history; stale-error cleanup and broader
 metrics accounting were not expanded in this batch.
 Naturalness/identity and omissions require human review; do not promote this
-partial result to complete. Automatic source resolution, optional comparison
-export, concurrency and adaptive candidate reduction remain unimplemented.
+partial result to complete. At batch-3 completion, automatic source resolution,
+optional comparison export, concurrency and adaptive candidate reduction remained
+unimplemented. Batch 4 implements only optional comparison export below.
+
+## Batch-4 completion evidence — 2026-10-16
+
+### Implementation and snapshot/cache behavior
+
+Implementation commit: **`bb86e7295e238c8af410b5cb8966141dbb8b64d3`**
+(`Make Spanish comparison optional with independent cache and source previews`).
+Only batch 4 was implemented. New jobs materialize
+`export.spanish_compare=false`; explicit true enables comparison. Existing snapshots
+without the field resolve to **true**, preserving their prior behavior. No existing
+job was migrated. The optional flag is a strict boolean, not a truthy string.
+
+`config.py`, `job.py` and the init path establish that distinction. `stage_mix`
+keeps the English version-3 fingerprint and required English cache files intact.
+`ensure_spanish_comparison` uses a separate atomic v1 checkpoint whose identity
+binds source, mixed ordinal and container, retaining output hash and command. It can adopt an existing
+legacy comparison whose saved command matches, or rebuild a missing/corrupt
+requested comparison without remixing or remuxing cached English. English results
+are checkpointed before optional export. Off mode neither reads nor deletes stale
+comparison output, and never presents it as a current output.
+
+Validation v7 refreshes validation once and makes only comparison-specific checks
+conditional, with `not_requested` rather than fabricated passes. English source,
+bitstream, frame/decode/audio, PCM/game, timing, coverage, verification and protected
+ending/event checks remain required as before. Inspection can re-probe once when
+the off setting changes its identity; ASR, translations, raw takes and assessment
+identities are unchanged. Video container compatibility remains enforced; disabling
+comparison skips only the source mixed-audio copy compatibility restriction.
+
+Storage estimates count one or two full-size video exports. Retained unrequested
+comparisons receive no required-output storage credit and are not claimed as
+reclaimed disk space. Risk previews use the original source's configured mixed
+ordinal and inspected picture origin; missing source makes Spanish preview
+unavailable. Evaluation helpers can use saved English picture when the source is
+unavailable for picture-only fixtures, without substituting it for source audio or
+required source validation. Preview/report caches include the relevant mode,
+source availability and mapping. README, configuration and architecture docs
+describe these behaviors.
+
+Rollback: return to the prior stopped-worktree code and retained snapshot/config
+or explicitly enable comparison, retaining histories and media. A legacy job's
+missing flag remains on. Do not delete jobs/caches or edit active snapshots.
+Enabling comparison can populate only its optional checkpoint; disabling it does
+not reclaim an existing file. Nothing was merged or pushed.
+
+### Focused tests and tiny fixture
+
+**17 tests passed in 4.214 s**:
+`test_batch4`, `test_performance_evaluate`, and `test_hardening.MediaTests`.
+The focused run used the configured shared interpreter with this worktree and
+tests on its import path; no environment was modified. `git diff --check` passed.
+
+Coverage includes new/legacy/explicit settings and invalid types, one/two-export
+storage and stale files, cache adoption and independent comparison recovery,
+conditional reporting, evaluation picture fallback, and container protection.
+The generated two-second H264/PCM fixture has a nonzero 5 s source origin and
+three distinct audio tones. Both modes preserve common gate results; an injected
+English decode failure fails in both. The on-mode missing comparison fails until
+only that output is rebuilt, with English mtime unchanged. Off-mode MP4 works
+with PCM source audio without dropping picture compatibility checks. The actual
+short Spanish preview selects mixed ordinal 1 (660 Hz) and the correct picture
+position, ignoring a stale full comparison. Provider/ASR/synthesis guards remain
+untouched. These tests do not provide listening approval.
+
+### Matched 150-second finalization measurements
+
+Four new evaluation jobs under `jobs/.batch4-eval/finalization/` reuse copied
+English mix/voice PCM and existing placement/verification evidence from
+`jobs/batch3_luna_first150s`. No hardlinks or source-job locks are used. Each run
+freshly muxes English from the original clip and existing mix, then exercises the
+normal mix-cache/optional-export path and `stage_validate`. No remixing, scheduling,
+transcription, provider invocation or fresh synthesis occurs. Guards on those
+entry points assert zero calls. Historical schedule/candidate counters in copied
+evidence are not counts of work performed by these evaluations.
+
+Two serial pairs were counterbalanced **off/on, then on/off**, using existing OS
+and media caches without flushing. Setup copies and preview rendering are outside
+the timings. Seconds below are disjoint; optional export includes its checkpoint
+and hashes, and validation includes its own hashes/probes/decode checks.
+
+| Pair / comparison | English mux | Optional export stage | Validation | Total |
+| --- | ---: | ---: | ---: | ---: |
+| 1 / off | 2.186 | 0.005 | 7.455 | 9.646 |
+| 1 / on | 2.140 | 0.387 | 13.648 | 16.175 |
+| 2 / on | 2.112 | 0.348 | 13.665 | 16.125 |
+| 2 / off | 2.157 | 0.005 | 7.557 | 9.719 |
+| **Mean off** | **2.172** | **0.005** | **7.506** | **9.682** |
+| **Mean on** | **2.126** | **0.368** | **13.656** | **16.150** |
+
+Nested within on-mode optional export, comparison mux averages **0.188 s** and
+its output hash **0.170 s**. Nested within on-mode validation, Spanish decode
+averages **5.923 s**, probe **0.054 s** and hash **0.166 s**. Do not add these
+nested components again. English decode remains about 5.9 s in both modes.
+
+Each disabled run avoids **378,151,790 bytes (360.63 MiB)** of full comparison
+output; none exists in those output directories. All four English videos are
+byte-identical to each other **and the original batch-3 English video**
+(378,701,776 bytes; SHA256
+`f57e25194cd9652ee8c82b14fff240a1a5839dc3c5b1eb0703505afcfb2ac9f7`).
+Source English PCM hashes also remain unchanged. Common gate decisions match
+exactly. On reports **31/33** required checks passed; off reports **29/31**:
+only two Spanish-only checks become not requested, and all 31 shared required
+checks remain. The same two required failures persist: source-event accounting
+and unresolved source uncertainty. Optional Docker validation stays unavailable.
+
+Coverage is unchanged: **21 retained / 21 English / 17 placed / 4 omitted**.
+Cue 5 remains disputed; cues 17, 18 and 20 remain unconfirmed, omitted for
+`unresolved_source_or_translation`. The unknown source event
+`candidate-74a81dba60f5` (47.620–48.120 s) and unintelligible spans
+45.923–45.977 s and 135.940–136.115 s remain visible. Every evaluation is
+**partial**; no source resolution or manual rescue was attempted.
+
+Mean measured finalization difference is **6.468 s** for this clip and these
+conditions. It is not a cold run, a full-pipeline speedup, or a fixed forecast for
+long videos. Two pairs demonstrate avoided work on this media, not broad latency
+statistics. No new voice quality or listening approval is claimed; the English
+artifact itself is unchanged. Whole-video 4–7 h and 2–4 h targets remain hypotheses.
+
+### Preservation and next boundary
+
+Ignored evidence is in `jobs/.batch4-eval/`: focused log, evaluation driver,
+finalization receipt/log and before/after preservation receipts. Operational Git
+status and binary-diff signatures match. File-tree metadata signatures (relative
+path, mode, size, nanosecond mtime) match for operational jobs, the overnight run
+directory, and `jobs/batch3_luna_first150s`. No existing job or operational lock
+was acquired, and no recovery worker was launched or interrupted.
+
+Batch 4's acceptance evidence is complete within the stated fixture/reuse scope.
+Implementation of batches 5–6 and candidate reduction remains deferred. The four
+omitted cues and their original evidence are preserved for separately authorized
+batch-5 work; this batch supplies no evidence to approve them automatically.
