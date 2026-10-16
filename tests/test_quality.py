@@ -197,6 +197,14 @@ class ReviewTests(unittest.TestCase):
 
 
 class ProviderAliasTests(unittest.TestCase):
+    def test_performance_preset_preserves_all_explicit_role_settings(self):
+        cfg = load_config()
+        explicit = {role: {'kind': 'codex_chatgpt', 'model': 'gpt-6-luna', 'reasoning': 'medium', 'auth': 'chatgpt'}
+                    for role in ('context', 'translation', 'review', 'back_translation', 'repair')}
+        cfg['providers'] = explicit
+        merged = apply_preset(cfg, load_preset('performance'))
+        self.assertEqual(merged['providers'], explicit)
+
     def test_explicit_alias_and_cycle(self):
         spec = {"kind": "command", "command": ["x"]}
         providers = {"repair": spec, "review": {"kind": "same_as", "role": "repair"}}

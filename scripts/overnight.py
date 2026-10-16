@@ -205,6 +205,9 @@ def apply_provider_fallback(launch: dict, job_dir: Path, launch_path: Path,
     if not isinstance(current, dict) or not isinstance(fallback, dict):
         return False, "Cannot read the saved job or fallback configuration."
     current_providers = current.get("providers") or {}
+    if any((resolve_role(current_providers, role) or {}).get("kind") == "codex_chatgpt"
+           for role in ("context", "translation", "review", "back_translation", "repair")):
+        return False, "Explicit ChatGPT subscription providers prohibit provider fallback; fix the configured provider."
     target_providers = fallback.get("providers") or {}
     if not target_providers:
         return False, "Fallback configuration has no provider mapping."

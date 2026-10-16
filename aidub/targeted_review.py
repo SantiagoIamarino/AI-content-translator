@@ -3,7 +3,7 @@ from pathlib import Path
 
 from .job import Job
 from .pipeline import _save_timeline, translation_fingerprint
-from .review import validate_review_response
+from .review import validate_review_response, review_decision
 from .util import fingerprint, read_json, sha256_file, write_json
 
 
@@ -20,7 +20,8 @@ def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
     identity = fingerprint(request)
     if response.get("_aidub_request_identity") != identity:
         raise RuntimeError("Targeted review response request identity does not match")
-    if response.get("translator") != {"kind": "command", "model": "gpt-6-luna"}:
+    provider = response.get("translator") or {}
+    if provider.get("kind") != "command" or provider.get("model") != "gpt-6-luna":
         raise RuntimeError("Targeted review response is not identified as gpt-6-luna")
     if acoustic.get("job_id") != job.data["job_id"] or not acoustic.get("complete"):
         raise RuntimeError("Targeted acoustic report is incomplete or belongs to another job")
@@ -64,8 +65,12 @@ def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
         old_english = seg.get("english") or ""
         new_english = verdict.get("english", old_english).strip()
         issues = sorted(set(verdict.get("issues") or []))
-        source_disputed = bool(verdict.get("disputed")) or "uncertain_source" in issues or bool(seg.get("material_source_conflict"))
-        status = "disputed" if source_disputed else "accepted_targeted_review"
+        decision = review_decision(verdict, old_english, new_english,
+                                   material_conflict=seg.get("material_source_conflict"))
+        source_disputed = decision["source_disputed"]
+        status = decision["status"]
+        if status == "accepted_draft":
+            status = "accepted_targeted_review"
         if new_english != old_english:
             seg["english"] = new_english
             revised += 1
@@ -91,7 +96,7 @@ def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
             "targeted_review_request_identity": identity,
             "targeted_review_response": response_rel,
         }
-        if source_disputed:
+        if status in {"disputed", "revised_unconfirmed"}:
             disputed += 1
         else:
             accepted += 1

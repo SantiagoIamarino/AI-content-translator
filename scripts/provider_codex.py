@@ -19,6 +19,9 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from aidub.codex_provider import CONTROLS, chatgpt_ready, clean_environment, provenance, settings
+from aidub.util import write_json
 SCHEMAS = {
     "context": "aidub.context_response.v1",
     "translation": "aidub.translation_response.v1",
@@ -28,14 +31,17 @@ SCHEMAS = {
 }
 
 
-def _schema(role: str, request: dict) -> dict:
+def _schema(role: str, request: dict, model: str = "gpt-6-luna") -> dict:
     schema_name = (request.get("response_contract") or {}).get("schema") or SCHEMAS[role]
+    if schema_name != SCHEMAS[role]:
+        raise ValueError("Request response contract does not match the configured role")
     root = {"type": "object", "additionalProperties": False,
             "properties": {
                 "schema": {"type": "string", "enum": [schema_name]},
                 "job_id": {"type": "string", "enum": [request["job_id"]]},
                 "translator": {"type": "object", "additionalProperties": False,
-                               "properties": {"kind": {"type": "string"}, "model": {"type": "string"}},
+                               "properties": {"kind": {"type": "string", "enum": ["command"]},
+                                              "model": {"type": "string", "enum": [model]}},
                                "required": ["kind", "model"]},
             }, "required": ["schema", "job_id", "translator"]}
     row_id = {"type": "integer"}
@@ -104,12 +110,15 @@ def _extract_response(text: str) -> dict:
     return data
 
 
-def _normalize(role: str, request: dict, data: dict) -> dict:
+def _normalize(role: str, request: dict, data: dict, provider: dict) -> dict:
     if data.get("schema") != ((request.get("response_contract") or {}).get("schema") or SCHEMAS[role]):
         raise ValueError("Codex response schema does not match the requested schema")
     if data.get("job_id") != request.get("job_id"):
         raise ValueError("Codex response job_id does not match the request")
-    data["translator"] = {"kind": "command", "model": "gpt-6-luna"}
+    reported = data.get("translator") or {}
+    if reported.get("model") != provider["model"]:
+        raise ValueError("Codex reported a different model; refusing to relabel its output")
+    data["translator"] = {"kind": "command", "model": provider["model"], "provenance": provider}
     if role in {"repair", "review"}:
         for row in data.get("segments", []):
             if row.get("english") is None:
@@ -122,6 +131,9 @@ def _normalize(role: str, request: dict, data: dict) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--codex", default="codex")
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--reasoning", required=True, choices=["low", "medium", "high", "xhigh", "max"])
+    parser.add_argument("--auth", choices=["chatgpt"], default="chatgpt")
     parser.add_argument("--request", required=True)
     parser.add_argument("--response", required=True)
     parser.add_argument("--role", choices=sorted(SCHEMAS), required=True)
@@ -136,19 +148,29 @@ def main(argv: list[str] | None = None) -> int:
     if not executable:
         print(f"Codex CLI not found: {args.codex}", file=sys.stderr)
         return 127
+    spec = {"codex": executable, "model": args.model, "reasoning": args.reasoning, "auth": args.auth}
+    try:
+        chatgpt_ready(executable)
+        provider = provenance(spec)
+    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+        print(f"Codex prerequisite failed: {exc}", file=sys.stderr)
+        return 78
 
     with tempfile.TemporaryDirectory(prefix="aidub-codex-provider-") as work:
         workdir = Path(work)
         schema_path = workdir / "response-schema.json"
         final_path = workdir / "final-response.json"
-        schema_path.write_text(json.dumps(_schema(args.role, request), ensure_ascii=False), encoding="utf-8")
-        cmd = [executable, "exec", "--model", "gpt-6-luna", "--config", 'model_reasoning_effort="medium"',
+        schema_path.write_text(json.dumps(_schema(args.role, request, args.model), ensure_ascii=False), encoding="utf-8")
+        cmd = [executable, "exec", "--strict-config", "--model", args.model,
+               "--config", "model_reasoning_effort=" + json.dumps(args.reasoning),
                "--sandbox", "read-only", "--cd", str(workdir), "--ignore-user-config", "--ignore-rules",
                "--skip-git-repo-check", "--ephemeral", "--output-schema", str(schema_path),
                "--output-last-message", str(final_path), "--json", "-"]
+        for key, value in CONTROLS.items():
+            cmd[2:2] = ["--config", f"{key}={value}"]
         try:
             proc = subprocess.run(cmd, input=_prompt(args.role, request), text=True, capture_output=True,
-                                  cwd=workdir, check=False)
+                                  cwd=workdir, check=False, env=clean_environment())
         except OSError as exc:
             print(f"Could not start Codex CLI: {exc}", file=sys.stderr)
             return 127
@@ -157,17 +179,32 @@ def main(argv: list[str] | None = None) -> int:
             raise
         if proc.returncode:
             sys.stderr.write((proc.stderr or proc.stdout or f"Codex exited {proc.returncode}")[-8000:])
+            message = (proc.stderr + proc.stdout).lower()
+            if any(term in message for term in ("quota", "usage limit", "rate limit", "not logged in", "unauthorized",
+                                                "authentication", "invalid configuration", "unknown field", "unsupported")):
+                return 78
             return proc.returncode or 1
         if not final_path.is_file():
             print("Codex exited successfully without an output-last-message file", file=sys.stderr)
             return 1
         try:
-            data = _normalize(args.role, request, _extract_response(final_path.read_text(encoding="utf-8")))
+            # Tool execution is prohibited even if a future CLI exposes an
+            # unexpected capability despite the explicit disabled controls.
+            events = []
+            for line in proc.stdout.splitlines():
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+            tool_types = {"command_execution", "mcp_tool_call", "web_search", "file_change", "collab_tool_call"}
+            if any((e.get("item") or {}).get("type") in tool_types for e in events):
+                raise ValueError("Codex attempted a prohibited tool; response rejected")
+            data = _normalize(args.role, request, _extract_response(final_path.read_text(encoding="utf-8")), provider)
         except (ValueError, json.JSONDecodeError) as exc:
             print(f"Invalid Codex JSON response: {exc}", file=sys.stderr)
             return 1
         response_path.parent.mkdir(parents=True, exist_ok=True)
-        response_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        write_json(response_path, data)
         # Keep a provider session identifier visible in the durable aidub stderr log.
         for line in proc.stdout.splitlines():
             try:

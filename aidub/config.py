@@ -177,7 +177,13 @@ def apply_preset(cfg: dict, preset: dict) -> dict:
             continue
         if isinstance(value, dict) and isinstance(out.get(key), dict):
             merged = dict(out[key])
-            merged.update(value)
+            if key == "providers":
+                # Preset aliases supply missing roles; an explicit locally
+                # configured role keeps its model/reasoning/auth selection.
+                merged.update({role: spec for role, spec in value.items()
+                               if role not in merged or merged[role].get("kind") in {None, "unconfigured", "none"}})
+            else:
+                merged.update(value)
             out[key] = merged
         else:
             out[key] = value

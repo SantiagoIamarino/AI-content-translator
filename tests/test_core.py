@@ -323,6 +323,18 @@ class SegmentTests(unittest.TestCase):
 
 
 class TargetedReviewTests(unittest.TestCase):
+    def test_targeted_revision_remains_unconfirmed(self):
+        from aidub.util import read_json
+        with tempfile.TemporaryDirectory() as tmp:
+            job, request, response, acoustic = self.fixture(Path(tmp))
+            data = read_json(response)
+            data['segments'] = [{'id': 1, 'verdict': 'revise', 'english': 'Hi.',
+                                 'issues': ['register'], 'reason': 'Conversational greeting', 'disputed': False}]
+            write_json(response, data)
+            summary = accept_targeted_review(job, request, response, acoustic)
+            self.assertEqual(summary['accepted_for_scheduling'], 0)
+            self.assertEqual(job.data['timeline'][0]['translation_review']['status'], 'revised_unconfirmed')
+
     def fixture(self, root):
         job_dir = root / "job"
         job = Job.create(job_dir, "fixture", "/tmp/source.mp4", {})

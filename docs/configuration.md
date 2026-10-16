@@ -1,5 +1,10 @@
 # Configuration
 
+For the explicit subscription-only Luna primary provider, prerequisites, all
+five role settings, authentication and migration rules, see
+[Luna provider](luna-provider.md). Portable defaults stay unconfigured; local
+executable/reference paths and credentials do not belong in published config.
+
 Selection: `--config` > `AIDUB_CONFIG` > ignored `config/local.json` > portable `config/default.json`. The launcher resolves the selected interpreter before importing the CLI. Executable names use PATH; relative paths use the checkout root. Copy the complete example into local config and fill in existing environment, model and reference paths. Config files are complete snapshots, not implicit merges.
 
 New `init` checks executable permissions, reference approval, local source/verification Whisper weights, local Qwen weights, CUDA availability and provider configuration for auto jobs. Preflight makes no provider request and permits no model download. No CPU synthesis fallback or provider fallback exists. Existing jobs keep their config snapshots and legacy synthesis keys; current portable defaults are not imposed on them.

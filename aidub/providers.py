@@ -25,9 +25,10 @@ from .util import fingerprint, read_json, write_json
 class ProviderError(RuntimeError):
     """A resumable provider error; external billing may be uncertain."""
 
-    def __init__(self, message, *, uncertain=False):
+    def __init__(self, message, *, uncertain=False, permanent=False):
         super().__init__(message)
         self.uncertain = uncertain
+        self.permanent = permanent
 
 
 UNCONFIGURED_HELP = """No translation/repair provider is configured.
@@ -81,7 +82,7 @@ def require_provider(spec: dict | None, role: str) -> dict:
     kind = _kind(spec)
     if kind in {"", "unconfigured", "none"}:
         raise ProviderError(f"{role} provider is not configured.\n" + UNCONFIGURED_HELP)
-    if kind not in {"command", "openai_compatible"}:
+    if kind not in {"command", "openai_compatible", "codex_chatgpt"}:
         raise ProviderError(
             f"{role} provider kind {kind!r} is unknown. Use command or openai_compatible.\n" + UNCONFIGURED_HELP
         )
@@ -94,7 +95,13 @@ def validate_provider_config(spec: dict) -> None:
         raise ProviderError("Provider timeout_sec must be positive and max_attempts must be 1..5")
     if not 512 <= int(spec.get("max_response_bytes", 1048576)) <= 16 * 1024**2:
         raise ProviderError("Provider max_response_bytes must be 512..16777216")
-    if _kind(spec) == "command":
+    if _kind(spec) == "codex_chatgpt":
+        from .codex_provider import settings
+        try:
+            settings(spec)
+        except ValueError as exc:
+            raise ProviderError(str(exc), permanent=True) from exc
+    elif _kind(spec) == "command":
         import shutil
         command = spec.get("command")
         cwd = Path(spec.get("cwd") or Path(__file__).resolve().parents[1]).expanduser()
@@ -183,7 +190,8 @@ def _run_command(spec: dict, request_path: Path, response_path: Path, role: str)
     if proc.returncode:
         _stop_provider(proc)  # Reap any surviving descendants in this attempt's group.
         raise ProviderError(f"Provider command failed ({proc.returncode}). Log: {stderr_path}. {_read_tail(stderr_path)}",
-                            uncertain=not response_path.is_file())
+                            uncertain=not response_path.is_file(),
+                            permanent=spec.get("kind") == "codex_chatgpt" and proc.returncode == 78)
     maximum = int(spec.get("max_response_bytes", 1048576))
     path = response_path if response_path.is_file() else stdout_path
     if path.stat().st_size > maximum:
@@ -247,7 +255,11 @@ def invoke_provider(spec: dict, request_path: Path, response_path: Path, role: s
     spec = require_provider(spec, role)
     request_obj = read_json(request_path)
     kind = _kind(spec)
-    if kind == "command":
+    if kind == "codex_chatgpt":
+        from .codex_provider import command
+        data = _run_command(dict(spec, command=command(spec, request_path, response_path, role)),
+                            request_path, response_path, role)
+    elif kind == "command":
         data = _run_command(spec, request_path, response_path, role)
     else:
         data = _openai(spec, request_obj, role)
@@ -291,6 +303,18 @@ def _invoke_checked_locked(spec, request_path, response_path, role, current, bef
     identity_spec = {k: v for k, v in spec.items() if k not in {"max_attempts", "timeout_sec", "max_request_chars", "max_response_bytes"}}
     identity_spec["resolved_model"] = spec.get("model") or os.environ.get(spec.get("model_env") or "")
     identity_spec["resolved_base_url"] = spec.get("base_url") or os.environ.get(spec.get("base_url_env") or "")
+    provenance = None
+    if _kind(spec) == "codex_chatgpt":
+        from .codex_provider import provenance as codex_provenance
+        provenance = codex_provenance(spec)
+        identity_spec["effective_provenance"] = provenance
+    def validate(data):
+        errors = response_errors(original, data, role, current)
+        if provenance is not None and isinstance(data, dict):
+            translator = data.get("translator")
+            if not isinstance(translator, dict) or translator.get("provenance") != provenance:
+                errors.append("Codex response provenance does not match the configured provider identity")
+        return errors
     identity = fingerprint({"request": original, "provider": identity_spec, "role": role,
                             "current": {str(k): v for k, v in (current or {}).items()}})
     attempts_dir = response_path.parent / (response_path.stem + "_attempts") / identity
@@ -300,11 +324,13 @@ def _invoke_checked_locked(spec, request_path, response_path, role, current, bef
     if state.get("identity") != identity:
         state = {"schema": "aidub.provider_state.v2", "identity": identity, "attempts": [],
                  "role": role, "status": "pending"}
+        if provenance is not None:
+            state["provider_provenance"] = provenance
         write_json(state_path, state)
     if state.get("status") == "response_ready" and response_path.is_file():
         try:
             data = read_json(response_path)
-            matches = fingerprint(data) == state.get("response_sha256") and not response_errors(original, data, role, current)
+            matches = fingerprint(data) == state.get("response_sha256") and not validate(data)
         except (ValueError, TypeError, KeyError):
             matches = False
         if matches:
@@ -322,7 +348,7 @@ def _invoke_checked_locked(spec, request_path, response_path, role, current, bef
         if path.is_file():
             try:
                 data = read_json(path)
-                feedback = response_errors(original, data, role, current)
+                feedback = validate(data)
                 if not feedback:
                     return _provider_ready(state_path, response_path, state, data)
                 attempt.update(status="invalid_response", errors=feedback)
@@ -335,6 +361,9 @@ def _invoke_checked_locked(spec, request_path, response_path, role, current, bef
             print(f"provider {role}: {warning}")
             state.setdefault("uncertain_outcomes", []).append(warning)
     write_json(state_path, state)
+    if state.get("status") == "blocked" and budget <= int(state.get("blocked_budget", budget)):
+        raise ProviderError(f"{role} provider blocked: {state.get('error')}. Fix the cause and explicitly increase "
+                            "max_attempts (maximum 5) to authorize another attempt.", permanent=True)
     while len(state["attempts"]) < budget:
         index = len(state["attempts"]) + 1
         req = dict(original)
@@ -359,6 +388,14 @@ def _invoke_checked_locked(spec, request_path, response_path, role, current, bef
                 state.update(status="preflight_failed", error=str(exc))
                 write_json(state_path, state)
                 raise ProviderError(f"{role} preflight failed; no provider attempt was started: {exc}") from exc
+        if provenance is not None:
+            from .codex_provider import chatgpt_ready, settings as codex_settings
+            try:
+                chatgpt_ready(codex_settings(spec)[0])
+            except (ValueError, OSError, subprocess.SubprocessError) as exc:
+                state.update(status="preflight_failed", error=str(exc))
+                write_json(state_path, state)
+                raise ProviderError(str(exc), permanent=True) from exc
         req_path = attempts_dir / f"attempt_{index:02d}_request.json"
         res_path = attempts_dir / f"attempt_{index:02d}_response.json"
         write_json(req_path, req)
@@ -369,7 +406,7 @@ def _invoke_checked_locked(spec, request_path, response_path, role, current, bef
         write_json(state_path, state)
         try:
             data = invoke_provider(spec, req_path, res_path, role)
-            feedback = response_errors(original, data, role, current)
+            feedback = validate(data)
             if not feedback:
                 return _provider_ready(state_path, response_path, state, data)
             attempt.update(status="invalid_response", errors=feedback)
@@ -379,7 +416,7 @@ def _invoke_checked_locked(spec, request_path, response_path, role, current, bef
             if res_path.is_file():
                 try:
                     saved = read_json(res_path)
-                    if not response_errors(original, saved, role, current):
+                    if not validate(saved):
                         attempt["warning"] = str(exc)
                         return _provider_ready(state_path, response_path, state, saved)
                 except (ValueError, TypeError, KeyError):
@@ -389,6 +426,11 @@ def _invoke_checked_locked(spec, request_path, response_path, role, current, bef
             state["error"] = str(exc)
             if uncertain:
                 state.setdefault("uncertain_outcomes", []).append(str(exc))
+            if isinstance(exc, ProviderError) and exc.permanent:
+                attempt.update(status="blocked", ended_at=time.time())
+                state.update(status="blocked", error=str(exc), blocked_budget=budget)
+                write_json(state_path, state)
+                raise
             feedback = [f"previous provider attempt failed: {exc}"]
         attempt["ended_at"] = time.time()
         state["status"] = "retryable_error"
