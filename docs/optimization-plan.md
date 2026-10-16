@@ -1,8 +1,9 @@
 # Dubbing optimization implementation plan
 
-Status: batch 1 implemented and evaluated in an isolated worktree on 2026-10-16;
-not integrated into the operational checkout. Batches 2–6 remain proposed and
-unimplemented. The original observations below were inspected at approximately
+Status: batch 1 accepted for continued development; batch 2 implemented and
+verified with focused fake-provider/media tests in the same isolated worktree on
+2026-10-16. Neither batch is integrated into the operational checkout. Batches
+3–6 remain proposed and unimplemented. The original observations were inspected at approximately
 20:15 UTC. The user subsequently authorized batch 1, focused tests, and a check
 of at most eight existing WAVs, with no providers, Qwen synthesis, full-video export,
 or mutation of existing jobs. Completion evidence is recorded below.
@@ -233,7 +234,7 @@ changes. Batch 2 can then proceed without a new full export.
 
 ## Batch 2 — Two small orchestration fixes
 
-**Problem and intended behavior.** `run_unattended` calls `review_pending_repairs`
+**Problem and intended behavior (pre-batch-2 baseline).** `run_unattended` calls `review_pending_repairs`
 only after `run_job` has returned partial, following mix, export, validation, and
 risk reporting. `run_review` requests back-translation even after its last round,
 although no following decision consumes it. Move compact-repair review ahead of
@@ -270,6 +271,11 @@ restores prior control flow and retained snapshots, without deleting newer histo
 finalization before pending repair review and no unconsumed final back-translation.
 Required fidelity decisions and lock behavior remain intact. Try this narrow change
 before introducing separate checkpoints for every finalization component.
+
+**Implementation status.** Completed in the isolated worktree only; see batch-2
+completion evidence below. The small control change is an explicit
+`awaiting_repair_review` handoff before scheduling, handled by auto under its
+existing lock. No finalization-checkpoint framework was added.
 
 ## Batch 3 — Harden and configure Luna as primary
 
@@ -685,8 +691,144 @@ unreaped-worker marker remains blocking across resume until ownership is resolve
 this batch adds no administrative reset command or reboot/orphan reconciliation.
 The real check did not exercise concurrent resident Qwen/Whisper, CPU latency,
 reboots, long-job throughput, or every possible follow-up/prefix outcome. These
-remain limits, not passes. Batches 2–6 and adaptive candidate reduction are still
-unimplemented. Further implementation needs its own authorization.
+remain limits, not passes. At batch-1 completion, batches 2–6 and adaptive
+candidate reduction remained unimplemented. Batch 2 was subsequently authorized;
+its completion evidence follows. Batches 3–6 still require authorization.
+
+## Batch 2 completion evidence — 2026-10-16
+
+### Isolation and scope
+
+Continued in `ai-dubbing-e2e-asr-batch1` on branch
+`fix/asr-correctness-20261016`, directly from batch-1 evidence commit `74b9cc9`
+and implementation `17d23353372cf19ab02def3555bc6e37e40706f1`; recovery baseline
+remains `418f205b968e66bd1511a9a1cdfd321263328be6`. Batch 2 is committed
+separately as `fb66b11a1f1396aba3f65c5057ca9587877314a5`; this plan's evidence
+update follows it in a documentation-only commit. No branch switch, merge, push, installation, environment migration or
+operational-job invocation was performed.
+
+The isolated tree was clean before development. Read-only process checks found
+no dubbing/ASR/overnight worker. Operational Git status/diff and the long-job and
+overnight artifact-tree metadata signatures were captured in an ignored local
+receipt, then compared after verification. No operational job lock was acquired.
+All test job writes and locks used disposable temporary directories. Test logs
+and preservation receipts are ignored under `jobs/.batch2-eval/`.
+
+### Changed behavior
+
+- `aidub/pipeline.py`, `aidub/job.py`, `aidub/unattended.py`: for source-events
+  jobs, pending exact-text compact review now returns exit 2 in the explicit
+  `awaiting_repair_review` state before scheduling, synthesis, mix, export,
+  validation or risk reporting. Auto completes this handoff under its existing
+  owned lock, then calls `run_job` with that same lock. The old post-partial
+  review/re-finalization loop is removed.
+- `aidub/fidelity.py`, `aidub/quality_flow.py`: one small pending-review selector
+  is shared by orchestration and execution. It retains the existing policy for
+  historical jobs and explicit `leave_unresolved` decisions. Checked text and
+  disputed/revised-unconfirmed blockers are unchanged. Final-round revisions are
+  still unconfirmed; resume cannot automatically grant them additional rounds.
+- `aidub/review.py`: disputed-line back-translation is requested only before a
+  following bilingual review round. Required earlier evidence still reaches that
+  next round. Final text, round bounds and review status rules are unchanged.
+- `scripts/overnight.py`: the new state is classified alongside existing provider
+  handoffs. This is a compatibility addition; worker supervision, provider
+  fallback policy and process retry budgets were not redesigned.
+- `docs/architecture.md`: documents the state and manual/auto behavior.
+
+Manual `run`/`resume` stops with a clear hint and never calls providers. Continue
+that handoff using configured `auto` with the original video/name. Disabled
+review leaves it blocked. This batch does not add a manual bilingual-review
+response acceptance command; existing translation and compact-repair JSON
+handoffs remain unchanged. Completed disputed/unconfirmed reviews can still
+produce an explicitly partial output with their lines unvoiced, preserving the
+existing fidelity policy.
+
+### Focused verification
+
+Executed with the configured shared Python interpreter and explicit isolated
+checkout/test import paths; no historical aidub implementation was imported.
+The initial 10-case focused run passed. The expanded regression run passed
+**22 tests** in **0.968 seconds**, with a final repeat passing in **0.947 seconds**
+(test runtime, not pipeline performance):
+
+```text
+test_batch2
+test_quality.ReviewTests
+test_hardening.ProviderRecoveryTests
+test_performance.PerformanceTimingTests.test_compact_repair_verdict_is_bound_to_the_actual_repaired_text
+test_performance.PerformanceTimingTests.test_disputed_source_is_not_spoken_or_loaded_for_synthesis
+test_core.TranslationFingerprintTests
+```
+
+`tests/test_batch2.py` uses the saved JSON fixture
+`tests/fixtures/compact_repair_review.json`, real request validation, batching,
+atomic response/attempt persistence and orchestration, with provider/media stages
+replaced by fakes. Evidence includes:
+
+- Review → review confirmation → schedule → mix → validate ordering. The
+  scheduler sees exactly `Hope it hasn't seen me.`, with a matching checked-text
+  verdict, rather than the superseded compact wording.
+- Manual resume and disabled-review auto stop before schedule/media/provider work.
+  The owned lock excludes a second holder during review; existing subprocess
+  fake-provider lock-exclusion checks also pass.
+- Accepted resume makes zero additional fake provider calls. An interruption
+  immediately before timeline acceptance replays both matching cached responses
+  without new attempts. An exhausted later-round attempt stays exhausted across
+  resume while the earlier accepted response is reused. Compact-revision history
+  is not replenished and a further repair at its limit is rejected.
+- Disputed and revised-unconfirmed fixtures remain blocked/partial across
+  resume. No second review cycle is granted to make them pass.
+- Review budgets of 1, 2 and 4 rounds request respectively 0, 1 and 3
+  back-translations when every round remains disputed; each earlier rendering is
+  present in the following review request. The final rendering is omitted and
+  disputed status remains unchanged.
+
+**Live provider calls: 0. Fresh Qwen synthesis: 0. Media exports: 0.** New tests
+guard synthesis/backend/ASR/media execution. The existing provider recovery suite
+uses local fake commands or patched provider functions only. Media stages are
+mocked and no source clip or existing WAV evaluation was run. No batch-1 model
+evaluation was repeated. These tests establish control flow and cache behavior,
+not listening quality or long-job runtime improvement.
+
+### Cache compatibility, migration and rollback
+
+No config defaults, provider identities, request schemas, request contents,
+batch paths, accepted-response identities, raw hearing/waveform evidence,
+assessment keys or synthesis keys change. Matching saved review responses and
+their persisted attempt budgets remain reusable. Review audit metadata records
+`decision_policy=back_translation_before_next_round_v1`; compact-review audits
+also record `orchestration_policy=compact_review_before_schedule_v1`. These
+markers are outside provider requests and do not invalidate paid responses.
+Old final-round back-translations are retained; their absence in new audits is
+expected and does not invalidate a review.
+
+No existing job migration was executed. On future authorized use, an old partial
+job with unreviewed compact text stops at the new handoff before reusing exports.
+An already exact-text-reviewed job needs no extra review. As before, accepting a
+changed review invalidates schedule/mix/validate; downstream keys bind current
+English and its verdict. Unchanged takes and raw verification evidence remain
+reusable. Existing snapshots without source-events keep the historical policy.
+
+Rollback is the batch-1 tip `74b9cc9` in a separate stopped checkout, with job
+snapshots/history retained. Old code lacks the new handoff but its run entry
+resets state before following its previous flow; do not delete locks, responses,
+jobs or caches to roll back. Do not mix old/new runners on the same job.
+
+### Limits and next-batch gate
+
+There is no measured whole-video speedup. The change removes one unused call
+only when the last round is disputed and avoids the prior pre-review
+finalization pass; savings depend on the recording. The 4–7 h and 2–4 h targets
+remain hypotheses. Provider latency, audio quality and full media validation
+were not evaluated in batch 2. Existing outer handoff-round accounting and
+provider metrics retain their earlier scopes; this batch adds no general
+durable orchestration budget or metrics redesign.
+
+Focused control-flow/cache/lock evidence supports moving to a separately
+authorized batch 3. Luna hardening/configuration, optional comparison export,
+automatic uncertainty resolution, concurrency and candidate reduction have not
+been implemented. Preserve the accepted reference and voice settings for any
+future model/audio comparisons.
 
 ## Exact scope of the first implementation batch
 
