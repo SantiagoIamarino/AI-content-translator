@@ -23,7 +23,10 @@ def omissions_markdown(report):
     lines = [f"# Omitted cues ({report['status']})", "", f"Export: `{report['export']}`",
              f"SHA-256: `{report['export_sha256']}`", ""]
     for item in report["omissions"]:
-        lines += [f"## ID {item['id']} — {item.get('start', 0):.3f}–{item.get('end', 0):.3f}s",
+        start, end = item.get("start"), item.get("end")
+        time_range = (f"{start:.3f}–{end:.3f}s" if isinstance(start, (int, float))
+                      and isinstance(end, (int, float)) else "timestamp unavailable")
+        lines += [f"## ID {item['id']} — {time_range}",
                   f"- Category: {item.get('category')}", f"- Reason: {item.get('failure_reason')}"]
         if item.get("spanish"):
             lines.append(f"- Spanish: {item['spanish']}")

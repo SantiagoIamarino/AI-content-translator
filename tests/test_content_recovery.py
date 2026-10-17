@@ -159,6 +159,16 @@ class ContentRecoveryTests(unittest.TestCase):
                          ("No sé.", "I don't know.", "scoped_content_recovery_exhausted"))
         self.assertIn("10.200–12.400s", omissions_markdown(report))
 
+    def test_omission_markdown_handles_missing_timestamps(self):
+        report = build_omission_report("job", "partial", "/job/output/english_PARTIAL.mp4", "abc", "rev1",
+            [{"id": 2, "start": None, "end": None, "status": "withheld_source_uncertainty"}],
+            [{"id": 2, "start": None, "end": None, "spanish": "No entiendo.", "english": None,
+              "translation_review": {"status": "withheld_source_uncertainty",
+                                     "reason": {"reason": "source_boundary_unresolved"}}}])
+        markdown = omissions_markdown(report)
+        self.assertIn("timestamp unavailable", markdown)
+        self.assertIn("## ID 2", markdown)
+
 
 if __name__ == "__main__":
     unittest.main()
