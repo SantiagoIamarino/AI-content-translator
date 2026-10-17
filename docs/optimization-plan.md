@@ -1,9 +1,12 @@
 # Dubbing optimization implementation plan
 
-Status: batches 1–4 implemented in isolation on 2026-10-16; batch 3 has focused
+Status: batches 1–5 implemented in isolation (batch 5: 2026-10-16 local /
+2026-10-17 UTC); batch 3 has focused
 tests and a completed **partial** 150-second integrated trial. No batch is
-integrated into the operational checkout. Batches 5–6 remain proposed and
-unimplemented. The original observations were inspected at approximately
+integrated into the operational checkout. Batch 6 remains proposed and
+unimplemented. Batch 5 has focused tests, the frozen 12-case source evaluation,
+and a cached-artifact **partial** listening preview; it has no listening approval.
+The original observations were inspected at approximately
 20:15 UTC. The user subsequently authorized batch 1, focused tests, and a check
 of at most eight existing WAVs, with no providers, Qwen synthesis, full-video export,
 or mutation of existing jobs. Completion evidence is recorded below.
@@ -407,6 +410,9 @@ full Spanish output. Explicit-on works. Record actual avoided bytes and measured
 short-clip finalization differences; do not extrapolate a fixed long-job time saving.
 
 ## Batch 5 — Automatic bounded uncertainty resolution
+
+**Status:** implemented in `344bc27` and `79cdcfd`; completion evidence and
+remaining qualification limits are recorded below. Batch 6 is not authorized.
 
 **Problem and intended behavior.** Minor wording doubt can withhold entire cues;
 token-presence polarity checks conflate discourse `Nada...` or trailing `¿no?` with
@@ -1211,6 +1217,246 @@ directory, and `jobs/batch3_luna_first150s`. No existing job or operational lock
 was acquired, and no recovery worker was launched or interrupted.
 
 Batch 4's acceptance evidence is complete within the stated fixture/reuse scope.
-Implementation of batches 5–6 and candidate reduction remains deferred. The four
-omitted cues and their original evidence are preserved for separately authorized
-batch-5 work; this batch supplies no evidence to approve them automatically.
+At that boundary, batches 5–6 and candidate reduction remained deferred. The four
+omitted cues and their original evidence were preserved for the separately
+authorized batch-5 work below; batch 4 supplied no evidence to approve them.
+
+## Batch-5 completion evidence — 2026-10-16 local / 2026-10-17 UTC
+
+### Implementation and boundaries
+
+Continued from **`159f05d`** on `fix/asr-correctness-20261016` in the existing
+isolated worktree. Implementation commits:
+
+- **`344bc27`** — shared eligibility, synchronous bounded resolution, persisted
+  budgets/response recovery, source lineage, boundary diagnostics and focused tests.
+- **`79cdcfd`** — require contextual acoustic support for divergent non-polarity
+  readings as well as polarity conflicts; retain accent-sensitive grammar.
+
+No batch 6 concurrency or candidate reduction was implemented. No operational job
+or batch-3 artifact was resumed, migrated or edited. No environment/package/model
+installation, merge or push occurred. Reference B, its approved transcript, Qwen
+English ICL/revision/generation settings, trim policy, four-valid-candidate policy,
+extra-attempt limit, reaction anchors and max cumulative tempo 1.10 are unchanged.
+
+`fidelity.eligibility` separates source confidence, translation fidelity and synthesis
+eligibility. `targeted_review` acceptance/counts, schedule/cache-miss decisions and
+validation consume it. Minor/equivalent readings no longer inherit an unconditional
+whole-cue omission. Original conflicts stay in history; effective resolutions bind
+the microphone, exact span/Spanish/alternatives, acoustic evidence/model/options,
+policy and exact confirmed English. Explicit punctuated discourse `Nada,` / trailing
+`¿no?` does not create an opposite-polarity conflict. Divergent numbers, actors,
+actions, referents and accent-sensitive grammar still need contextual acoustic
+support, including when an ordinary text review missed the dispute. Primary text
+or global-context agreement alone cannot resolve those differences.
+
+`source_resolution.py` uses the existing synchronous `_SecondHearing`, provider
+batch/validation helpers and atomic writes. `run_job` stops before scheduling at
+`awaiting_source_review`; normal `auto` resolves under the same owned lock and
+continues. No test-specific rescue or approval is embedded in the product path.
+New performance jobs enable the block explicitly; new source-event jobs materialize
+it. Existing snapshots without it remain disabled unless separately migrated.
+
+Per-evidence budgets reserve **at most one new contextual hearing and two semantic
+rounds before calls**. Identical saved hearings retain original provenance; changing
+English alone does not reset the budget. Pending exact requests resume through saved
+responses. Manifest acceptance receipts recover a lagging sidecar save without
+reapplying children or resetting counters. Last-round revisions stay unconfirmed.
+A later confirmed compact repair can rebind exact English only to still-current
+source evidence, within its own existing review budget. No extra source round is
+created by that confirmation. Back-translation never supplies acoustic proof.
+
+Independent supported clauses require confident source words within parent bounds,
+actual clause/pause boundaries, complete child English and subsequent confirmation
+of identical parts/text. Parent history, stable child lineage and explicitly unvoiced
+remainders are retained. Event-bearing cues require scoped boundary reconciliation
+before splitting. Unknown gaps/events receive bounded review, but periodicity or a
+short isolated ASR phrase cannot authorize speech. Automatic non-speech exclusion
+requires bound near-silence and empty lexical evidence. Overlapping duplicate or
+separate reaction spans are diagnosed before synthesis/fit budgets; anchors are
+not silently shifted. The 376/377 overlap is held for scoped correction.
+
+### Focused verification
+
+Final focused run: **102 tests passed in 2.722 s**, without live providers/models:
+`test_batch5`, `test_batch2`, `test_performance`, `test_quality`,
+`test_core.TargetedReviewTests` and `test_provider_codex`.
+
+The new cases cover discourse/real negation, numeric/actor/action divergences,
+accent-sensitive grammar, source support versus context agreement, independent
+supported clauses and visible remainders, stale microphone/span/alternative/text/
+evidence bindings, exact revised-English confirmation, exhausted/resumed budgets,
+incomplete hearings, lagging-sidecar recovery, noise/hesitation protections,
+near-silence accounting, real timeline neighbors, owned-lock auto ordering,
+source-current compact reconfirmation, malformed parts and independently valid
+saved-row recovery. Batch-2 fixtures explicitly disable the new source handoff to
+continue testing their original compact-review budgets independently. No checks
+were weakened to obtain passing results. `git diff --check` passed.
+
+### Frozen source subset and actual provider behavior
+
+`jobs/.batch5-eval/cases-predefined.local.json` fixed **12 cases before execution**.
+Only new evaluation jobs were written. The long-source evaluation retained its
+complete frozen timeline/context while filtering target selection to the predefined
+IDs; no long-job scheduling or synthesis ran. Both evaluations called the production
+resolver under owned locks. The later preview used normal `bin/aidub auto` with
+persisted decisions; no individual cue was manually accepted or rescued.
+
+| Case | Source span, seconds | Decision / evidence |
+| --- | --- | --- |
+| Clip 5 | 47.620–57.574 | Full supported cue recovered; cached second hearing; revised English subsequently confirmed |
+| Clip 17 | 126.499–128.133 | Full cue recovered; cached second hearing; retained `well` and trailing thought; revised English subsequently confirmed |
+| Clip 18 | 129.496–136.060 | Existing final English confirmed using primary waveform/word evidence |
+| Clip 20 | 141.168–142.219 | Existing final English confirmed using primary waveform/word evidence |
+| Clip tiny gap 1 | 45.923–45.977 | Withheld: isolated `Gracias` does not establish dialogue; new contextual hearing supplies no adequate inside-gap words |
+| Clip tiny gap 2 | 135.940–136.115 | Withheld: isolated `¡Gracias!` remains unconfirmed in context |
+| Clip unknown event | 47.620–48.120 | Withheld: periodicity/neighboring `Entiendo` does not establish a separate vocal event |
+| Long 79 | 576.293–580.240 | Existing English eligible; cached independent reading supports the comparison, optional trailing tag does not negate it |
+| Long 772 | 5177.066–5179.186 | Existing `Anyway...` English eligible; discourse `Nada,` is not a negated proposition |
+| Long 685 | 4743.150–4744.595 | Withheld: opposite polarity lacks confident distinguishing acoustic support; unsupported provider approval/parts rejected |
+| Long 102 | 765.211–769.305 | Withheld: trailing `tampoco vamos a` unresolved; proposed partial range/text failed acoustic/boundary/exact-confirmation checks |
+| Long 376/377 pair | 2999.614–3000.400 / 2999.780–3000.220 | Both withheld before provider/synthesis budgets: overlapping duplicate needs scoped boundary correction |
+
+Six cues became eligible: four clip cues and the two discourse cases. This is not
+six newly synthesized long-job cues: only the four clip cues were synthesized for
+the listening preview. All sampled exclusions remain explained. The supported-span
+path passed focused tests but **no partial split was accepted in the live subset**;
+102 remains a limitation, not a claimed recovery.
+
+Actual live work across both source jobs: **6 review-role model calls**, Luna /
+medium / ChatGPT subscription authentication throughout. Context, translation,
+back-translation and repair made **zero fresh calls**. Six command-attempt intervals
+total **46.507 s**, including CLI/startup/validation overhead; they are not isolated
+model-inference timings. Five original batch attempts were recorded invalid and one
+response-ready. No external outcome is marked uncertain. No provider/billing fallback
+or retry-budget increase was used.
+
+Live issues and bounded handling are retained in the receipts:
+
+- The provider put concrete ambiguity reasons inside `source_assessment.reason`
+  while omitting the duplicate top-level reason. The validator now recognizes the
+  same concrete reason there; new structured source responses require a nonempty
+  top-level reason too. The original response/provenance is retained, not relabeled.
+- Subsequent invalid non-speech or polarity/partial-span proposals were rejected.
+  After attempts exhausted, each saved row was independently revalidated against
+  its exact original source/evidence/English. Valid neighbor decisions survived;
+  invalid rows became explicit abstentions with their failed checks. No failed
+  semantic/acoustic check became an approval and no new request identity bypassed
+  exhausted attempts.
+- Targeted request construction was corrected to preserve actual frozen timeline
+  neighbors rather than treating disputed IDs as adjacent lines. This correction
+  is covered by focused tests. Earlier live requests retain their original,
+  narrower/misordered subset context in provenance; no extra live round was added
+  after budgets finished. The final corrected neighbor prompt therefore still
+  needs fresh qualification before claims about broader source-resolution quality.
+
+Acoustic source evidence: **6 saved second hearings + 2 primary-word/waveform
+records reused**, and **3 genuinely new contextual windows** for the two tiny gaps
+and unknown event. First fresh hearing was **6.612 s including worker startup**;
+subsequent warm requests were **0.264 s** and **0.247 s** (7.123 s total).
+Separate Whisper load time was not instrumented. These intervals precede the
+preview. Initial failed source-evaluation invocations did not record full outer
+wall time; do not reconstruct a clean end-to-end benchmark by adding engineering
+pauses. Completed clip source-review resume took 18.275 s; final cached-state
+checks took about 0.732 s for the clip and 0.187 s for the long subset.
+
+No material meaning errors were identified in accepted text by automated/text
+review. Unsupported material proposals were rejected. There is **no independent
+listening ground truth or listening approval**; this is not a measured zero-error
+meaning/voice score.
+
+### Updated 150-second listening preview
+
+New isolated job: `jobs/batch5_luna_first150s`. Full listening output:
+
+`/home/siamarino/ai-dubbing-e2e-asr-batch1/jobs/batch5_luna_first150s/output/english_PARTIAL.mp4`
+
+Normal configured `bin/aidub auto` ran with performance preset, original stream roles
+mic=2/game=1/mixed=0, the approved tranquil reference and unchanged generation settings.
+Comparison was explicitly **off**, and no full Spanish comparison exists. Source
+extraction/transcription and accepted translation/context evidence were reused.
+The copied context retained its original artifact/provenance, with an explicit
+identical-source reuse receipt and only a new job-local lookup identity; this kept
+the original glossary/name verification inputs. Original batch-3 files were untouched.
+
+Counts: **21 retained / 21 English / 21 placed / 0 omitted cues**, versus 17 placed
+and 4 omitted in batch 3. Newly placed source spans are the four clip cue spans above.
+Cue 5 and 17 English changed; 18 and 20 kept their existing English. All four selected
+takes use **tempo 1.0**. Cue 17 used the existing bounded extra-candidate search;
+its accepted protected output fits before the next reaction anchor. No text was
+shortened, ending chopped or tempo cap changed to force placement.
+
+The preview reused **88 synthesis/assessment cache hits**, generated **20 missing
+candidates** (5:4, 17:8, 18:4, 20:4), and made **20 generated-audio ASR calls**.
+The four-valid-candidate policy and existing extra-attempt search were retained.
+No unchanged English line required new synthesis. Of the 17 previously placed
+lines, **16 selected PCM arrays, seeds and sample placements are identical**.
+Cue **7** reranked from seed 4049 to **1049**, both existing cached takes, because
+the unchanged running voice-consistency selection saw recovered commentary.
+Its start changes by 74 samples at 48 kHz and its selected duration changes;
+include it in listening comparisons. WAV header hashes alone also change when
+identical PCM is rewritten; do not mistake those headers for fresh speech.
+
+| Preview stage (disjoint wall scopes) | Seconds |
+| --- | ---: |
+| Inspect | 0.658 |
+| Extract, cached | 0.000 |
+| Source transcription/diagnostics, cached raw evidence | 0.970 |
+| Schedule: synthesis, verification, candidate selection and placement | 83.260 |
+| Mix + English export | 2.512 |
+| Required validation | 7.297 |
+| Imports/preflights/risk previews and other residual overhead | 23.345 |
+| **Measured preview process total** | **118.042 (1m58s)** |
+
+Nested within schedule, not additional elapsed stages: Qwen initialization **2.679 s**,
+clone prompt **1.054 s**, fresh inference **61.933 s**, generated-audio hearings
+**10.152 s**, other local/selection/presentation work about **7.443 s**. Generated
+first hearing **4.459 s including startup**; 19 warm requests median **0.296 s**.
+Separate Whisper initialization was not instrumented. Preview itself made **zero
+provider calls**; the six source-review calls above happened during the prior
+subset evaluation. Existing model weights were reused, not downloaded.
+
+Required gates: **30/32 passed**, exit **3**, status **partial**. The two failures
+are `source_events_accounted` (unknown event) and `source_uncertainty_resolved`
+(the two tiny unintelligible gaps). All required English protections passed,
+including exact eligible placed text, generated verification, timing/windows,
+protected endings/events, game PCM/headroom, source integrity and copied picture.
+Comparison-only checks are not requested; optional Docker validation is unavailable.
+The policy guard for non-polarity differences was added after preview rendering;
+it does not change this clip's eligibility (there are no ASR alternative rows).
+Focused tests and a read-only current-policy decision check cover that guard;
+no unnecessary second export/validation/synthesis run was performed.
+
+This is a reused-artifact coverage preview with fresh audio only for missing keys.
+It is not a cold full-pipeline run or a speedup ratio against batch 3/the long job.
+Whole-video 4–7 h and 2–4 h targets remain unproven.
+
+### Cache compatibility, preservation and next boundary
+
+Policy `aidub.source_resolution.v1` is independent of transcript/provider/raw-audio
+provenance. The changed eligibility inputs invalidate affected schedule/mix/
+validation results, while raw source and synthesis caches remain reusable. A source
+checkpoint recalculation preserves accepted historical text/provenance when all
+source IDs/spans/Spanish are identical. Splits change affected IDs/requests and
+retain parent lineage. A policy mismatch in saved recovery state stops for an
+explicit stopped-job migration instead of silently acquiring another budget.
+Rollback uses prior stopped-worktree code/config and retained artifacts; do not
+relabel new decisions as old, delete jobs/caches, or touch an active snapshot.
+
+Ignored evidence is in `jobs/.batch5-eval/`, including the frozen cases, original
+failed source logs/attempts, cached recovery receipts, focused log, source result
+JSON, preview process/stage measurements, PCM comparison and preservation receipts.
+`preservation-before.local.json` and `preservation-after.local.json` match for
+operational Git status/binary diff and file-tree metadata signatures of operational
+jobs, overnight artifacts and `jobs/batch3_luna_first150s`. Original processing locks
+were not acquired and no operational worker was launched/interrupted.
+
+**Stop before batch 6.** Listen to the full preview plus source/baseline/new excerpts
+around 47–59 s, 125–137 s, 140–146 s, and cue 7 around 67–71 s. Use randomized
+baseline/candidate order, noting recovered content separately from unchanged speech;
+check meaning, filler/restart function, calmness/identity, protected soft endings,
+reaction timing and game audibility. The shared listening protocol above remains
+required for approval. Before broader runtime or coverage claims, separately
+qualify the corrected neighbor prompt with a small fresh source-only review and
+exercise a real supported-clause split; existing cached audio should be reused.
+No further model call, synthesis, trial or batch 6 implementation is started here.
