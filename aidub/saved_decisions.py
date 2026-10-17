@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .providers import ProviderError, response_errors
 from .util import fingerprint
+from .source_disagreement import POLICY as DISAGREEMENT_POLICY
 
 
 def envelope_error(request, response, role):
@@ -135,6 +136,7 @@ def replay_saved_batch(spec, request, directory, role, current=None):
                             "provider_attempt_identity": state.get("identity", path.parent.name),
                             "request_path": str(rp), "response_path": str(sp), "state_path": str(path),
                             "response_sha256": fingerprint(data), "provider": data["translator"],
+                            "validation_policy": DISAGREEMENT_POLICY,
                             "source": copy.deepcopy(parent_rows[sid]), "decision": copy.deepcopy(row)}
                         stamps[sid] = order
     return result

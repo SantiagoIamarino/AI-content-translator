@@ -1594,3 +1594,54 @@ replay does not increment legacy response_reuses counters; receipts record reuse
 Interrupted infrastructure outcomes remain delegated to the original provider
 state machine with the same persisted identity and budget. No new media or provider request.
 The second correction and full 115-cue comparison follow separately.
+
+## Coverage correction 2 — classify ASR differences (2026-10-17)
+
+Batch 6 remains paused. `source_disagreement.v1` replaces blanket disagreement
+with explicit equivalent, minor discourse/connector, localized lexical/grammar,
+and competing number/polarity classifications. Only a small explicit orthographic
+and numeral map and structurally delimited discourse insertions are harmless by
+construction. Unknown words, repetitions, actor/action/referent changes and
+accent-sensitive grammar still need adjudication; no arbitrary fragment is
+silently voiced. The classifier reports changed word ranges, not approved splits.
+
+Current integrity-bound contextual evidence participates in classification.
+It can expose uncertainty missed by the earlier pass (155 is a saved control).
+Review acceptance, acoustic lexical support, exact English confirmation and all
+normal candidate/verification/placement/ending gates remain required. Existing
+material decisions and unconfirmed revisions are retained. Auto avoids redundant
+source requests for already eligible minor differences, while persisted pending
+requests keep their identities. Episode and provider budgets are unchanged;
+schedule/validation fingerprints include the new classification policy. Replay
+receipts record the validator policy separately from original provider provenance.
+
+`scripts/evaluate_saved_coverage.py` compares the same saved inputs against
+pre-correction validators and deterministic replay, without Job construction,
+locks, calls or original-job writes. Isolated evaluation of all 115 omitted cues
+shows **8 newly eligible cues / 54.918271s source windows**: 83, 123, 523, 655 from
+deterministic replay, plus 2, 4, 553, 721 from minor differences. This is not eight
+new placements or measured speech duration. No previously placed cue becomes
+withheld; 3300/300 and negation controls remain blocked. The other 107 export
+omissions are not established recoveries. Detailed reasons/receipts for all 115
+are saved in the isolated evaluation, with original input preservation signatures.
+
+**64 focused tests pass**, using fake providers. Full suite: **227 pass, 1 skip,
+1 pre-existing failure** (`test_legacy_transcript_ids_survive_quality_only_migration`).
+That failure reproduces with the original `2384395` pipeline; its transcription
+function is unchanged. No unrelated transcription fix is included.
+
+Three bounded reference-trial audition WAVs were generated separately through
+this checkout's `bin/aidub`, using the authoritative original job snapshot and
+approved reference hashes. They illustrate cues 2, 523 and 721 (9.52s, 3.68s,
+1.20s). These raw audition takes are not four-candidate selections, verified
+placements or human listening approval; the production four-valid-candidate
+policy remains unchanged. Saved evidence establishes the narrow classification
+changes, so no fresh reviewer request or additional budget was spent. Unknown
+semantic cases remain withheld rather than serving as speculative qualification.
+
+Evaluation root: `jobs/.coverage-correction-evaluation-20261017/` (ignored).
+Original job/config/responses/attempts/caches/export remain intact; no migration,
+resume, full export, merge or push. Applying the evaluated recovery to the
+original job later requires an explicit stopped-job migration under its owned
+lock, followed by normal synthesis/verification/placement. This is a focused
+correction, not a claim that the recording's remaining coverage problem is solved.

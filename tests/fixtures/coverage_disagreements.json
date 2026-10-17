@@ -1,0 +1,4781 @@
+{
+  "2": {
+    "segment": {
+      "id": 2,
+      "start": 10.044,
+      "end": 22.817917,
+      "spanish": "Es mi primera vez creando un zoológico desde cero, así que bueno, espero que nos vaya bien. La idea es estar aprendiendo un poco del juego mientras vamos creando el zoológico.",
+      "english": "This is my first time building a zoo from scratch, so, well, I hope it goes well. The idea is to learn a little about the game as we build the zoo.",
+      "english_original": "This is my first time building a zoo from scratch, so, well, I hope it goes well. The idea is to learn a little about the game as we build the zoo.",
+      "anchor_type": "utterance",
+      "anchor_type_note": "heuristic from word count and duration, not a linguistic label",
+      "notes": "Whisper start 9.620; energy onset 10.044. Timestamps are approximate, not forced alignment. Uncertain words: bueno, p=0.478. Not rewritten. Merged Whisper segments on a short energy gap: Es mi primera vez creando un zoológico desde cero, así que bueno, espero que nos vaya bien. | La idea es estar aprendiendo un poco del juego mientras vamos creando el zoológico.",
+      "whisper_start": 9.620000000000005,
+      "whisper_end": 22.76,
+      "uncertain_words": [
+        {
+          "word": "bueno,",
+          "probability": 0.4782490134239197,
+          "start": 15.18,
+          "end": 15.78
+        }
+      ],
+      "source_words": [
+        {
+          "word": " mi",
+          "start": 10.26,
+          "end": 10.6,
+          "probability": 0.9999138116836548
+        },
+        {
+          "word": " primera",
+          "start": 10.6,
+          "end": 10.88,
+          "probability": 0.9999130964279175
+        },
+        {
+          "word": " vez",
+          "start": 10.88,
+          "end": 11.2,
+          "probability": 0.9999452829360962
+        },
+        {
+          "word": " creando",
+          "start": 11.2,
+          "end": 11.9,
+          "probability": 0.9998664557933807
+        },
+        {
+          "word": " un",
+          "start": 11.9,
+          "end": 12.52,
+          "probability": 0.9999730587005615
+        },
+        {
+          "word": " zoológico",
+          "start": 12.52,
+          "end": 13.08,
+          "probability": 0.997762531042099
+        },
+        {
+          "word": " desde",
+          "start": 13.08,
+          "end": 13.7,
+          "probability": 0.9999324083328247
+        },
+        {
+          "word": " cero,",
+          "start": 13.7,
+          "end": 14.18,
+          "probability": 0.9996742904186249
+        },
+        {
+          "word": " así",
+          "start": 14.76,
+          "end": 14.88,
+          "probability": 0.9994428753852844
+        },
+        {
+          "word": " que",
+          "start": 14.88,
+          "end": 15.18,
+          "probability": 0.9999909400939941
+        },
+        {
+          "word": " bueno,",
+          "start": 15.18,
+          "end": 15.78,
+          "probability": 0.4782490134239197
+        },
+        {
+          "word": " espero",
+          "start": 16.02,
+          "end": 16.4,
+          "probability": 0.9999256134033203
+        },
+        {
+          "word": " que",
+          "start": 16.4,
+          "end": 16.62,
+          "probability": 0.9999964237213135
+        },
+        {
+          "word": " nos",
+          "start": 16.62,
+          "end": 17.2,
+          "probability": 0.9986692667007446
+        },
+        {
+          "word": " vaya",
+          "start": 17.2,
+          "end": 17.38,
+          "probability": 0.9998787641525269
+        },
+        {
+          "word": " bien.",
+          "start": 17.38,
+          "end": 17.6,
+          "probability": 0.9999653100967407
+        },
+        {
+          "word": " La",
+          "start": 17.68,
+          "end": 17.76,
+          "probability": 0.9990567564964294
+        },
+        {
+          "word": " idea",
+          "start": 17.76,
+          "end": 17.9,
+          "probability": 0.9999510049819946
+        },
+        {
+          "word": " es",
+          "start": 17.9,
+          "end": 18.12,
+          "probability": 0.9999648332595825
+        },
+        {
+          "word": " estar",
+          "start": 18.12,
+          "end": 18.92,
+          "probability": 0.9982675313949585
+        },
+        {
+          "word": " aprendiendo",
+          "start": 18.92,
+          "end": 19.22,
+          "probability": 0.9996863007545471
+        },
+        {
+          "word": " un",
+          "start": 19.22,
+          "end": 19.36,
+          "probability": 0.9999871253967285
+        },
+        {
+          "word": " poco",
+          "start": 19.36,
+          "end": 19.5,
+          "probability": 0.9999469518661499
+        },
+        {
+          "word": " del",
+          "start": 19.5,
+          "end": 19.68,
+          "probability": 0.999531626701355
+        },
+        {
+          "word": " juego",
+          "start": 19.68,
+          "end": 20.02,
+          "probability": 0.9999642372131348
+        },
+        {
+          "word": " mientras",
+          "start": 20.02,
+          "end": 20.3,
+          "probability": 0.9978185892105103
+        },
+        {
+          "word": " vamos",
+          "start": 20.3,
+          "end": 20.66,
+          "probability": 0.9998297691345215
+        },
+        {
+          "word": " creando",
+          "start": 20.66,
+          "end": 21.46,
+          "probability": 0.9999545812606812
+        },
+        {
+          "word": " el",
+          "start": 21.46,
+          "end": 22.22,
+          "probability": 0.9998705387115479
+        },
+        {
+          "word": " zoológico.",
+          "start": 22.22,
+          "end": 22.76,
+          "probability": 0.9997760653495789
+        }
+      ],
+      "revisions": [],
+      "asr_alternatives": [
+        {
+          "text": "Es mi primera vez creando un zoológico desde cero, así que espero que nos vaya bien. La idea es estar aprendiendo un poco del juego mientras vamos creando el zoológico.",
+          "mean_probability": 0.972,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "source_cues": [
+        {
+          "spanish": "Es mi primera vez creando un zoológico desde cero, así que bueno, espero que nos vaya bien. La idea es estar aprendiendo un poco del juego mientras vamos creando el zoológico.",
+          "start": 10.044,
+          "end": 22.817917
+        }
+      ],
+      "source_pauses": [
+        {
+          "start": 12.124187500000001,
+          "end": 12.3841875,
+          "duration": 0.26,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 14.2441875,
+          "end": 14.644187500000001,
+          "duration": 0.4,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 15.3641875,
+          "end": 15.624187500000001,
+          "duration": 0.26,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 15.804187500000001,
+          "end": 16.0841875,
+          "duration": 0.28,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 18.124187499999998,
+          "end": 18.7241875,
+          "duration": 0.6,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 20.7041875,
+          "end": 21.064187500000003,
+          "duration": 0.36,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 21.7041875,
+          "end": 22.124187499999998,
+          "duration": 0.42,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        }
+      ],
+      "syllable_budget": {
+        "syllables": 36,
+        "target": 64,
+        "max": 71,
+        "over_max": false
+      },
+      "translation_review": {
+        "status": "accepted_draft",
+        "draft": "This is my first time building a zoo from scratch, so, well, I hope it goes well. The idea is to learn a little about the game as we build the zoo.",
+        "checked_text": "This is my first time building a zoo from scratch, so, well, I hope it goes well. The idea is to learn a little about the game as we build the zoo.",
+        "issues": [],
+        "reason": null
+      }
+    },
+    "episode": {
+      "evidence": {
+        "episode": "1a16021d4d18e7e2a54ec045663b7930950984a90eb89d1ecc0cdcd1139676a5",
+        "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+        "span": [
+          10.044,
+          22.817917
+        ],
+        "primary_words": [
+          {
+            "word": " mi",
+            "start": 10.26,
+            "end": 10.6,
+            "probability": 0.9999138116836548
+          },
+          {
+            "word": " primera",
+            "start": 10.6,
+            "end": 10.88,
+            "probability": 0.9999130964279175
+          },
+          {
+            "word": " vez",
+            "start": 10.88,
+            "end": 11.2,
+            "probability": 0.9999452829360962
+          },
+          {
+            "word": " creando",
+            "start": 11.2,
+            "end": 11.9,
+            "probability": 0.9998664557933807
+          },
+          {
+            "word": " un",
+            "start": 11.9,
+            "end": 12.52,
+            "probability": 0.9999730587005615
+          },
+          {
+            "word": " zoológico",
+            "start": 12.52,
+            "end": 13.08,
+            "probability": 0.997762531042099
+          },
+          {
+            "word": " desde",
+            "start": 13.08,
+            "end": 13.7,
+            "probability": 0.9999324083328247
+          },
+          {
+            "word": " cero,",
+            "start": 13.7,
+            "end": 14.18,
+            "probability": 0.9996742904186249
+          },
+          {
+            "word": " así",
+            "start": 14.76,
+            "end": 14.88,
+            "probability": 0.9994428753852844
+          },
+          {
+            "word": " que",
+            "start": 14.88,
+            "end": 15.18,
+            "probability": 0.9999909400939941
+          },
+          {
+            "word": " bueno,",
+            "start": 15.18,
+            "end": 15.78,
+            "probability": 0.4782490134239197
+          },
+          {
+            "word": " espero",
+            "start": 16.02,
+            "end": 16.4,
+            "probability": 0.9999256134033203
+          },
+          {
+            "word": " que",
+            "start": 16.4,
+            "end": 16.62,
+            "probability": 0.9999964237213135
+          },
+          {
+            "word": " nos",
+            "start": 16.62,
+            "end": 17.2,
+            "probability": 0.9986692667007446
+          },
+          {
+            "word": " vaya",
+            "start": 17.2,
+            "end": 17.38,
+            "probability": 0.9998787641525269
+          },
+          {
+            "word": " bien.",
+            "start": 17.38,
+            "end": 17.6,
+            "probability": 0.9999653100967407
+          },
+          {
+            "word": " La",
+            "start": 17.68,
+            "end": 17.76,
+            "probability": 0.9990567564964294
+          },
+          {
+            "word": " idea",
+            "start": 17.76,
+            "end": 17.9,
+            "probability": 0.9999510049819946
+          },
+          {
+            "word": " es",
+            "start": 17.9,
+            "end": 18.12,
+            "probability": 0.9999648332595825
+          },
+          {
+            "word": " estar",
+            "start": 18.12,
+            "end": 18.92,
+            "probability": 0.9982675313949585
+          },
+          {
+            "word": " aprendiendo",
+            "start": 18.92,
+            "end": 19.22,
+            "probability": 0.9996863007545471
+          },
+          {
+            "word": " un",
+            "start": 19.22,
+            "end": 19.36,
+            "probability": 0.9999871253967285
+          },
+          {
+            "word": " poco",
+            "start": 19.36,
+            "end": 19.5,
+            "probability": 0.9999469518661499
+          },
+          {
+            "word": " del",
+            "start": 19.5,
+            "end": 19.68,
+            "probability": 0.999531626701355
+          },
+          {
+            "word": " juego",
+            "start": 19.68,
+            "end": 20.02,
+            "probability": 0.9999642372131348
+          },
+          {
+            "word": " mientras",
+            "start": 20.02,
+            "end": 20.3,
+            "probability": 0.9978185892105103
+          },
+          {
+            "word": " vamos",
+            "start": 20.3,
+            "end": 20.66,
+            "probability": 0.9998297691345215
+          },
+          {
+            "word": " creando",
+            "start": 20.66,
+            "end": 21.46,
+            "probability": 0.9999545812606812
+          },
+          {
+            "word": " el",
+            "start": 21.46,
+            "end": 22.22,
+            "probability": 0.9998705387115479
+          },
+          {
+            "word": " zoológico.",
+            "start": 22.22,
+            "end": 22.76,
+            "probability": 0.9997760653495789
+          }
+        ],
+        "primary_text": "Es mi primera vez creando un zoológico desde cero, así que bueno, espero que nos vaya bien. La idea es estar aprendiendo un poco del juego mientras vamos creando el zoológico.",
+        "contextual": {
+          "window": [
+            9.694,
+            23.056854
+          ],
+          "words": [
+            {
+              "word": "Es",
+              "start": 9.694,
+              "end": 10.294,
+              "probability": 0.853359043598175,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "mi",
+              "start": 10.294,
+              "end": 10.594000000000001,
+              "probability": 0.9931539297103882,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "primera",
+              "start": 10.594000000000001,
+              "end": 10.874,
+              "probability": 0.9932401180267334,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "vez",
+              "start": 10.874,
+              "end": 11.194,
+              "probability": 0.9975605010986328,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "creando",
+              "start": 11.194,
+              "end": 11.954,
+              "probability": 0.9913012683391571,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "un",
+              "start": 11.954,
+              "end": 12.514000000000001,
+              "probability": 0.9937582015991211,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "zoológico",
+              "start": 12.514000000000001,
+              "end": 13.154,
+              "probability": 0.9944270104169846,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "desde",
+              "start": 13.154,
+              "end": 13.674000000000001,
+              "probability": 0.9922717809677124,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "cero,",
+              "start": 13.674000000000001,
+              "end": 14.214,
+              "probability": 0.9970340132713318,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "así",
+              "start": 14.814,
+              "end": 14.874,
+              "probability": 0.9665161371231079,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "que",
+              "start": 14.874,
+              "end": 15.214,
+              "probability": 0.998013973236084,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "espero",
+              "start": 15.214,
+              "end": 16.374000000000002,
+              "probability": 0.5023271441459656,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "que",
+              "start": 16.374000000000002,
+              "end": 16.634,
+              "probability": 0.9947781562805176,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "nos",
+              "start": 16.634,
+              "end": 17.194000000000003,
+              "probability": 0.9824609160423279,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "vaya",
+              "start": 17.194000000000003,
+              "end": 17.394000000000002,
+              "probability": 0.9983982443809509,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "bien.",
+              "start": 17.394000000000002,
+              "end": 17.634,
+              "probability": 0.9983112812042236,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "La",
+              "start": 17.734,
+              "end": 17.754,
+              "probability": 0.9973078966140747,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "idea",
+              "start": 17.754,
+              "end": 17.914,
+              "probability": 0.9996826648712158,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "es",
+              "start": 17.914,
+              "end": 18.134,
+              "probability": 0.9974380731582642,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "estar",
+              "start": 18.134,
+              "end": 18.914,
+              "probability": 0.9414855241775513,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "aprendiendo",
+              "start": 18.914,
+              "end": 19.234,
+              "probability": 0.9993472695350647,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "un",
+              "start": 19.234,
+              "end": 19.334000000000003,
+              "probability": 0.9982826709747314,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "poco",
+              "start": 19.334000000000003,
+              "end": 19.514000000000003,
+              "probability": 0.9996613264083862,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "del",
+              "start": 19.514000000000003,
+              "end": 19.674,
+              "probability": 0.9961212277412415,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "juego",
+              "start": 19.674,
+              "end": 20.014000000000003,
+              "probability": 0.9997026324272156,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "mientras",
+              "start": 20.014000000000003,
+              "end": 20.294,
+              "probability": 0.9893540143966675,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "vamos",
+              "start": 20.294,
+              "end": 20.614,
+              "probability": 0.9981012940406799,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "creando",
+              "start": 20.614,
+              "end": 21.514000000000003,
+              "probability": 0.9997436106204987,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "el",
+              "start": 21.514000000000003,
+              "end": 22.214,
+              "probability": 0.9969475865364075,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "zoológico.",
+              "start": 22.214,
+              "end": 22.774,
+              "probability": 0.9993847459554672,
+              "no_speech_prob": 2.915342229778406e-12
+            }
+          ],
+          "text": " Es mi primera vez creando un zoológico desde cero, así que espero que nos vaya bien. La idea es estar aprendiendo un poco del juego mientras vamos creando el zoológico.",
+          "provenance": {
+            "kind": "saved_second_pass",
+            "stage_fingerprint": "e5f877b4584f0262ae2edd3ae804a2050bd9e2e88f14742f915e86be9b3ccb05",
+            "hearing_identity": "e3e37c9c95da2bbd5f508130d1c9b7658c527d7408a82d3f9740caecd042cf2a",
+            "result_sha256": "1389856e32dec46223c73f0023118a1c05b500132bb37182367fd06bbfbcc67e",
+            "model": "turbo",
+            "options": {
+              "condition_on_previous_text": false,
+              "beam_size": 5,
+              "best_of": 5
+            }
+          }
+        },
+        "inside": {
+          "text": "Es mi primera vez creando un zoológico desde cero, así que espero que nos vaya bien. La idea es estar aprendiendo un poco del juego mientras vamos creando el zoológico.",
+          "mean_probability": 0.972,
+          "min_probability": 0.5023,
+          "max_no_speech_prob": 0.0,
+          "words": [
+            {
+              "word": "Es",
+              "start": 9.694,
+              "end": 10.294,
+              "probability": 0.853359043598175,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "mi",
+              "start": 10.294,
+              "end": 10.594000000000001,
+              "probability": 0.9931539297103882,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "primera",
+              "start": 10.594000000000001,
+              "end": 10.874,
+              "probability": 0.9932401180267334,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "vez",
+              "start": 10.874,
+              "end": 11.194,
+              "probability": 0.9975605010986328,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "creando",
+              "start": 11.194,
+              "end": 11.954,
+              "probability": 0.9913012683391571,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "un",
+              "start": 11.954,
+              "end": 12.514000000000001,
+              "probability": 0.9937582015991211,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "zoológico",
+              "start": 12.514000000000001,
+              "end": 13.154,
+              "probability": 0.9944270104169846,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "desde",
+              "start": 13.154,
+              "end": 13.674000000000001,
+              "probability": 0.9922717809677124,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "cero,",
+              "start": 13.674000000000001,
+              "end": 14.214,
+              "probability": 0.9970340132713318,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "así",
+              "start": 14.814,
+              "end": 14.874,
+              "probability": 0.9665161371231079,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "que",
+              "start": 14.874,
+              "end": 15.214,
+              "probability": 0.998013973236084,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "espero",
+              "start": 15.214,
+              "end": 16.374000000000002,
+              "probability": 0.5023271441459656,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "que",
+              "start": 16.374000000000002,
+              "end": 16.634,
+              "probability": 0.9947781562805176,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "nos",
+              "start": 16.634,
+              "end": 17.194000000000003,
+              "probability": 0.9824609160423279,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "vaya",
+              "start": 17.194000000000003,
+              "end": 17.394000000000002,
+              "probability": 0.9983982443809509,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "bien.",
+              "start": 17.394000000000002,
+              "end": 17.634,
+              "probability": 0.9983112812042236,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "La",
+              "start": 17.734,
+              "end": 17.754,
+              "probability": 0.9973078966140747,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "idea",
+              "start": 17.754,
+              "end": 17.914,
+              "probability": 0.9996826648712158,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "es",
+              "start": 17.914,
+              "end": 18.134,
+              "probability": 0.9974380731582642,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "estar",
+              "start": 18.134,
+              "end": 18.914,
+              "probability": 0.9414855241775513,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "aprendiendo",
+              "start": 18.914,
+              "end": 19.234,
+              "probability": 0.9993472695350647,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "un",
+              "start": 19.234,
+              "end": 19.334000000000003,
+              "probability": 0.9982826709747314,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "poco",
+              "start": 19.334000000000003,
+              "end": 19.514000000000003,
+              "probability": 0.9996613264083862,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "del",
+              "start": 19.514000000000003,
+              "end": 19.674,
+              "probability": 0.9961212277412415,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "juego",
+              "start": 19.674,
+              "end": 20.014000000000003,
+              "probability": 0.9997026324272156,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "mientras",
+              "start": 20.014000000000003,
+              "end": 20.294,
+              "probability": 0.9893540143966675,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "vamos",
+              "start": 20.294,
+              "end": 20.614,
+              "probability": 0.9981012940406799,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "creando",
+              "start": 20.614,
+              "end": 21.514000000000003,
+              "probability": 0.9997436106204987,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "el",
+              "start": 21.514000000000003,
+              "end": 22.214,
+              "probability": 0.9969475865364075,
+              "no_speech_prob": 2.915342229778406e-12
+            },
+            {
+              "word": "zoológico.",
+              "start": 22.214,
+              "end": 22.774,
+              "probability": 0.9993847459554672,
+              "no_speech_prob": 2.915342229778406e-12
+            }
+          ]
+        },
+        "region_rms": 0.026259481279673067,
+        "complete": true,
+        "error": null,
+        "identity": "cf80decc4f3146b52593132439f839165d7c97c57b215767a67de3d77a5b4d63"
+      }
+    }
+  },
+  "4": {
+    "segment": {
+      "id": 4,
+      "start": 30.292229,
+      "end": 38.948271,
+      "spanish": "y consistente. Así que bueno, vamos a probar el modo sandbox, y vamos a comenzar con nuestro zoológico.",
+      "english": "And consistent. So, well, let's try sandbox mode, and let's get started on our zoo.",
+      "english_original": "And consistent. So, well, let's try sandbox mode, and let's get started on our zoo.",
+      "anchor_type": "utterance",
+      "anchor_type_note": "heuristic from word count and duration, not a linguistic label",
+      "notes": "Whisper start 30.000; energy onset 30.292. Timestamps are approximate, not forced alignment. Uncertain words: y p=0.472. Not rewritten.",
+      "whisper_start": 30.0,
+      "whisper_end": 38.9,
+      "uncertain_words": [
+        {
+          "word": "y",
+          "probability": 0.47209835052490234,
+          "start": 30.0,
+          "end": 30.36
+        }
+      ],
+      "source_words": [
+        {
+          "word": " consistente.",
+          "start": 30.36,
+          "end": 31.2,
+          "probability": 0.9947733879089355
+        },
+        {
+          "word": " Así",
+          "start": 31.7,
+          "end": 32.2,
+          "probability": 0.9630134701728821
+        },
+        {
+          "word": " que",
+          "start": 32.2,
+          "end": 32.32,
+          "probability": 0.9984554052352905
+        },
+        {
+          "word": " bueno,",
+          "start": 32.32,
+          "end": 32.52,
+          "probability": 0.9120693206787109
+        },
+        {
+          "word": " vamos",
+          "start": 32.68,
+          "end": 33.08,
+          "probability": 0.9993259906768799
+        },
+        {
+          "word": " a",
+          "start": 33.08,
+          "end": 33.2,
+          "probability": 0.9997279047966003
+        },
+        {
+          "word": " probar",
+          "start": 33.2,
+          "end": 33.48,
+          "probability": 0.9991706609725952
+        },
+        {
+          "word": " el",
+          "start": 33.48,
+          "end": 33.64,
+          "probability": 0.8367135524749756
+        },
+        {
+          "word": " modo",
+          "start": 33.64,
+          "end": 33.86,
+          "probability": 0.987011730670929
+        },
+        {
+          "word": " sandbox,",
+          "start": 33.86,
+          "end": 34.28,
+          "probability": 0.7673954367637634
+        },
+        {
+          "word": " y",
+          "start": 34.78,
+          "end": 36.36,
+          "probability": 0.9955490827560425
+        },
+        {
+          "word": " vamos",
+          "start": 36.36,
+          "end": 36.56,
+          "probability": 0.998009979724884
+        },
+        {
+          "word": " a",
+          "start": 36.56,
+          "end": 36.72,
+          "probability": 0.9987630844116211
+        },
+        {
+          "word": " comenzar",
+          "start": 36.72,
+          "end": 37.24,
+          "probability": 0.9998144507408142
+        },
+        {
+          "word": " con",
+          "start": 37.24,
+          "end": 37.58,
+          "probability": 0.9971489310264587
+        },
+        {
+          "word": " nuestro",
+          "start": 37.58,
+          "end": 38.22,
+          "probability": 0.9941574335098267
+        },
+        {
+          "word": " zoológico.",
+          "start": 38.22,
+          "end": 38.9,
+          "probability": 0.9948781728744507
+        }
+      ],
+      "revisions": [],
+      "asr_alternatives": [
+        {
+          "text": "consistente. Así que bueno, vamos a probar el modo sandbox y vamos a comenzar con nuestro zoológico.",
+          "mean_probability": 0.9386,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "source_cues": [
+        {
+          "spanish": "y consistente. Así que bueno, vamos a probar el modo sandbox, y vamos a comenzar con nuestro zoológico.",
+          "start": 30.292229,
+          "end": 38.948271
+        }
+      ],
+      "source_pauses": [
+        {
+          "start": 31.452395666666664,
+          "end": 32.072395666666665,
+          "duration": 0.62,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 32.572395666666665,
+          "end": 32.87239566666666,
+          "duration": 0.3,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 34.612395666666664,
+          "end": 36.31239566666667,
+          "duration": 1.7,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        }
+      ],
+      "syllable_budget": {
+        "syllables": 21,
+        "target": 43,
+        "max": 61,
+        "over_max": false
+      },
+      "translation_review": {
+        "status": "accepted_draft",
+        "draft": "And consistent. So, well, let's try sandbox mode, and let's get started on our zoo.",
+        "checked_text": "And consistent. So, well, let's try sandbox mode, and let's get started on our zoo.",
+        "issues": [],
+        "reason": null
+      }
+    },
+    "episode": {
+      "evidence": {
+        "episode": "483d5dc51d59c6ce6c66fcd9b2bb359cdcf3ddbdd6511d61275dbe9eb4050bcf",
+        "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+        "span": [
+          30.292229,
+          38.948271
+        ],
+        "primary_words": [
+          {
+            "word": " consistente.",
+            "start": 30.36,
+            "end": 31.2,
+            "probability": 0.9947733879089355
+          },
+          {
+            "word": " Así",
+            "start": 31.7,
+            "end": 32.2,
+            "probability": 0.9630134701728821
+          },
+          {
+            "word": " que",
+            "start": 32.2,
+            "end": 32.32,
+            "probability": 0.9984554052352905
+          },
+          {
+            "word": " bueno,",
+            "start": 32.32,
+            "end": 32.52,
+            "probability": 0.9120693206787109
+          },
+          {
+            "word": " vamos",
+            "start": 32.68,
+            "end": 33.08,
+            "probability": 0.9993259906768799
+          },
+          {
+            "word": " a",
+            "start": 33.08,
+            "end": 33.2,
+            "probability": 0.9997279047966003
+          },
+          {
+            "word": " probar",
+            "start": 33.2,
+            "end": 33.48,
+            "probability": 0.9991706609725952
+          },
+          {
+            "word": " el",
+            "start": 33.48,
+            "end": 33.64,
+            "probability": 0.8367135524749756
+          },
+          {
+            "word": " modo",
+            "start": 33.64,
+            "end": 33.86,
+            "probability": 0.987011730670929
+          },
+          {
+            "word": " sandbox,",
+            "start": 33.86,
+            "end": 34.28,
+            "probability": 0.7673954367637634
+          },
+          {
+            "word": " y",
+            "start": 34.78,
+            "end": 36.36,
+            "probability": 0.9955490827560425
+          },
+          {
+            "word": " vamos",
+            "start": 36.36,
+            "end": 36.56,
+            "probability": 0.998009979724884
+          },
+          {
+            "word": " a",
+            "start": 36.56,
+            "end": 36.72,
+            "probability": 0.9987630844116211
+          },
+          {
+            "word": " comenzar",
+            "start": 36.72,
+            "end": 37.24,
+            "probability": 0.9998144507408142
+          },
+          {
+            "word": " con",
+            "start": 37.24,
+            "end": 37.58,
+            "probability": 0.9971489310264587
+          },
+          {
+            "word": " nuestro",
+            "start": 37.58,
+            "end": 38.22,
+            "probability": 0.9941574335098267
+          },
+          {
+            "word": " zoológico.",
+            "start": 38.22,
+            "end": 38.9,
+            "probability": 0.9948781728744507
+          }
+        ],
+        "primary_text": "y consistente. Así que bueno, vamos a probar el modo sandbox, y vamos a comenzar con nuestro zoológico.",
+        "contextual": {
+          "window": [
+            29.942228999999998,
+            39.298271
+          ],
+          "words": [
+            {
+              "word": "y",
+              "start": 29.942228999999998,
+              "end": 30.342228999999996,
+              "probability": 0.653218150138855,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "consistente.",
+              "start": 30.342228999999996,
+              "end": 31.202229,
+              "probability": 0.9902545809745789,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "Así",
+              "start": 31.582228999999998,
+              "end": 32.182229,
+              "probability": 0.859943687915802,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "que",
+              "start": 32.182229,
+              "end": 32.342228999999996,
+              "probability": 0.9901993870735168,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "bueno,",
+              "start": 32.342228999999996,
+              "end": 32.522228999999996,
+              "probability": 0.9088922142982483,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "vamos",
+              "start": 32.642229,
+              "end": 33.062228999999995,
+              "probability": 0.9955523610115051,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "a",
+              "start": 33.062228999999995,
+              "end": 33.202228999999996,
+              "probability": 0.9981762170791626,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "probar",
+              "start": 33.202228999999996,
+              "end": 33.502229,
+              "probability": 0.9981382489204407,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "el",
+              "start": 33.502229,
+              "end": 33.622229,
+              "probability": 0.7926135659217834,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "modo",
+              "start": 33.622229,
+              "end": 33.842228999999996,
+              "probability": 0.9633824229240417,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "sandbox",
+              "start": 33.842228999999996,
+              "end": 34.342228999999996,
+              "probability": 0.7509474754333496,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "y",
+              "start": 34.342228999999996,
+              "end": 36.362229,
+              "probability": 0.7455168962478638,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "vamos",
+              "start": 36.362229,
+              "end": 36.542229,
+              "probability": 0.9883900880813599,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "a",
+              "start": 36.542229,
+              "end": 36.702228999999996,
+              "probability": 0.9962024092674255,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "comenzar",
+              "start": 36.702228999999996,
+              "end": 37.262229,
+              "probability": 0.9997466802597046,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "con",
+              "start": 37.262229,
+              "end": 37.582229,
+              "probability": 0.997211754322052,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "nuestro",
+              "start": 37.582229,
+              "end": 38.202228999999996,
+              "probability": 0.9906030893325806,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "zoológico.",
+              "start": 38.202228999999996,
+              "end": 38.902229,
+              "probability": 0.9903519600629807,
+              "no_speech_prob": 5.617898941184807e-12
+            }
+          ],
+          "text": " y consistente. Así que bueno, vamos a probar el modo sandbox y vamos a comenzar con nuestro zoológico.",
+          "provenance": {
+            "kind": "saved_second_pass",
+            "stage_fingerprint": "e5f877b4584f0262ae2edd3ae804a2050bd9e2e88f14742f915e86be9b3ccb05",
+            "hearing_identity": "e3e37c9c95da2bbd5f508130d1c9b7658c527d7408a82d3f9740caecd042cf2a",
+            "result_sha256": "9e5c05dda4dbdb1a68bf5a8882dcd3c18cd39d88e833c8690e416ea2b96d36d3",
+            "model": "turbo",
+            "options": {
+              "condition_on_previous_text": false,
+              "beam_size": 5,
+              "best_of": 5
+            }
+          }
+        },
+        "inside": {
+          "text": "consistente. Así que bueno, vamos a probar el modo sandbox y vamos a comenzar con nuestro zoológico.",
+          "mean_probability": 0.9386,
+          "min_probability": 0.7455,
+          "max_no_speech_prob": 0.0,
+          "words": [
+            {
+              "word": "consistente.",
+              "start": 30.342228999999996,
+              "end": 31.202229,
+              "probability": 0.9902545809745789,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "Así",
+              "start": 31.582228999999998,
+              "end": 32.182229,
+              "probability": 0.859943687915802,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "que",
+              "start": 32.182229,
+              "end": 32.342228999999996,
+              "probability": 0.9901993870735168,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "bueno,",
+              "start": 32.342228999999996,
+              "end": 32.522228999999996,
+              "probability": 0.9088922142982483,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "vamos",
+              "start": 32.642229,
+              "end": 33.062228999999995,
+              "probability": 0.9955523610115051,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "a",
+              "start": 33.062228999999995,
+              "end": 33.202228999999996,
+              "probability": 0.9981762170791626,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "probar",
+              "start": 33.202228999999996,
+              "end": 33.502229,
+              "probability": 0.9981382489204407,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "el",
+              "start": 33.502229,
+              "end": 33.622229,
+              "probability": 0.7926135659217834,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "modo",
+              "start": 33.622229,
+              "end": 33.842228999999996,
+              "probability": 0.9633824229240417,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "sandbox",
+              "start": 33.842228999999996,
+              "end": 34.342228999999996,
+              "probability": 0.7509474754333496,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "y",
+              "start": 34.342228999999996,
+              "end": 36.362229,
+              "probability": 0.7455168962478638,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "vamos",
+              "start": 36.362229,
+              "end": 36.542229,
+              "probability": 0.9883900880813599,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "a",
+              "start": 36.542229,
+              "end": 36.702228999999996,
+              "probability": 0.9962024092674255,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "comenzar",
+              "start": 36.702228999999996,
+              "end": 37.262229,
+              "probability": 0.9997466802597046,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "con",
+              "start": 37.262229,
+              "end": 37.582229,
+              "probability": 0.997211754322052,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "nuestro",
+              "start": 37.582229,
+              "end": 38.202228999999996,
+              "probability": 0.9906030893325806,
+              "no_speech_prob": 5.617898941184807e-12
+            },
+            {
+              "word": "zoológico.",
+              "start": 38.202228999999996,
+              "end": 38.902229,
+              "probability": 0.9903519600629807,
+              "no_speech_prob": 5.617898941184807e-12
+            }
+          ]
+        },
+        "region_rms": 0.020181712849731973,
+        "complete": true,
+        "error": null,
+        "identity": "89e81ae8064b6bd0779a3538fefa3f8927aeb8dfae7bd6a1b49528e4857374d1"
+      }
+    }
+  },
+  "155": {
+    "segment": {
+      "id": 155,
+      "start": 1035.411146,
+      "end": 1061.609292,
+      "spanish": "Bien, vamos a empezar a remover esta maleza que tenemos por acá, porque no la necesitamos, bien, perfecto, bien, bien, bien, bien, bien, genial, genial, genial.",
+      "english": "Okay, let's start removing this brush we have over here, because we don't need it. Okay, perfect. Okay, okay, okay, okay, okay. Great, great, great.",
+      "english_original": "Okay, let's start removing this brush we have over here, because we don't need it. Okay, perfect. Okay, okay, okay, okay, okay. Great, great, great.",
+      "anchor_type": "utterance",
+      "anchor_type_note": "heuristic from word count and duration, not a linguistic label",
+      "notes": "Whisper start 1035.020; energy onset 1035.411. Timestamps are approximate, not forced alignment. Uncertain words: Bien, p=0.120, bien, p=0.319. Not rewritten.",
+      "whisper_start": 1035.02,
+      "whisper_end": 1061.52,
+      "uncertain_words": [
+        {
+          "word": "Bien,",
+          "probability": 0.11989418417215347,
+          "start": 1035.02,
+          "end": 1035.62
+        },
+        {
+          "word": "bien,",
+          "probability": 0.31879737973213196,
+          "start": 1059.96,
+          "end": 1059.96
+        }
+      ],
+      "source_words": [
+        {
+          "word": " vamos",
+          "start": 1035.62,
+          "end": 1035.62,
+          "probability": 0.976280152797699
+        },
+        {
+          "word": " a",
+          "start": 1035.62,
+          "end": 1035.92,
+          "probability": 0.9993170499801636
+        },
+        {
+          "word": " empezar",
+          "start": 1035.92,
+          "end": 1036.42,
+          "probability": 0.9960525035858154
+        },
+        {
+          "word": " a",
+          "start": 1036.42,
+          "end": 1037.18,
+          "probability": 0.9973387122154236
+        },
+        {
+          "word": " remover",
+          "start": 1037.18,
+          "end": 1037.58,
+          "probability": 0.9989043474197388
+        },
+        {
+          "word": " esta",
+          "start": 1037.58,
+          "end": 1037.92,
+          "probability": 0.9972048401832581
+        },
+        {
+          "word": " maleza",
+          "start": 1037.92,
+          "end": 1038.4,
+          "probability": 0.9956039786338806
+        },
+        {
+          "word": " que",
+          "start": 1038.4,
+          "end": 1038.56,
+          "probability": 0.9973781108856201
+        },
+        {
+          "word": " tenemos",
+          "start": 1038.56,
+          "end": 1038.8600000000001,
+          "probability": 0.9993504881858826
+        },
+        {
+          "word": " por",
+          "start": 1038.8600000000001,
+          "end": 1039.1,
+          "probability": 0.9986099004745483
+        },
+        {
+          "word": " acá,",
+          "start": 1039.1,
+          "end": 1039.3600000000001,
+          "probability": 0.9954633116722107
+        },
+        {
+          "word": " porque",
+          "start": 1041.82,
+          "end": 1042.08,
+          "probability": 0.91025310754776
+        },
+        {
+          "word": " no",
+          "start": 1042.08,
+          "end": 1048.24,
+          "probability": 0.5126986503601074
+        },
+        {
+          "word": " la",
+          "start": 1048.24,
+          "end": 1048.32,
+          "probability": 0.8214787244796753
+        },
+        {
+          "word": " necesitamos,",
+          "start": 1048.32,
+          "end": 1049.04,
+          "probability": 0.9996505975723267
+        },
+        {
+          "word": " bien,",
+          "start": 1049.34,
+          "end": 1055.08,
+          "probability": 0.9685069918632507
+        },
+        {
+          "word": " perfecto,",
+          "start": 1056.3,
+          "end": 1057.24,
+          "probability": 0.9859896600246429
+        },
+        {
+          "word": " bien,",
+          "start": 1058.98,
+          "end": 1059.2,
+          "probability": 0.9967149496078491
+        },
+        {
+          "word": " bien,",
+          "start": 1059.28,
+          "end": 1059.42,
+          "probability": 0.9734265208244324
+        },
+        {
+          "word": " bien,",
+          "start": 1059.6399999999999,
+          "end": 1059.6399999999999,
+          "probability": 0.8671213984489441
+        },
+        {
+          "word": " bien,",
+          "start": 1059.6399999999999,
+          "end": 1059.8,
+          "probability": 0.7304121851921082
+        },
+        {
+          "word": " bien,",
+          "start": 1059.96,
+          "end": 1059.96,
+          "probability": 0.31879737973213196
+        },
+        {
+          "word": " genial,",
+          "start": 1060.42,
+          "end": 1060.42,
+          "probability": 0.9472477436065674
+        },
+        {
+          "word": " genial,",
+          "start": 1060.94,
+          "end": 1061.24,
+          "probability": 0.9886138439178467
+        },
+        {
+          "word": " genial.",
+          "start": 1061.4,
+          "end": 1061.52,
+          "probability": 0.9541977047920227
+        }
+      ],
+      "revisions": [],
+      "asr_alternatives": [
+        {
+          "text": "Vamos a empezar a remover esta maleza que tenemos por acá, porque no la necesitamos. Bien, perfecto. Bien, bien, bien, bien, bien, genial, genial, genial.",
+          "mean_probability": 0.8824,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "source_cues": [
+        {
+          "spanish": "Bien, vamos a empezar a remover esta maleza que tenemos por acá, porque no la necesitamos, bien, perfecto, bien, bien, bien, bien, bien, genial, genial, genial.",
+          "start": 1035.411146,
+          "end": 1061.609292
+        }
+      ],
+      "source_pauses": [
+        {
+          "start": 1036.7114585,
+          "end": 1037.0914584999998,
+          "duration": 0.38,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 1039.4114585,
+          "end": 1041.9114585,
+          "duration": 2.5,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 1042.1914585,
+          "end": 1048.1914585,
+          "duration": 6.0,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 1049.0714584999998,
+          "end": 1049.3314584999998,
+          "duration": 0.26,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 1049.3514584999998,
+          "end": 1054.9114585,
+          "duration": 5.56,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 1055.1914585,
+          "end": 1056.5514584999999,
+          "duration": 1.36,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 1057.1114585,
+          "end": 1058.9914585,
+          "duration": 1.88,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 1060.5314584999999,
+          "end": 1061.0314584999999,
+          "duration": 0.5,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        }
+      ],
+      "syllable_budget": {
+        "syllables": 39,
+        "target": 131,
+        "max": 151,
+        "over_max": false
+      },
+      "translation_review": {
+        "status": "accepted_draft",
+        "draft": "Okay, let's start removing this brush we have over here, because we don't need it. Okay, perfect. Okay, okay, okay, okay, okay. Great, great, great.",
+        "checked_text": "Okay, let's start removing this brush we have over here, because we don't need it. Okay, perfect. Okay, okay, okay, okay, okay. Great, great, great.",
+        "issues": [],
+        "reason": null
+      }
+    },
+    "episode": {
+      "evidence": {
+        "episode": "c8979e7ea843de6ed2d0014e8f55e2ea67a45f8ccfb1cacd7340c1bb413e624e",
+        "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+        "span": [
+          1035.411146,
+          1061.609292
+        ],
+        "primary_words": [
+          {
+            "word": " vamos",
+            "start": 1035.62,
+            "end": 1035.62,
+            "probability": 0.976280152797699
+          },
+          {
+            "word": " a",
+            "start": 1035.62,
+            "end": 1035.92,
+            "probability": 0.9993170499801636
+          },
+          {
+            "word": " empezar",
+            "start": 1035.92,
+            "end": 1036.42,
+            "probability": 0.9960525035858154
+          },
+          {
+            "word": " a",
+            "start": 1036.42,
+            "end": 1037.18,
+            "probability": 0.9973387122154236
+          },
+          {
+            "word": " remover",
+            "start": 1037.18,
+            "end": 1037.58,
+            "probability": 0.9989043474197388
+          },
+          {
+            "word": " esta",
+            "start": 1037.58,
+            "end": 1037.92,
+            "probability": 0.9972048401832581
+          },
+          {
+            "word": " maleza",
+            "start": 1037.92,
+            "end": 1038.4,
+            "probability": 0.9956039786338806
+          },
+          {
+            "word": " que",
+            "start": 1038.4,
+            "end": 1038.56,
+            "probability": 0.9973781108856201
+          },
+          {
+            "word": " tenemos",
+            "start": 1038.56,
+            "end": 1038.8600000000001,
+            "probability": 0.9993504881858826
+          },
+          {
+            "word": " por",
+            "start": 1038.8600000000001,
+            "end": 1039.1,
+            "probability": 0.9986099004745483
+          },
+          {
+            "word": " acá,",
+            "start": 1039.1,
+            "end": 1039.3600000000001,
+            "probability": 0.9954633116722107
+          },
+          {
+            "word": " porque",
+            "start": 1041.82,
+            "end": 1042.08,
+            "probability": 0.91025310754776
+          },
+          {
+            "word": " no",
+            "start": 1042.08,
+            "end": 1048.24,
+            "probability": 0.5126986503601074
+          },
+          {
+            "word": " la",
+            "start": 1048.24,
+            "end": 1048.32,
+            "probability": 0.8214787244796753
+          },
+          {
+            "word": " necesitamos,",
+            "start": 1048.32,
+            "end": 1049.04,
+            "probability": 0.9996505975723267
+          },
+          {
+            "word": " bien,",
+            "start": 1049.34,
+            "end": 1055.08,
+            "probability": 0.9685069918632507
+          },
+          {
+            "word": " perfecto,",
+            "start": 1056.3,
+            "end": 1057.24,
+            "probability": 0.9859896600246429
+          },
+          {
+            "word": " bien,",
+            "start": 1058.98,
+            "end": 1059.2,
+            "probability": 0.9967149496078491
+          },
+          {
+            "word": " bien,",
+            "start": 1059.28,
+            "end": 1059.42,
+            "probability": 0.9734265208244324
+          },
+          {
+            "word": " bien,",
+            "start": 1059.6399999999999,
+            "end": 1059.6399999999999,
+            "probability": 0.8671213984489441
+          },
+          {
+            "word": " bien,",
+            "start": 1059.6399999999999,
+            "end": 1059.8,
+            "probability": 0.7304121851921082
+          },
+          {
+            "word": " bien,",
+            "start": 1059.96,
+            "end": 1059.96,
+            "probability": 0.31879737973213196
+          },
+          {
+            "word": " genial,",
+            "start": 1060.42,
+            "end": 1060.42,
+            "probability": 0.9472477436065674
+          },
+          {
+            "word": " genial,",
+            "start": 1060.94,
+            "end": 1061.24,
+            "probability": 0.9886138439178467
+          },
+          {
+            "word": " genial.",
+            "start": 1061.4,
+            "end": 1061.52,
+            "probability": 0.9541977047920227
+          }
+        ],
+        "primary_text": "Bien, vamos a empezar a remover esta maleza que tenemos por acá, porque no la necesitamos, bien, perfecto, bien, bien, bien, bien, bien, genial, genial, genial.",
+        "contextual": {
+          "window": [
+            1035.061146,
+            1061.959292
+          ],
+          "words": [
+            {
+              "word": "Vamos",
+              "start": 1035.061146,
+              "end": 1035.641146,
+              "probability": 0.5035934448242188,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "a",
+              "start": 1035.641146,
+              "end": 1035.921146,
+              "probability": 0.9973424077033997,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "empezar",
+              "start": 1035.921146,
+              "end": 1036.421146,
+              "probability": 0.9908047914505005,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "a",
+              "start": 1036.421146,
+              "end": 1037.161146,
+              "probability": 0.9745045304298401,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "remover",
+              "start": 1037.161146,
+              "end": 1037.601146,
+              "probability": 0.9971671104431152,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "esta",
+              "start": 1037.601146,
+              "end": 1037.921146,
+              "probability": 0.9760872721672058,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "maleza",
+              "start": 1037.921146,
+              "end": 1038.401146,
+              "probability": 0.97371044754982,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "que",
+              "start": 1038.401146,
+              "end": 1038.561146,
+              "probability": 0.9763529896736145,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "tenemos",
+              "start": 1038.561146,
+              "end": 1038.861146,
+              "probability": 0.9960491061210632,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "por",
+              "start": 1038.861146,
+              "end": 1039.101146,
+              "probability": 0.9880288243293762,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "acá,",
+              "start": 1039.101146,
+              "end": 1039.361146,
+              "probability": 0.9777898788452148,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "porque",
+              "start": 1041.761146,
+              "end": 1042.081146,
+              "probability": 0.7654860019683838,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "no",
+              "start": 1042.081146,
+              "end": 1048.201146,
+              "probability": 0.4356496036052704,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "la",
+              "start": 1048.201146,
+              "end": 1048.321146,
+              "probability": 0.7007437348365784,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "necesitamos.",
+              "start": 1048.321146,
+              "end": 1049.081146,
+              "probability": 0.9990265071392059,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "Bien,",
+              "start": 1055.981146,
+              "end": 1056.621146,
+              "probability": 0.9350624680519104,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "perfecto.",
+              "start": 1056.621146,
+              "end": 1057.261146,
+              "probability": 0.9849265813827515,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "Bien,",
+              "start": 1058.681146,
+              "end": 1059.221146,
+              "probability": 0.9932563304901123,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "bien,",
+              "start": 1059.421146,
+              "end": 1059.421146,
+              "probability": 0.9574666023254395,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "bien,",
+              "start": 1059.521146,
+              "end": 1059.621146,
+              "probability": 0.9117905497550964,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "bien,",
+              "start": 1059.641146,
+              "end": 1059.781146,
+              "probability": 0.6802835464477539,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "bien,",
+              "start": 1059.881146,
+              "end": 1059.961146,
+              "probability": 0.38315531611442566,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "genial,",
+              "start": 1060.321146,
+              "end": 1060.421146,
+              "probability": 0.9639700651168823,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "genial,",
+              "start": 1060.861146,
+              "end": 1061.261146,
+              "probability": 0.9982523322105408,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "genial.",
+              "start": 1061.321146,
+              "end": 1061.521146,
+              "probability": 0.9983463287353516,
+              "no_speech_prob": 2.033273072479802e-12
+            }
+          ],
+          "text": " Vamos a empezar a remover esta maleza que tenemos por acá, porque no la necesitamos. Bien, perfecto. Bien, bien, bien, bien, bien, genial, genial, genial.",
+          "provenance": {
+            "kind": "saved_second_pass",
+            "stage_fingerprint": "e5f877b4584f0262ae2edd3ae804a2050bd9e2e88f14742f915e86be9b3ccb05",
+            "hearing_identity": "e3e37c9c95da2bbd5f508130d1c9b7658c527d7408a82d3f9740caecd042cf2a",
+            "result_sha256": "b3081aee3775dc3204f808fd354e5235a0a55faa24c355c6b1f6795fd3440d48",
+            "model": "turbo",
+            "options": {
+              "condition_on_previous_text": false,
+              "beam_size": 5,
+              "best_of": 5
+            }
+          }
+        },
+        "inside": {
+          "text": "a empezar a remover esta maleza que tenemos por acá, porque no la necesitamos. Bien, perfecto. Bien, bien, bien, bien, bien, genial, genial, genial.",
+          "mean_probability": 0.8981,
+          "min_probability": 0.3832,
+          "max_no_speech_prob": 0.0,
+          "words": [
+            {
+              "word": "a",
+              "start": 1035.641146,
+              "end": 1035.921146,
+              "probability": 0.9973424077033997,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "empezar",
+              "start": 1035.921146,
+              "end": 1036.421146,
+              "probability": 0.9908047914505005,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "a",
+              "start": 1036.421146,
+              "end": 1037.161146,
+              "probability": 0.9745045304298401,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "remover",
+              "start": 1037.161146,
+              "end": 1037.601146,
+              "probability": 0.9971671104431152,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "esta",
+              "start": 1037.601146,
+              "end": 1037.921146,
+              "probability": 0.9760872721672058,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "maleza",
+              "start": 1037.921146,
+              "end": 1038.401146,
+              "probability": 0.97371044754982,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "que",
+              "start": 1038.401146,
+              "end": 1038.561146,
+              "probability": 0.9763529896736145,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "tenemos",
+              "start": 1038.561146,
+              "end": 1038.861146,
+              "probability": 0.9960491061210632,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "por",
+              "start": 1038.861146,
+              "end": 1039.101146,
+              "probability": 0.9880288243293762,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "acá,",
+              "start": 1039.101146,
+              "end": 1039.361146,
+              "probability": 0.9777898788452148,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "porque",
+              "start": 1041.761146,
+              "end": 1042.081146,
+              "probability": 0.7654860019683838,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "no",
+              "start": 1042.081146,
+              "end": 1048.201146,
+              "probability": 0.4356496036052704,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "la",
+              "start": 1048.201146,
+              "end": 1048.321146,
+              "probability": 0.7007437348365784,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "necesitamos.",
+              "start": 1048.321146,
+              "end": 1049.081146,
+              "probability": 0.9990265071392059,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "Bien,",
+              "start": 1055.981146,
+              "end": 1056.621146,
+              "probability": 0.9350624680519104,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "perfecto.",
+              "start": 1056.621146,
+              "end": 1057.261146,
+              "probability": 0.9849265813827515,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "Bien,",
+              "start": 1058.681146,
+              "end": 1059.221146,
+              "probability": 0.9932563304901123,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "bien,",
+              "start": 1059.421146,
+              "end": 1059.421146,
+              "probability": 0.9574666023254395,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "bien,",
+              "start": 1059.521146,
+              "end": 1059.621146,
+              "probability": 0.9117905497550964,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "bien,",
+              "start": 1059.641146,
+              "end": 1059.781146,
+              "probability": 0.6802835464477539,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "bien,",
+              "start": 1059.881146,
+              "end": 1059.961146,
+              "probability": 0.38315531611442566,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "genial,",
+              "start": 1060.321146,
+              "end": 1060.421146,
+              "probability": 0.9639700651168823,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "genial,",
+              "start": 1060.861146,
+              "end": 1061.261146,
+              "probability": 0.9982523322105408,
+              "no_speech_prob": 2.033273072479802e-12
+            },
+            {
+              "word": "genial.",
+              "start": 1061.321146,
+              "end": 1061.521146,
+              "probability": 0.9983463287353516,
+              "no_speech_prob": 2.033273072479802e-12
+            }
+          ]
+        },
+        "region_rms": 0.008534960211693313,
+        "complete": true,
+        "error": null,
+        "identity": "fc708bb796cf3f035be3ce718892c3740f7ee9e1cac81632f0b5065ff94c6570"
+      }
+    }
+  },
+  "234": {
+    "segment": {
+      "id": 234,
+      "start": 1535.085021,
+      "end": 1543.22,
+      "spanish": "No sé exactamente Qué es lo que busco o lo que necesito Bien, vamos a dejarlo así Y vamos a tratar de aprovechar el tiempo para meter más animales.",
+      "english": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+      "english_original": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+      "anchor_type": "utterance",
+      "anchor_type_note": "heuristic from word count and duration, not a linguistic label",
+      "notes": "Whisper start 1530.820; energy onset 1535.085. Timestamps are approximate, not forced alignment. Uncertain words: No p=0.233, Qué p=0.360. Not rewritten. Merged Whisper segments on a short energy gap: No sé exactamente | Qué es lo que busco o lo que necesito Joined utterance across a 0.18s pause. Whisper start 1538.040; energy onset 1538.295. Timestamps are approximate, not forced alignment. Merged Whisper segments on a short energy gap: Bien, vamos a dejarlo así | Y vamos a tratar de aprovechar el tiempo para meter más animales.",
+      "whisper_start": 1530.82,
+      "whisper_end": 1543.02,
+      "uncertain_words": [
+        {
+          "word": "No",
+          "probability": 0.23314747214317322,
+          "start": 1530.82,
+          "end": 1531.26
+        },
+        {
+          "word": "Qué",
+          "probability": 0.3596000075340271,
+          "start": 1535.72,
+          "end": 1536.04
+        }
+      ],
+      "source_words": [
+        {
+          "word": " exactamente",
+          "start": 1535.22,
+          "end": 1535.72,
+          "probability": 0.9995416402816772
+        },
+        {
+          "word": " Qué",
+          "start": 1535.72,
+          "end": 1536.04,
+          "probability": 0.3596000075340271
+        },
+        {
+          "word": " es",
+          "start": 1536.04,
+          "end": 1536.18,
+          "probability": 0.9998252987861633
+        },
+        {
+          "word": " lo",
+          "start": 1536.18,
+          "end": 1536.32,
+          "probability": 0.9999188184738159
+        },
+        {
+          "word": " que",
+          "start": 1536.32,
+          "end": 1536.44,
+          "probability": 0.9999855756759644
+        },
+        {
+          "word": " busco",
+          "start": 1536.44,
+          "end": 1536.82,
+          "probability": 0.9988871216773987
+        },
+        {
+          "word": " o",
+          "start": 1536.82,
+          "end": 1537.1,
+          "probability": 0.6356245279312134
+        },
+        {
+          "word": " lo",
+          "start": 1537.1,
+          "end": 1537.22,
+          "probability": 0.9997283816337585
+        },
+        {
+          "word": " que",
+          "start": 1537.22,
+          "end": 1537.34,
+          "probability": 0.9999747276306152
+        },
+        {
+          "word": " necesito",
+          "start": 1537.34,
+          "end": 1538.04,
+          "probability": 0.9998170435428619
+        },
+        {
+          "word": " Bien,",
+          "start": 1538.04,
+          "end": 1539.04,
+          "probability": 0.6101827025413513
+        },
+        {
+          "word": " vamos",
+          "start": 1539.1,
+          "end": 1539.18,
+          "probability": 0.9845010042190552
+        },
+        {
+          "word": " a",
+          "start": 1539.18,
+          "end": 1539.26,
+          "probability": 0.9998942613601685
+        },
+        {
+          "word": " dejarlo",
+          "start": 1539.26,
+          "end": 1539.58,
+          "probability": 0.9991948902606964
+        },
+        {
+          "word": " así",
+          "start": 1539.58,
+          "end": 1539.82,
+          "probability": 0.9998059868812561
+        },
+        {
+          "word": " Y",
+          "start": 1539.82,
+          "end": 1539.92,
+          "probability": 0.8594618439674377
+        },
+        {
+          "word": " vamos",
+          "start": 1539.92,
+          "end": 1540.1,
+          "probability": 0.9975098371505737
+        },
+        {
+          "word": " a",
+          "start": 1540.1,
+          "end": 1540.16,
+          "probability": 0.9997418522834778
+        },
+        {
+          "word": " tratar",
+          "start": 1540.16,
+          "end": 1540.34,
+          "probability": 0.9780018925666809
+        },
+        {
+          "word": " de",
+          "start": 1540.34,
+          "end": 1540.54,
+          "probability": 0.9984020590782166
+        },
+        {
+          "word": " aprovechar",
+          "start": 1540.54,
+          "end": 1541.32,
+          "probability": 0.9939650893211365
+        },
+        {
+          "word": " el",
+          "start": 1541.32,
+          "end": 1541.48,
+          "probability": 0.9933184385299683
+        },
+        {
+          "word": " tiempo",
+          "start": 1541.48,
+          "end": 1541.72,
+          "probability": 0.9999419450759888
+        },
+        {
+          "word": " para",
+          "start": 1541.72,
+          "end": 1542.0,
+          "probability": 0.7460150718688965
+        },
+        {
+          "word": " meter",
+          "start": 1542.0,
+          "end": 1542.3,
+          "probability": 0.998976469039917
+        },
+        {
+          "word": " más",
+          "start": 1542.3,
+          "end": 1542.54,
+          "probability": 0.9986469149589539
+        },
+        {
+          "word": " animales.",
+          "start": 1542.54,
+          "end": 1543.02,
+          "probability": 0.9999269247055054
+        }
+      ],
+      "revisions": [],
+      "asr_alternatives": [
+        {
+          "text": "Sé exactamente qué es lo que busco o lo que necesito.",
+          "mean_probability": 0.941,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "source_cues": [
+        {
+          "spanish": "No sé exactamente Qué es lo que busco o lo que necesito",
+          "start": 1535.085021,
+          "end": 1538.115562
+        },
+        {
+          "spanish": "Bien, vamos a dejarlo así Y vamos a tratar de aprovechar el tiempo para meter más animales.",
+          "start": 1538.294958,
+          "end": 1543.22
+        }
+      ],
+      "material_source_conflict": {
+        "kind": "opposite_source_polarity",
+        "first": "No sé exactamente Qué es lo que busco o lo que necesito",
+        "alternative": "Sé exactamente qué es lo que busco o lo que necesito.",
+        "shared_content": [
+          "busco",
+          "exactamente",
+          "necesito"
+        ],
+        "decision": "unvoiced_pending_source_resolution"
+      },
+      "source_pauses": [
+        {
+          "start": 1538.4277710000001,
+          "end": 1538.9077710000001,
+          "duration": 0.48,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        },
+        {
+          "start": 1540.6077710000002,
+          "end": 1540.9277710000001,
+          "duration": 0.32,
+          "evidence": "mic low-energy interval; approximate, not forced alignment"
+        }
+      ],
+      "syllable_budget": {
+        "syllables": 40,
+        "target": 41,
+        "max": 51,
+        "over_max": false
+      },
+      "translation_review": {
+        "status": "disputed",
+        "checked_text": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+        "draft": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+        "issues": [
+          "uncertain_source"
+        ]
+      },
+      "source_resolution_history": [
+        {
+          "translation_review": {
+            "status": "disputed",
+            "draft": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+            "checked_text": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+            "issues": [
+              "uncertain_source"
+            ],
+            "reason": null
+          },
+          "english": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+          "resolution": null
+        },
+        {
+          "translation_review": {
+            "status": "disputed",
+            "checked_text": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+            "draft": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+            "issues": [
+              "uncertain_source"
+            ]
+          },
+          "english": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+          "resolution": {
+            "policy": "aidub.source_resolution.v1",
+            "evidence": {
+              "episode": "b4ebc8c357d5c270dd9fd3258b84432270664472e991ec8b081255b9db937da7",
+              "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+              "span": [
+                1535.085021,
+                1543.22
+              ],
+              "primary_words": [
+                {
+                  "word": " exactamente",
+                  "start": 1535.22,
+                  "end": 1535.72,
+                  "probability": 0.9995416402816772
+                },
+                {
+                  "word": " Qué",
+                  "start": 1535.72,
+                  "end": 1536.04,
+                  "probability": 0.3596000075340271
+                },
+                {
+                  "word": " es",
+                  "start": 1536.04,
+                  "end": 1536.18,
+                  "probability": 0.9998252987861633
+                },
+                {
+                  "word": " lo",
+                  "start": 1536.18,
+                  "end": 1536.32,
+                  "probability": 0.9999188184738159
+                },
+                {
+                  "word": " que",
+                  "start": 1536.32,
+                  "end": 1536.44,
+                  "probability": 0.9999855756759644
+                },
+                {
+                  "word": " busco",
+                  "start": 1536.44,
+                  "end": 1536.82,
+                  "probability": 0.9988871216773987
+                },
+                {
+                  "word": " o",
+                  "start": 1536.82,
+                  "end": 1537.1,
+                  "probability": 0.6356245279312134
+                },
+                {
+                  "word": " lo",
+                  "start": 1537.1,
+                  "end": 1537.22,
+                  "probability": 0.9997283816337585
+                },
+                {
+                  "word": " que",
+                  "start": 1537.22,
+                  "end": 1537.34,
+                  "probability": 0.9999747276306152
+                },
+                {
+                  "word": " necesito",
+                  "start": 1537.34,
+                  "end": 1538.04,
+                  "probability": 0.9998170435428619
+                },
+                {
+                  "word": " Bien,",
+                  "start": 1538.04,
+                  "end": 1539.04,
+                  "probability": 0.6101827025413513
+                },
+                {
+                  "word": " vamos",
+                  "start": 1539.1,
+                  "end": 1539.18,
+                  "probability": 0.9845010042190552
+                },
+                {
+                  "word": " a",
+                  "start": 1539.18,
+                  "end": 1539.26,
+                  "probability": 0.9998942613601685
+                },
+                {
+                  "word": " dejarlo",
+                  "start": 1539.26,
+                  "end": 1539.58,
+                  "probability": 0.9991948902606964
+                },
+                {
+                  "word": " así",
+                  "start": 1539.58,
+                  "end": 1539.82,
+                  "probability": 0.9998059868812561
+                },
+                {
+                  "word": " Y",
+                  "start": 1539.82,
+                  "end": 1539.92,
+                  "probability": 0.8594618439674377
+                },
+                {
+                  "word": " vamos",
+                  "start": 1539.92,
+                  "end": 1540.1,
+                  "probability": 0.9975098371505737
+                },
+                {
+                  "word": " a",
+                  "start": 1540.1,
+                  "end": 1540.16,
+                  "probability": 0.9997418522834778
+                },
+                {
+                  "word": " tratar",
+                  "start": 1540.16,
+                  "end": 1540.34,
+                  "probability": 0.9780018925666809
+                },
+                {
+                  "word": " de",
+                  "start": 1540.34,
+                  "end": 1540.54,
+                  "probability": 0.9984020590782166
+                },
+                {
+                  "word": " aprovechar",
+                  "start": 1540.54,
+                  "end": 1541.32,
+                  "probability": 0.9939650893211365
+                },
+                {
+                  "word": " el",
+                  "start": 1541.32,
+                  "end": 1541.48,
+                  "probability": 0.9933184385299683
+                },
+                {
+                  "word": " tiempo",
+                  "start": 1541.48,
+                  "end": 1541.72,
+                  "probability": 0.9999419450759888
+                },
+                {
+                  "word": " para",
+                  "start": 1541.72,
+                  "end": 1542.0,
+                  "probability": 0.7460150718688965
+                },
+                {
+                  "word": " meter",
+                  "start": 1542.0,
+                  "end": 1542.3,
+                  "probability": 0.998976469039917
+                },
+                {
+                  "word": " más",
+                  "start": 1542.3,
+                  "end": 1542.54,
+                  "probability": 0.9986469149589539
+                },
+                {
+                  "word": " animales.",
+                  "start": 1542.54,
+                  "end": 1543.02,
+                  "probability": 0.9999269247055054
+                }
+              ],
+              "primary_text": "No sé exactamente Qué es lo que busco o lo que necesito Bien, vamos a dejarlo así Y vamos a tratar de aprovechar el tiempo para meter más animales.",
+              "contextual": {
+                "window": [
+                  1533.835021,
+                  1544.47
+                ],
+                "words": [
+                  {
+                    "word": "No",
+                    "start": 1534.675021,
+                    "end": 1535.095021,
+                    "probability": 0.2150329202413559,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "sé",
+                    "start": 1535.095021,
+                    "end": 1535.2350210000002,
+                    "probability": 0.9431257247924805,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "exactamente",
+                    "start": 1535.2350210000002,
+                    "end": 1535.635021,
+                    "probability": 0.9938961863517761,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "qué",
+                    "start": 1535.635021,
+                    "end": 1536.0350210000001,
+                    "probability": 0.9526199102401733,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "es",
+                    "start": 1536.0350210000001,
+                    "end": 1536.175021,
+                    "probability": 0.9985080361366272,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "lo",
+                    "start": 1536.175021,
+                    "end": 1536.3150210000001,
+                    "probability": 0.994113028049469,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "que",
+                    "start": 1536.3150210000001,
+                    "end": 1536.435021,
+                    "probability": 0.9989494681358337,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "busco",
+                    "start": 1536.435021,
+                    "end": 1536.835021,
+                    "probability": 0.9960196316242218,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "o",
+                    "start": 1536.835021,
+                    "end": 1537.115021,
+                    "probability": 0.8839302659034729,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "lo",
+                    "start": 1537.115021,
+                    "end": 1537.2150210000002,
+                    "probability": 0.9944275617599487,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "que",
+                    "start": 1537.2150210000002,
+                    "end": 1537.355021,
+                    "probability": 0.9988464117050171,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "necesito.",
+                    "start": 1537.355021,
+                    "end": 1538.115021,
+                    "probability": 0.9993895292282104,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "Bien,",
+                    "start": 1538.595021,
+                    "end": 1539.0150210000002,
+                    "probability": 0.6494986414909363,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "vamos",
+                    "start": 1539.095021,
+                    "end": 1539.175021,
+                    "probability": 0.9901018142700195,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "a",
+                    "start": 1539.175021,
+                    "end": 1539.2750210000002,
+                    "probability": 0.9994354844093323,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "dejarlo",
+                    "start": 1539.2750210000002,
+                    "end": 1539.595021,
+                    "probability": 0.9986822307109833,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "así.",
+                    "start": 1539.595021,
+                    "end": 1539.8150210000001,
+                    "probability": 0.9997618794441223,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "Vamos",
+                    "start": 1539.955021,
+                    "end": 1540.075021,
+                    "probability": 0.9793851375579834,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "a",
+                    "start": 1540.075021,
+                    "end": 1540.175021,
+                    "probability": 0.9999440908432007,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "tratar",
+                    "start": 1540.175021,
+                    "end": 1540.335021,
+                    "probability": 0.9915158748626709,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "de",
+                    "start": 1540.335021,
+                    "end": 1540.5350210000001,
+                    "probability": 0.9999428987503052,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "aprovechar",
+                    "start": 1540.5350210000001,
+                    "end": 1541.335021,
+                    "probability": 0.9994027018547058,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "el",
+                    "start": 1541.335021,
+                    "end": 1541.4750210000002,
+                    "probability": 0.9997022747993469,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "tiempo",
+                    "start": 1541.4750210000002,
+                    "end": 1541.7350210000002,
+                    "probability": 0.9997828602790833,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "para",
+                    "start": 1541.7350210000002,
+                    "end": 1541.9950210000002,
+                    "probability": 0.9926809668540955,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "meter",
+                    "start": 1541.9950210000002,
+                    "end": 1542.3150210000001,
+                    "probability": 0.9988273978233337,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "más",
+                    "start": 1542.3150210000001,
+                    "end": 1542.5150210000002,
+                    "probability": 0.9993610978126526,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "animales.",
+                    "start": 1542.5150210000002,
+                    "end": 1543.0150210000002,
+                    "probability": 0.9997460246086121,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  }
+                ],
+                "text": " No sé exactamente qué es lo que busco o lo que necesito. Bien, vamos a dejarlo así. Vamos a tratar de aprovechar el tiempo para meter más animales.",
+                "seconds": 0.43825536399526754,
+                "provenance": {
+                  "kind": "fresh_contextual_hearing",
+                  "weights": {
+                    "sha256": "aff26ae408abcba5fbf8813c21e62b0941638c5f6eebfb145be0c9839262a19a",
+                    "size": 1617941637
+                  },
+                  "options": {
+                    "condition_on_previous_text": false,
+                    "beam_size": 5,
+                    "best_of": 5
+                  },
+                  "language": "Spanish",
+                  "device": "cuda"
+                }
+              },
+              "inside": {
+                "text": "sé exactamente qué es lo que busco o lo que necesito. Bien, vamos a dejarlo así. Vamos a tratar de aprovechar el tiempo para meter más animales.",
+                "mean_probability": 0.976,
+                "min_probability": 0.6495,
+                "max_no_speech_prob": 0.0,
+                "words": [
+                  {
+                    "word": "sé",
+                    "start": 1535.095021,
+                    "end": 1535.2350210000002,
+                    "probability": 0.9431257247924805,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "exactamente",
+                    "start": 1535.2350210000002,
+                    "end": 1535.635021,
+                    "probability": 0.9938961863517761,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "qué",
+                    "start": 1535.635021,
+                    "end": 1536.0350210000001,
+                    "probability": 0.9526199102401733,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "es",
+                    "start": 1536.0350210000001,
+                    "end": 1536.175021,
+                    "probability": 0.9985080361366272,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "lo",
+                    "start": 1536.175021,
+                    "end": 1536.3150210000001,
+                    "probability": 0.994113028049469,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "que",
+                    "start": 1536.3150210000001,
+                    "end": 1536.435021,
+                    "probability": 0.9989494681358337,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "busco",
+                    "start": 1536.435021,
+                    "end": 1536.835021,
+                    "probability": 0.9960196316242218,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "o",
+                    "start": 1536.835021,
+                    "end": 1537.115021,
+                    "probability": 0.8839302659034729,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "lo",
+                    "start": 1537.115021,
+                    "end": 1537.2150210000002,
+                    "probability": 0.9944275617599487,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "que",
+                    "start": 1537.2150210000002,
+                    "end": 1537.355021,
+                    "probability": 0.9988464117050171,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "necesito.",
+                    "start": 1537.355021,
+                    "end": 1538.115021,
+                    "probability": 0.9993895292282104,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "Bien,",
+                    "start": 1538.595021,
+                    "end": 1539.0150210000002,
+                    "probability": 0.6494986414909363,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "vamos",
+                    "start": 1539.095021,
+                    "end": 1539.175021,
+                    "probability": 0.9901018142700195,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "a",
+                    "start": 1539.175021,
+                    "end": 1539.2750210000002,
+                    "probability": 0.9994354844093323,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "dejarlo",
+                    "start": 1539.2750210000002,
+                    "end": 1539.595021,
+                    "probability": 0.9986822307109833,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "así.",
+                    "start": 1539.595021,
+                    "end": 1539.8150210000001,
+                    "probability": 0.9997618794441223,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "Vamos",
+                    "start": 1539.955021,
+                    "end": 1540.075021,
+                    "probability": 0.9793851375579834,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "a",
+                    "start": 1540.075021,
+                    "end": 1540.175021,
+                    "probability": 0.9999440908432007,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "tratar",
+                    "start": 1540.175021,
+                    "end": 1540.335021,
+                    "probability": 0.9915158748626709,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "de",
+                    "start": 1540.335021,
+                    "end": 1540.5350210000001,
+                    "probability": 0.9999428987503052,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "aprovechar",
+                    "start": 1540.5350210000001,
+                    "end": 1541.335021,
+                    "probability": 0.9994027018547058,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "el",
+                    "start": 1541.335021,
+                    "end": 1541.4750210000002,
+                    "probability": 0.9997022747993469,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "tiempo",
+                    "start": 1541.4750210000002,
+                    "end": 1541.7350210000002,
+                    "probability": 0.9997828602790833,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "para",
+                    "start": 1541.7350210000002,
+                    "end": 1541.9950210000002,
+                    "probability": 0.9926809668540955,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "meter",
+                    "start": 1541.9950210000002,
+                    "end": 1542.3150210000001,
+                    "probability": 0.9988273978233337,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "más",
+                    "start": 1542.3150210000001,
+                    "end": 1542.5150210000002,
+                    "probability": 0.9993610978126526,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  },
+                  {
+                    "word": "animales.",
+                    "start": 1542.5150210000002,
+                    "end": 1543.0150210000002,
+                    "probability": 0.9997460246086121,
+                    "no_speech_prob": 5.6623464597671536e-12
+                  }
+                ]
+              },
+              "region_rms": 0.033623454826363884,
+              "complete": true,
+              "error": null,
+              "identity": "1c8a47f9149eef53923e25877fbda97128cb764dc41f2dba319a263bbdb0d068"
+            },
+            "source_confidence": "material",
+            "confirmed": false,
+            "checked_text": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+            "request_identity": "9273feff8e903a1cbf6a10ca6a1d114c0d033f1a65bb1f08f88525b800cf6e22",
+            "provider": {
+              "kind": "command",
+              "model": "gpt-6-luna",
+              "provenance": {
+                "contract": "aidub.codex_chatgpt.v2",
+                "model": "gpt-6-luna",
+                "reasoning": "medium",
+                "auth": "chatgpt",
+                "cli_version": "codex-cli 0.163.0",
+                "cli_sha256": "399ff69c431c066e40de318fba45c2b07f45a76b19939d247ee4828fc70c4215",
+                "adapter_sha256": "7e36fb40a8f0a9a26daafe9c57b8c897fd27e9450f1d9e0f26e8d5a2b70000ed",
+                "configuration_sha256": "f494657ce3eeb28e1f47eb4cd9d5a5c642c49bfc440f0f1db9091ad96e6bd0dd",
+                "decision_contract": "aidub.review_decision.v2",
+                "review_code_sha256": "0e121b0a630adce594e07e3ded22c6b2c8fd74f9e775e43da7428dbb3ee1c89d",
+                "sandbox": "read-only",
+                "ignore_user_config": true,
+                "ignore_rules": true,
+                "ephemeral": true,
+                "controls": {
+                  "model_provider": "\"openai\"",
+                  "forced_login_method": "\"chatgpt\"",
+                  "approval_policy": "\"never\"",
+                  "web_search": "\"disabled\"",
+                  "project_doc_max_bytes": "0",
+                  "features.shell_tool": "false",
+                  "features.multi_agent": "false",
+                  "features.apps": "false",
+                  "features.plugins": "false",
+                  "features.hooks": "false",
+                  "features.memories": "false",
+                  "features.browser_use": "false",
+                  "features.computer_use": "false",
+                  "features.image_generation": "false",
+                  "features.view_image": "false"
+                }
+              }
+            },
+            "saved_response": "<fixture>/attempt_01_response.json",
+            "assessment": {
+              "confidence": "material",
+              "reading": "No sé exactamente Qué es lo que busco o lo que necesito Bien, vamos a dejarlo así Y vamos a tratar de aprovechar el tiempo para meter más animales.",
+              "evidence_id": "1c8a47f9149eef53923e25877fbda97128cb764dc41f2dba319a263bbdb0d068",
+              "reason": "The primary reading and contextual hearing include “No sé,” while the alternative hearing says “Sé exactamente”; the evidence does not resolve this polarity conflict.",
+              "parts": []
+            },
+            "semantic_round": 1,
+            "binding": "e644101f15c94f6dcb5fd37af805a6ea34c746b2bba3a9ba98efc70afeb79feb"
+          }
+        }
+      ],
+      "source_resolution": {
+        "policy": "aidub.source_resolution.v1",
+        "evidence": {
+          "episode": "b4ebc8c357d5c270dd9fd3258b84432270664472e991ec8b081255b9db937da7",
+          "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+          "span": [
+            1535.085021,
+            1543.22
+          ],
+          "primary_words": [
+            {
+              "word": " exactamente",
+              "start": 1535.22,
+              "end": 1535.72,
+              "probability": 0.9995416402816772
+            },
+            {
+              "word": " Qué",
+              "start": 1535.72,
+              "end": 1536.04,
+              "probability": 0.3596000075340271
+            },
+            {
+              "word": " es",
+              "start": 1536.04,
+              "end": 1536.18,
+              "probability": 0.9998252987861633
+            },
+            {
+              "word": " lo",
+              "start": 1536.18,
+              "end": 1536.32,
+              "probability": 0.9999188184738159
+            },
+            {
+              "word": " que",
+              "start": 1536.32,
+              "end": 1536.44,
+              "probability": 0.9999855756759644
+            },
+            {
+              "word": " busco",
+              "start": 1536.44,
+              "end": 1536.82,
+              "probability": 0.9988871216773987
+            },
+            {
+              "word": " o",
+              "start": 1536.82,
+              "end": 1537.1,
+              "probability": 0.6356245279312134
+            },
+            {
+              "word": " lo",
+              "start": 1537.1,
+              "end": 1537.22,
+              "probability": 0.9997283816337585
+            },
+            {
+              "word": " que",
+              "start": 1537.22,
+              "end": 1537.34,
+              "probability": 0.9999747276306152
+            },
+            {
+              "word": " necesito",
+              "start": 1537.34,
+              "end": 1538.04,
+              "probability": 0.9998170435428619
+            },
+            {
+              "word": " Bien,",
+              "start": 1538.04,
+              "end": 1539.04,
+              "probability": 0.6101827025413513
+            },
+            {
+              "word": " vamos",
+              "start": 1539.1,
+              "end": 1539.18,
+              "probability": 0.9845010042190552
+            },
+            {
+              "word": " a",
+              "start": 1539.18,
+              "end": 1539.26,
+              "probability": 0.9998942613601685
+            },
+            {
+              "word": " dejarlo",
+              "start": 1539.26,
+              "end": 1539.58,
+              "probability": 0.9991948902606964
+            },
+            {
+              "word": " así",
+              "start": 1539.58,
+              "end": 1539.82,
+              "probability": 0.9998059868812561
+            },
+            {
+              "word": " Y",
+              "start": 1539.82,
+              "end": 1539.92,
+              "probability": 0.8594618439674377
+            },
+            {
+              "word": " vamos",
+              "start": 1539.92,
+              "end": 1540.1,
+              "probability": 0.9975098371505737
+            },
+            {
+              "word": " a",
+              "start": 1540.1,
+              "end": 1540.16,
+              "probability": 0.9997418522834778
+            },
+            {
+              "word": " tratar",
+              "start": 1540.16,
+              "end": 1540.34,
+              "probability": 0.9780018925666809
+            },
+            {
+              "word": " de",
+              "start": 1540.34,
+              "end": 1540.54,
+              "probability": 0.9984020590782166
+            },
+            {
+              "word": " aprovechar",
+              "start": 1540.54,
+              "end": 1541.32,
+              "probability": 0.9939650893211365
+            },
+            {
+              "word": " el",
+              "start": 1541.32,
+              "end": 1541.48,
+              "probability": 0.9933184385299683
+            },
+            {
+              "word": " tiempo",
+              "start": 1541.48,
+              "end": 1541.72,
+              "probability": 0.9999419450759888
+            },
+            {
+              "word": " para",
+              "start": 1541.72,
+              "end": 1542.0,
+              "probability": 0.7460150718688965
+            },
+            {
+              "word": " meter",
+              "start": 1542.0,
+              "end": 1542.3,
+              "probability": 0.998976469039917
+            },
+            {
+              "word": " más",
+              "start": 1542.3,
+              "end": 1542.54,
+              "probability": 0.9986469149589539
+            },
+            {
+              "word": " animales.",
+              "start": 1542.54,
+              "end": 1543.02,
+              "probability": 0.9999269247055054
+            }
+          ],
+          "primary_text": "No sé exactamente Qué es lo que busco o lo que necesito Bien, vamos a dejarlo así Y vamos a tratar de aprovechar el tiempo para meter más animales.",
+          "contextual": {
+            "window": [
+              1533.835021,
+              1544.47
+            ],
+            "words": [
+              {
+                "word": "No",
+                "start": 1534.675021,
+                "end": 1535.095021,
+                "probability": 0.2150329202413559,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "sé",
+                "start": 1535.095021,
+                "end": 1535.2350210000002,
+                "probability": 0.9431257247924805,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "exactamente",
+                "start": 1535.2350210000002,
+                "end": 1535.635021,
+                "probability": 0.9938961863517761,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "qué",
+                "start": 1535.635021,
+                "end": 1536.0350210000001,
+                "probability": 0.9526199102401733,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "es",
+                "start": 1536.0350210000001,
+                "end": 1536.175021,
+                "probability": 0.9985080361366272,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "lo",
+                "start": 1536.175021,
+                "end": 1536.3150210000001,
+                "probability": 0.994113028049469,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "que",
+                "start": 1536.3150210000001,
+                "end": 1536.435021,
+                "probability": 0.9989494681358337,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "busco",
+                "start": 1536.435021,
+                "end": 1536.835021,
+                "probability": 0.9960196316242218,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "o",
+                "start": 1536.835021,
+                "end": 1537.115021,
+                "probability": 0.8839302659034729,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "lo",
+                "start": 1537.115021,
+                "end": 1537.2150210000002,
+                "probability": 0.9944275617599487,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "que",
+                "start": 1537.2150210000002,
+                "end": 1537.355021,
+                "probability": 0.9988464117050171,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "necesito.",
+                "start": 1537.355021,
+                "end": 1538.115021,
+                "probability": 0.9993895292282104,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "Bien,",
+                "start": 1538.595021,
+                "end": 1539.0150210000002,
+                "probability": 0.6494986414909363,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "vamos",
+                "start": 1539.095021,
+                "end": 1539.175021,
+                "probability": 0.9901018142700195,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "a",
+                "start": 1539.175021,
+                "end": 1539.2750210000002,
+                "probability": 0.9994354844093323,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "dejarlo",
+                "start": 1539.2750210000002,
+                "end": 1539.595021,
+                "probability": 0.9986822307109833,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "así.",
+                "start": 1539.595021,
+                "end": 1539.8150210000001,
+                "probability": 0.9997618794441223,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "Vamos",
+                "start": 1539.955021,
+                "end": 1540.075021,
+                "probability": 0.9793851375579834,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "a",
+                "start": 1540.075021,
+                "end": 1540.175021,
+                "probability": 0.9999440908432007,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "tratar",
+                "start": 1540.175021,
+                "end": 1540.335021,
+                "probability": 0.9915158748626709,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "de",
+                "start": 1540.335021,
+                "end": 1540.5350210000001,
+                "probability": 0.9999428987503052,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "aprovechar",
+                "start": 1540.5350210000001,
+                "end": 1541.335021,
+                "probability": 0.9994027018547058,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "el",
+                "start": 1541.335021,
+                "end": 1541.4750210000002,
+                "probability": 0.9997022747993469,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "tiempo",
+                "start": 1541.4750210000002,
+                "end": 1541.7350210000002,
+                "probability": 0.9997828602790833,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "para",
+                "start": 1541.7350210000002,
+                "end": 1541.9950210000002,
+                "probability": 0.9926809668540955,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "meter",
+                "start": 1541.9950210000002,
+                "end": 1542.3150210000001,
+                "probability": 0.9988273978233337,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "más",
+                "start": 1542.3150210000001,
+                "end": 1542.5150210000002,
+                "probability": 0.9993610978126526,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "animales.",
+                "start": 1542.5150210000002,
+                "end": 1543.0150210000002,
+                "probability": 0.9997460246086121,
+                "no_speech_prob": 5.6623464597671536e-12
+              }
+            ],
+            "text": " No sé exactamente qué es lo que busco o lo que necesito. Bien, vamos a dejarlo así. Vamos a tratar de aprovechar el tiempo para meter más animales.",
+            "seconds": 0.43825536399526754,
+            "provenance": {
+              "kind": "fresh_contextual_hearing",
+              "weights": {
+                "sha256": "aff26ae408abcba5fbf8813c21e62b0941638c5f6eebfb145be0c9839262a19a",
+                "size": 1617941637
+              },
+              "options": {
+                "condition_on_previous_text": false,
+                "beam_size": 5,
+                "best_of": 5
+              },
+              "language": "Spanish",
+              "device": "cuda"
+            }
+          },
+          "inside": {
+            "text": "sé exactamente qué es lo que busco o lo que necesito. Bien, vamos a dejarlo así. Vamos a tratar de aprovechar el tiempo para meter más animales.",
+            "mean_probability": 0.976,
+            "min_probability": 0.6495,
+            "max_no_speech_prob": 0.0,
+            "words": [
+              {
+                "word": "sé",
+                "start": 1535.095021,
+                "end": 1535.2350210000002,
+                "probability": 0.9431257247924805,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "exactamente",
+                "start": 1535.2350210000002,
+                "end": 1535.635021,
+                "probability": 0.9938961863517761,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "qué",
+                "start": 1535.635021,
+                "end": 1536.0350210000001,
+                "probability": 0.9526199102401733,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "es",
+                "start": 1536.0350210000001,
+                "end": 1536.175021,
+                "probability": 0.9985080361366272,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "lo",
+                "start": 1536.175021,
+                "end": 1536.3150210000001,
+                "probability": 0.994113028049469,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "que",
+                "start": 1536.3150210000001,
+                "end": 1536.435021,
+                "probability": 0.9989494681358337,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "busco",
+                "start": 1536.435021,
+                "end": 1536.835021,
+                "probability": 0.9960196316242218,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "o",
+                "start": 1536.835021,
+                "end": 1537.115021,
+                "probability": 0.8839302659034729,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "lo",
+                "start": 1537.115021,
+                "end": 1537.2150210000002,
+                "probability": 0.9944275617599487,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "que",
+                "start": 1537.2150210000002,
+                "end": 1537.355021,
+                "probability": 0.9988464117050171,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "necesito.",
+                "start": 1537.355021,
+                "end": 1538.115021,
+                "probability": 0.9993895292282104,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "Bien,",
+                "start": 1538.595021,
+                "end": 1539.0150210000002,
+                "probability": 0.6494986414909363,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "vamos",
+                "start": 1539.095021,
+                "end": 1539.175021,
+                "probability": 0.9901018142700195,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "a",
+                "start": 1539.175021,
+                "end": 1539.2750210000002,
+                "probability": 0.9994354844093323,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "dejarlo",
+                "start": 1539.2750210000002,
+                "end": 1539.595021,
+                "probability": 0.9986822307109833,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "así.",
+                "start": 1539.595021,
+                "end": 1539.8150210000001,
+                "probability": 0.9997618794441223,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "Vamos",
+                "start": 1539.955021,
+                "end": 1540.075021,
+                "probability": 0.9793851375579834,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "a",
+                "start": 1540.075021,
+                "end": 1540.175021,
+                "probability": 0.9999440908432007,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "tratar",
+                "start": 1540.175021,
+                "end": 1540.335021,
+                "probability": 0.9915158748626709,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "de",
+                "start": 1540.335021,
+                "end": 1540.5350210000001,
+                "probability": 0.9999428987503052,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "aprovechar",
+                "start": 1540.5350210000001,
+                "end": 1541.335021,
+                "probability": 0.9994027018547058,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "el",
+                "start": 1541.335021,
+                "end": 1541.4750210000002,
+                "probability": 0.9997022747993469,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "tiempo",
+                "start": 1541.4750210000002,
+                "end": 1541.7350210000002,
+                "probability": 0.9997828602790833,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "para",
+                "start": 1541.7350210000002,
+                "end": 1541.9950210000002,
+                "probability": 0.9926809668540955,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "meter",
+                "start": 1541.9950210000002,
+                "end": 1542.3150210000001,
+                "probability": 0.9988273978233337,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "más",
+                "start": 1542.3150210000001,
+                "end": 1542.5150210000002,
+                "probability": 0.9993610978126526,
+                "no_speech_prob": 5.6623464597671536e-12
+              },
+              {
+                "word": "animales.",
+                "start": 1542.5150210000002,
+                "end": 1543.0150210000002,
+                "probability": 0.9997460246086121,
+                "no_speech_prob": 5.6623464597671536e-12
+              }
+            ]
+          },
+          "region_rms": 0.033623454826363884,
+          "complete": true,
+          "error": null,
+          "identity": "1c8a47f9149eef53923e25877fbda97128cb764dc41f2dba319a263bbdb0d068"
+        },
+        "source_confidence": "material",
+        "confirmed": false,
+        "checked_text": "I don't know exactly what I'm looking for or what I need. Well, let's leave it like that and try to make the most of the time by adding more animals.",
+        "request_identity": "42637000208e8fb8aabe71e3795f3677960d8b4e426bb038d287244c7e7795a4",
+        "provider": {
+          "kind": "command",
+          "model": "gpt-6-luna",
+          "provenance": {
+            "contract": "aidub.codex_chatgpt.v2",
+            "model": "gpt-6-luna",
+            "reasoning": "medium",
+            "auth": "chatgpt",
+            "cli_version": "codex-cli 0.163.0",
+            "cli_sha256": "399ff69c431c066e40de318fba45c2b07f45a76b19939d247ee4828fc70c4215",
+            "adapter_sha256": "7e36fb40a8f0a9a26daafe9c57b8c897fd27e9450f1d9e0f26e8d5a2b70000ed",
+            "configuration_sha256": "f494657ce3eeb28e1f47eb4cd9d5a5c642c49bfc440f0f1db9091ad96e6bd0dd",
+            "decision_contract": "aidub.review_decision.v2",
+            "review_code_sha256": "0e121b0a630adce594e07e3ded22c6b2c8fd74f9e775e43da7428dbb3ee1c89d",
+            "sandbox": "read-only",
+            "ignore_user_config": true,
+            "ignore_rules": true,
+            "ephemeral": true,
+            "controls": {
+              "model_provider": "\"openai\"",
+              "forced_login_method": "\"chatgpt\"",
+              "approval_policy": "\"never\"",
+              "web_search": "\"disabled\"",
+              "project_doc_max_bytes": "0",
+              "features.shell_tool": "false",
+              "features.multi_agent": "false",
+              "features.apps": "false",
+              "features.plugins": "false",
+              "features.hooks": "false",
+              "features.memories": "false",
+              "features.browser_use": "false",
+              "features.computer_use": "false",
+              "features.image_generation": "false",
+              "features.view_image": "false"
+            }
+          }
+        },
+        "saved_response": "<fixture>/attempt_02_response.json",
+        "assessment": {
+          "confidence": "material",
+          "reading": "No sé exactamente qué es lo que busco o lo que necesito.",
+          "evidence_id": "1c8a47f9149eef53923e25877fbda97128cb764dc41f2dba319a263bbdb0d068",
+          "reason": "The contextual hearing includes “No sé,” while the independent alternative omits “No,” leaving opposite polarity unresolved.",
+          "parts": []
+        },
+        "semantic_round": 2,
+        "binding": "e644101f15c94f6dcb5fd37af805a6ea34c746b2bba3a9ba98efc70afeb79feb"
+      }
+    },
+    "episode": {
+      "evidence": {
+        "episode": "b4ebc8c357d5c270dd9fd3258b84432270664472e991ec8b081255b9db937da7",
+        "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+        "span": [
+          1535.085021,
+          1543.22
+        ],
+        "primary_words": [
+          {
+            "word": " exactamente",
+            "start": 1535.22,
+            "end": 1535.72,
+            "probability": 0.9995416402816772
+          },
+          {
+            "word": " Qué",
+            "start": 1535.72,
+            "end": 1536.04,
+            "probability": 0.3596000075340271
+          },
+          {
+            "word": " es",
+            "start": 1536.04,
+            "end": 1536.18,
+            "probability": 0.9998252987861633
+          },
+          {
+            "word": " lo",
+            "start": 1536.18,
+            "end": 1536.32,
+            "probability": 0.9999188184738159
+          },
+          {
+            "word": " que",
+            "start": 1536.32,
+            "end": 1536.44,
+            "probability": 0.9999855756759644
+          },
+          {
+            "word": " busco",
+            "start": 1536.44,
+            "end": 1536.82,
+            "probability": 0.9988871216773987
+          },
+          {
+            "word": " o",
+            "start": 1536.82,
+            "end": 1537.1,
+            "probability": 0.6356245279312134
+          },
+          {
+            "word": " lo",
+            "start": 1537.1,
+            "end": 1537.22,
+            "probability": 0.9997283816337585
+          },
+          {
+            "word": " que",
+            "start": 1537.22,
+            "end": 1537.34,
+            "probability": 0.9999747276306152
+          },
+          {
+            "word": " necesito",
+            "start": 1537.34,
+            "end": 1538.04,
+            "probability": 0.9998170435428619
+          },
+          {
+            "word": " Bien,",
+            "start": 1538.04,
+            "end": 1539.04,
+            "probability": 0.6101827025413513
+          },
+          {
+            "word": " vamos",
+            "start": 1539.1,
+            "end": 1539.18,
+            "probability": 0.9845010042190552
+          },
+          {
+            "word": " a",
+            "start": 1539.18,
+            "end": 1539.26,
+            "probability": 0.9998942613601685
+          },
+          {
+            "word": " dejarlo",
+            "start": 1539.26,
+            "end": 1539.58,
+            "probability": 0.9991948902606964
+          },
+          {
+            "word": " así",
+            "start": 1539.58,
+            "end": 1539.82,
+            "probability": 0.9998059868812561
+          },
+          {
+            "word": " Y",
+            "start": 1539.82,
+            "end": 1539.92,
+            "probability": 0.8594618439674377
+          },
+          {
+            "word": " vamos",
+            "start": 1539.92,
+            "end": 1540.1,
+            "probability": 0.9975098371505737
+          },
+          {
+            "word": " a",
+            "start": 1540.1,
+            "end": 1540.16,
+            "probability": 0.9997418522834778
+          },
+          {
+            "word": " tratar",
+            "start": 1540.16,
+            "end": 1540.34,
+            "probability": 0.9780018925666809
+          },
+          {
+            "word": " de",
+            "start": 1540.34,
+            "end": 1540.54,
+            "probability": 0.9984020590782166
+          },
+          {
+            "word": " aprovechar",
+            "start": 1540.54,
+            "end": 1541.32,
+            "probability": 0.9939650893211365
+          },
+          {
+            "word": " el",
+            "start": 1541.32,
+            "end": 1541.48,
+            "probability": 0.9933184385299683
+          },
+          {
+            "word": " tiempo",
+            "start": 1541.48,
+            "end": 1541.72,
+            "probability": 0.9999419450759888
+          },
+          {
+            "word": " para",
+            "start": 1541.72,
+            "end": 1542.0,
+            "probability": 0.7460150718688965
+          },
+          {
+            "word": " meter",
+            "start": 1542.0,
+            "end": 1542.3,
+            "probability": 0.998976469039917
+          },
+          {
+            "word": " más",
+            "start": 1542.3,
+            "end": 1542.54,
+            "probability": 0.9986469149589539
+          },
+          {
+            "word": " animales.",
+            "start": 1542.54,
+            "end": 1543.02,
+            "probability": 0.9999269247055054
+          }
+        ],
+        "primary_text": "No sé exactamente Qué es lo que busco o lo que necesito Bien, vamos a dejarlo así Y vamos a tratar de aprovechar el tiempo para meter más animales.",
+        "contextual": {
+          "window": [
+            1533.835021,
+            1544.47
+          ],
+          "words": [
+            {
+              "word": "No",
+              "start": 1534.675021,
+              "end": 1535.095021,
+              "probability": 0.2150329202413559,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "sé",
+              "start": 1535.095021,
+              "end": 1535.2350210000002,
+              "probability": 0.9431257247924805,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "exactamente",
+              "start": 1535.2350210000002,
+              "end": 1535.635021,
+              "probability": 0.9938961863517761,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "qué",
+              "start": 1535.635021,
+              "end": 1536.0350210000001,
+              "probability": 0.9526199102401733,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "es",
+              "start": 1536.0350210000001,
+              "end": 1536.175021,
+              "probability": 0.9985080361366272,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "lo",
+              "start": 1536.175021,
+              "end": 1536.3150210000001,
+              "probability": 0.994113028049469,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "que",
+              "start": 1536.3150210000001,
+              "end": 1536.435021,
+              "probability": 0.9989494681358337,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "busco",
+              "start": 1536.435021,
+              "end": 1536.835021,
+              "probability": 0.9960196316242218,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "o",
+              "start": 1536.835021,
+              "end": 1537.115021,
+              "probability": 0.8839302659034729,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "lo",
+              "start": 1537.115021,
+              "end": 1537.2150210000002,
+              "probability": 0.9944275617599487,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "que",
+              "start": 1537.2150210000002,
+              "end": 1537.355021,
+              "probability": 0.9988464117050171,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "necesito.",
+              "start": 1537.355021,
+              "end": 1538.115021,
+              "probability": 0.9993895292282104,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "Bien,",
+              "start": 1538.595021,
+              "end": 1539.0150210000002,
+              "probability": 0.6494986414909363,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "vamos",
+              "start": 1539.095021,
+              "end": 1539.175021,
+              "probability": 0.9901018142700195,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "a",
+              "start": 1539.175021,
+              "end": 1539.2750210000002,
+              "probability": 0.9994354844093323,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "dejarlo",
+              "start": 1539.2750210000002,
+              "end": 1539.595021,
+              "probability": 0.9986822307109833,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "así.",
+              "start": 1539.595021,
+              "end": 1539.8150210000001,
+              "probability": 0.9997618794441223,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "Vamos",
+              "start": 1539.955021,
+              "end": 1540.075021,
+              "probability": 0.9793851375579834,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "a",
+              "start": 1540.075021,
+              "end": 1540.175021,
+              "probability": 0.9999440908432007,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "tratar",
+              "start": 1540.175021,
+              "end": 1540.335021,
+              "probability": 0.9915158748626709,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "de",
+              "start": 1540.335021,
+              "end": 1540.5350210000001,
+              "probability": 0.9999428987503052,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "aprovechar",
+              "start": 1540.5350210000001,
+              "end": 1541.335021,
+              "probability": 0.9994027018547058,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "el",
+              "start": 1541.335021,
+              "end": 1541.4750210000002,
+              "probability": 0.9997022747993469,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "tiempo",
+              "start": 1541.4750210000002,
+              "end": 1541.7350210000002,
+              "probability": 0.9997828602790833,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "para",
+              "start": 1541.7350210000002,
+              "end": 1541.9950210000002,
+              "probability": 0.9926809668540955,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "meter",
+              "start": 1541.9950210000002,
+              "end": 1542.3150210000001,
+              "probability": 0.9988273978233337,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "más",
+              "start": 1542.3150210000001,
+              "end": 1542.5150210000002,
+              "probability": 0.9993610978126526,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "animales.",
+              "start": 1542.5150210000002,
+              "end": 1543.0150210000002,
+              "probability": 0.9997460246086121,
+              "no_speech_prob": 5.6623464597671536e-12
+            }
+          ],
+          "text": " No sé exactamente qué es lo que busco o lo que necesito. Bien, vamos a dejarlo así. Vamos a tratar de aprovechar el tiempo para meter más animales.",
+          "seconds": 0.43825536399526754,
+          "provenance": {
+            "kind": "fresh_contextual_hearing",
+            "weights": {
+              "sha256": "aff26ae408abcba5fbf8813c21e62b0941638c5f6eebfb145be0c9839262a19a",
+              "size": 1617941637
+            },
+            "options": {
+              "condition_on_previous_text": false,
+              "beam_size": 5,
+              "best_of": 5
+            },
+            "language": "Spanish",
+            "device": "cuda"
+          }
+        },
+        "inside": {
+          "text": "sé exactamente qué es lo que busco o lo que necesito. Bien, vamos a dejarlo así. Vamos a tratar de aprovechar el tiempo para meter más animales.",
+          "mean_probability": 0.976,
+          "min_probability": 0.6495,
+          "max_no_speech_prob": 0.0,
+          "words": [
+            {
+              "word": "sé",
+              "start": 1535.095021,
+              "end": 1535.2350210000002,
+              "probability": 0.9431257247924805,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "exactamente",
+              "start": 1535.2350210000002,
+              "end": 1535.635021,
+              "probability": 0.9938961863517761,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "qué",
+              "start": 1535.635021,
+              "end": 1536.0350210000001,
+              "probability": 0.9526199102401733,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "es",
+              "start": 1536.0350210000001,
+              "end": 1536.175021,
+              "probability": 0.9985080361366272,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "lo",
+              "start": 1536.175021,
+              "end": 1536.3150210000001,
+              "probability": 0.994113028049469,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "que",
+              "start": 1536.3150210000001,
+              "end": 1536.435021,
+              "probability": 0.9989494681358337,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "busco",
+              "start": 1536.435021,
+              "end": 1536.835021,
+              "probability": 0.9960196316242218,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "o",
+              "start": 1536.835021,
+              "end": 1537.115021,
+              "probability": 0.8839302659034729,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "lo",
+              "start": 1537.115021,
+              "end": 1537.2150210000002,
+              "probability": 0.9944275617599487,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "que",
+              "start": 1537.2150210000002,
+              "end": 1537.355021,
+              "probability": 0.9988464117050171,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "necesito.",
+              "start": 1537.355021,
+              "end": 1538.115021,
+              "probability": 0.9993895292282104,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "Bien,",
+              "start": 1538.595021,
+              "end": 1539.0150210000002,
+              "probability": 0.6494986414909363,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "vamos",
+              "start": 1539.095021,
+              "end": 1539.175021,
+              "probability": 0.9901018142700195,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "a",
+              "start": 1539.175021,
+              "end": 1539.2750210000002,
+              "probability": 0.9994354844093323,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "dejarlo",
+              "start": 1539.2750210000002,
+              "end": 1539.595021,
+              "probability": 0.9986822307109833,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "así.",
+              "start": 1539.595021,
+              "end": 1539.8150210000001,
+              "probability": 0.9997618794441223,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "Vamos",
+              "start": 1539.955021,
+              "end": 1540.075021,
+              "probability": 0.9793851375579834,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "a",
+              "start": 1540.075021,
+              "end": 1540.175021,
+              "probability": 0.9999440908432007,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "tratar",
+              "start": 1540.175021,
+              "end": 1540.335021,
+              "probability": 0.9915158748626709,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "de",
+              "start": 1540.335021,
+              "end": 1540.5350210000001,
+              "probability": 0.9999428987503052,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "aprovechar",
+              "start": 1540.5350210000001,
+              "end": 1541.335021,
+              "probability": 0.9994027018547058,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "el",
+              "start": 1541.335021,
+              "end": 1541.4750210000002,
+              "probability": 0.9997022747993469,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "tiempo",
+              "start": 1541.4750210000002,
+              "end": 1541.7350210000002,
+              "probability": 0.9997828602790833,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "para",
+              "start": 1541.7350210000002,
+              "end": 1541.9950210000002,
+              "probability": 0.9926809668540955,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "meter",
+              "start": 1541.9950210000002,
+              "end": 1542.3150210000001,
+              "probability": 0.9988273978233337,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "más",
+              "start": 1542.3150210000001,
+              "end": 1542.5150210000002,
+              "probability": 0.9993610978126526,
+              "no_speech_prob": 5.6623464597671536e-12
+            },
+            {
+              "word": "animales.",
+              "start": 1542.5150210000002,
+              "end": 1543.0150210000002,
+              "probability": 0.9997460246086121,
+              "no_speech_prob": 5.6623464597671536e-12
+            }
+          ]
+        },
+        "region_rms": 0.033623454826363884,
+        "complete": true,
+        "error": null,
+        "identity": "1c8a47f9149eef53923e25877fbda97128cb764dc41f2dba319a263bbdb0d068"
+      }
+    }
+  },
+  "676": {
+    "segment": {
+      "id": 676,
+      "start": 4036.072271,
+      "end": 4038.850229,
+      "spanish": "3300 No sé si vale la pena realmente",
+      "english": "Three thousand three hundred. I don't know if it's really worth it.",
+      "english_original": "Three thousand three hundred. I don't know if it's really worth it.",
+      "anchor_type": "utterance",
+      "anchor_type_note": "heuristic from word count and duration, not a linguistic label",
+      "notes": "Whisper start 4036.400; energy onset 4036.072. Timestamps are approximate, not forced alignment. Uncertain words: No p=0.158. Not rewritten. Merged Whisper segments on a short energy gap: 3300 | No sé si vale la pena realmente",
+      "whisper_start": 4036.4,
+      "whisper_end": 4038.68,
+      "uncertain_words": [
+        {
+          "word": "No",
+          "probability": 0.15844258666038513,
+          "start": 4036.92,
+          "end": 4037.32
+        }
+      ],
+      "source_words": [
+        {
+          "word": " 3300",
+          "start": 4036.4,
+          "end": 4036.92,
+          "probability": 0.7175029069185257
+        },
+        {
+          "word": " No",
+          "start": 4036.92,
+          "end": 4037.32,
+          "probability": 0.15844258666038513
+        },
+        {
+          "word": " sé",
+          "start": 4037.32,
+          "end": 4037.46,
+          "probability": 0.952196478843689
+        },
+        {
+          "word": " si",
+          "start": 4037.46,
+          "end": 4037.58,
+          "probability": 0.9996157884597778
+        },
+        {
+          "word": " vale",
+          "start": 4037.58,
+          "end": 4037.74,
+          "probability": 0.9975560903549194
+        },
+        {
+          "word": " la",
+          "start": 4037.74,
+          "end": 4037.9,
+          "probability": 0.9983861446380615
+        },
+        {
+          "word": " pena",
+          "start": 4037.9,
+          "end": 4038.12,
+          "probability": 0.9999287128448486
+        },
+        {
+          "word": " realmente",
+          "start": 4038.12,
+          "end": 4038.68,
+          "probability": 0.960503339767456
+        }
+      ],
+      "revisions": [],
+      "asr_alternatives": [
+        {
+          "text": "3 .300, no sé si vale la pena realmente.",
+          "mean_probability": 0.9015,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "source_cues": [
+        {
+          "spanish": "3300 No sé si vale la pena realmente",
+          "start": 4036.072271,
+          "end": 4038.850229
+        }
+      ],
+      "source_pauses": [],
+      "syllable_budget": {
+        "syllables": 16,
+        "target": 14,
+        "max": 31,
+        "over_max": false
+      },
+      "translation_review": {
+        "status": "accepted_draft",
+        "draft": "Three thousand three hundred. I don't know if it's really worth it.",
+        "checked_text": "Three thousand three hundred. I don't know if it's really worth it.",
+        "issues": [],
+        "reason": null
+      }
+    },
+    "episode": {
+      "evidence": {
+        "episode": "44f9b67d2a9ca4f500822d93aed40606684f45035f250cf556ad5e7ac9f3ae52",
+        "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+        "span": [
+          4036.072271,
+          4038.850229
+        ],
+        "primary_words": [
+          {
+            "word": " 3300",
+            "start": 4036.4,
+            "end": 4036.92,
+            "probability": 0.7175029069185257
+          },
+          {
+            "word": " No",
+            "start": 4036.92,
+            "end": 4037.32,
+            "probability": 0.15844258666038513
+          },
+          {
+            "word": " sé",
+            "start": 4037.32,
+            "end": 4037.46,
+            "probability": 0.952196478843689
+          },
+          {
+            "word": " si",
+            "start": 4037.46,
+            "end": 4037.58,
+            "probability": 0.9996157884597778
+          },
+          {
+            "word": " vale",
+            "start": 4037.58,
+            "end": 4037.74,
+            "probability": 0.9975560903549194
+          },
+          {
+            "word": " la",
+            "start": 4037.74,
+            "end": 4037.9,
+            "probability": 0.9983861446380615
+          },
+          {
+            "word": " pena",
+            "start": 4037.9,
+            "end": 4038.12,
+            "probability": 0.9999287128448486
+          },
+          {
+            "word": " realmente",
+            "start": 4038.12,
+            "end": 4038.68,
+            "probability": 0.960503339767456
+          }
+        ],
+        "primary_text": "3300 No sé si vale la pena realmente",
+        "contextual": {
+          "window": [
+            4035.722271,
+            4039.200229
+          ],
+          "words": [
+            {
+              "word": "3",
+              "start": 4035.722271,
+              "end": 4036.242271,
+              "probability": 0.2879985272884369,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": ".300,",
+              "start": 4036.242271,
+              "end": 4036.842271,
+              "probability": 0.8977273404598236,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "no",
+              "start": 4037.222271,
+              "end": 4037.342271,
+              "probability": 0.9975703358650208,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "sé",
+              "start": 4037.342271,
+              "end": 4037.462271,
+              "probability": 0.9700683951377869,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "si",
+              "start": 4037.462271,
+              "end": 4037.582271,
+              "probability": 0.9994014501571655,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "vale",
+              "start": 4037.582271,
+              "end": 4037.742271,
+              "probability": 0.9858447313308716,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "la",
+              "start": 4037.742271,
+              "end": 4037.882271,
+              "probability": 0.9993473887443542,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "pena",
+              "start": 4037.882271,
+              "end": 4038.142271,
+              "probability": 0.9998154044151306,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "realmente.",
+              "start": 4038.142271,
+              "end": 4038.622271,
+              "probability": 0.9758927226066589,
+              "no_speech_prob": 3.1113241323599272e-12
+            }
+          ],
+          "text": " 3.300, no sé si vale la pena realmente.",
+          "provenance": {
+            "kind": "saved_second_pass",
+            "stage_fingerprint": "e5f877b4584f0262ae2edd3ae804a2050bd9e2e88f14742f915e86be9b3ccb05",
+            "hearing_identity": "e3e37c9c95da2bbd5f508130d1c9b7658c527d7408a82d3f9740caecd042cf2a",
+            "result_sha256": "c15b5a8f8aa81d6305f42e127b2265edabb9247b81874d0c83714f902fb4f0d4",
+            "model": "turbo",
+            "options": {
+              "condition_on_previous_text": false,
+              "beam_size": 5,
+              "best_of": 5
+            }
+          }
+        },
+        "inside": {
+          "text": ".300, no sé si vale la pena realmente.",
+          "mean_probability": 0.9782,
+          "min_probability": 0.8977,
+          "max_no_speech_prob": 0.0,
+          "words": [
+            {
+              "word": ".300,",
+              "start": 4036.242271,
+              "end": 4036.842271,
+              "probability": 0.8977273404598236,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "no",
+              "start": 4037.222271,
+              "end": 4037.342271,
+              "probability": 0.9975703358650208,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "sé",
+              "start": 4037.342271,
+              "end": 4037.462271,
+              "probability": 0.9700683951377869,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "si",
+              "start": 4037.462271,
+              "end": 4037.582271,
+              "probability": 0.9994014501571655,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "vale",
+              "start": 4037.582271,
+              "end": 4037.742271,
+              "probability": 0.9858447313308716,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "la",
+              "start": 4037.742271,
+              "end": 4037.882271,
+              "probability": 0.9993473887443542,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "pena",
+              "start": 4037.882271,
+              "end": 4038.142271,
+              "probability": 0.9998154044151306,
+              "no_speech_prob": 3.1113241323599272e-12
+            },
+            {
+              "word": "realmente.",
+              "start": 4038.142271,
+              "end": 4038.622271,
+              "probability": 0.9758927226066589,
+              "no_speech_prob": 3.1113241323599272e-12
+            }
+          ]
+        },
+        "region_rms": 0.027698429897654135,
+        "complete": true,
+        "error": null,
+        "identity": "3d30ce371d4efd4a53cf2cb3fe84ec79875057db820236994298f2e916a442e3"
+      }
+    }
+  }
+}

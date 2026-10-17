@@ -23,6 +23,7 @@ from .review import review_request, validate_review_response
 from .second_pass import _Mic, _words, _inside, _summary, settings as hearing_settings
 from .util import fingerprint, read_json, sha256_file, write_json
 from .verification import file_identity
+from .source_disagreement import disagreement, bind_comparison_evidence
 
 CONFIDENCES = {"supported", "minor", "material", "supported_spans", "non_speech"}
 INSTRUCTIONS = """This is bounded evidence-based source/English resolution, not a style rewrite.
@@ -74,11 +75,15 @@ def load_state(job):
     return state
 
 
-def target_segments(job):
+def target_segments(job, cfg=None, mic_sha=None, state=None):
     """Include ambiguous cues, unconfirmed English, unknown gaps and vocal events."""
     targets = [s for s in job.data.get("timeline", []) if not s.get("source_remainder") and
                (s.get("material_source_conflict") or readings_differ(s) or
                 (s.get("translation_review") or {}).get("status") in {"disputed", "revised_unconfirmed"})]
+    if cfg is not None:
+        evidence = {e["id"]: e.get("evidence", {}) for e in (state or {}).get("episodes", {}).values()}
+        targets = [s for s in targets if eligibility(bind_comparison_evidence(s, evidence.get(s["id"], {}), mic_sha),
+                                                    cfg, mic_sha)["synthesis"] == "withheld"]
     regions = []
     corrections = _read(job.dir / "transcribe/corrections.json", {})
     for g in corrections.get("untranscribed_energy", []):
@@ -112,7 +117,7 @@ def pending_source_resolution(job, cfg):
         return True
     mic_sha = read_json(job.dir / "extract/alignment.json")["mic_sha256"]
     diagnostics = boundary_diagnostics(job.data.get("timeline", []))
-    for seg in target_segments(job):
+    for seg in target_segments(job, cfg, mic_sha, state):
         if diagnostics.get(int(seg["id"]), {}).get("blocking") or valid_resolution(seg, mic_sha):
             continue
         entry = state["episodes"].get(_episode_key(seg, mic_sha, cfg), {})
@@ -256,7 +261,8 @@ def assessment_errors(row, src, current):
             sum(w.get("probability", 0) for w in supported_words) / len(supported_words) < .6 or
             not any(w.get("end", -1) > span[0] and w.get("start", float("inf")) < span[1] for w in supported_words)):
         errors.append("resolved source needs lexical acoustic support, not context/text agreement alone")
-    if readings_differ(src) and confidence in {"supported", "minor"}:
+    if (readings_differ(src) and confidence in {"supported", "minor"}
+            and disagreement(src)["kind"] not in {"equivalent", "minor"}):
         raw = e.get("contextual") or {}
         if (raw.get("provenance", {}).get("kind") == "primary_source_words" or
                 reading_tokens(a["reading"]) != reading_tokens(e.get("inside", {}).get("text", ""))):
@@ -397,6 +403,11 @@ def resolve_sources(job, cfg, providers, *, before_invoke=None, hearing=None):
     def save(): write_json(state_path, state)
     alignment = read_json(job.dir / "extract/alignment.json")
     mic_sha = alignment["mic_sha256"]
+    saved_evidence = {e["id"]: e.get("evidence", {}) for e in state["episodes"].values()}
+    for seg in job.data.get("timeline", []):
+        bound = bind_comparison_evidence(seg, saved_evidence.get(seg["id"], {}), mic_sha)
+        if "source_comparison_evidence" in bound:
+            seg["source_comparison_evidence"] = bound["source_comparison_evidence"]
     diagnostics = boundary_diagnostics(job.data.get("timeline", []))
     for s in job.data.get("timeline", []):
         if int(s["id"]) in diagnostics:
@@ -406,7 +417,7 @@ def resolve_sources(job, cfg, providers, *, before_invoke=None, hearing=None):
     hear = hearing or worker
     try:
         if not state.get("pending"):
-            for seg in target_segments(job):
+            for seg in target_segments(job, cfg, mic_sha, state):
                 if diagnostics.get(int(seg["id"]), {}).get("blocking") or valid_resolution(seg, mic_sha):
                     continue
                 key = _episode_key(seg, mic_sha, cfg)
@@ -417,7 +428,9 @@ def resolve_sources(job, cfg, providers, *, before_invoke=None, hearing=None):
                     save()
         limit = min(2, max(1, int(settings(cfg).get("max_semantic_rounds", 2))))
         for _ in range(2):
-            targets = {int(s["id"]): s for s in target_segments(job)}
+            # A persisted pending request must remain addressable even if a
+            # harmless difference is now eligible; never abandon its identity.
+            targets = {int(s["id"]): s for s in target_segments(job, None if state.get("pending") else cfg, mic_sha, state)}
             if state.get("pending"):
                 pending = state["pending"]
                 req = read_json(root / pending["request"])

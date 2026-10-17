@@ -60,6 +60,7 @@ from .segment import build_segments_file
 from .streaming import alignment_meta, block_frames, stream_mix, validate_audio_files
 from .transcription import transcribe_chunks
 from .util import fingerprint, md5_file, read_json, sha256_file, write_json
+from .source_disagreement import POLICY as DISAGREEMENT_POLICY
 
 
 def job_path(cfg: dict, name: str) -> Path:
@@ -841,12 +842,13 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
         "segments": [
             {"id": s["id"], "english": s.get("english"), "start": s["start"], "end": s["end"], "revisions": s.get("revisions") or [],
              **{k:s[k] for k in ("spanish", "asr_alternatives", "material_source_conflict","translation_review","vocal_events","required_event_prefix","source_pauses",
-                                  "source_resolution", "source_lineage", "source_remainder", "boundary_diagnostic") if k in s}}
+                                  "source_resolution", "source_comparison_evidence", "source_lineage", "source_remainder", "boundary_diagnostic") if k in s}}
             for s in segments
         ],
         "video_duration": source_duration,
         "source_mic": inspected.get("mapping", {}).get("mic", {}).get("sha256") or read_json(job.dir / "extract/alignment.json")["mic_sha256"],
         "eligibility_policy": RESOLUTION_POLICY,
+        "disagreement_policy": DISAGREEMENT_POLICY,
         "reference_sha256": ref_sha,
         "reference_text": ref_text,
         "schedule": cfg["schedule"],
@@ -1634,6 +1636,7 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     event_file = job.dir / "transcribe/vocal_events.json"
     validate_fp = fingerprint({"version": 7, "spanish_comparison_requested": comparison,
                                "source_resolution_policy": RESOLUTION_POLICY,
+                               "disagreement_policy": DISAGREEMENT_POLICY,
                                "source_decisions": {"timeline": _timeline(job), "regions": job.data.get("source_region_resolutions")},
                                **({"protected_endings_gate": 1} if int(summary.get("presentation_version", 1)) >= 3 else {}), "source_sha256": source_sha, "protected": protected_now,
                                "artifacts": {label: sha256_file(path) for label, path in artifacts.items()},

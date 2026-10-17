@@ -5,6 +5,7 @@ import unicodedata
 from difflib import SequenceMatcher
 
 from .util import fingerprint
+from .source_disagreement import disagreement, lexical_support
 
 RESOLUTION_POLICY = "aidub.source_resolution.v1"
 NEGATORS = {"no", "nunca", "jamas", "tampoco", "nadie", "nada", "sin"}
@@ -121,7 +122,15 @@ def eligibility(seg, cfg, mic_sha=None):
     elif seg.get("material_source_conflict") and not resolution_ok:
         source, reason = "material", "material_source_asr_conflict"
     elif (cfg.get("source_resolution") or {}).get("enabled") and readings_differ(seg) and not resolution_ok:
-        source, reason = "material", "source_readings_pending_resolution"
+        difference = disagreement(seg)
+        if difference["kind"] == "material":
+            source, reason = "material", "competing_source_meanings"
+        elif difference["kind"] == "localized":
+            source, reason = "localized", "localized_source_review_required"
+        elif not lexical_support(seg):
+            source, reason = "unverified", "source_lexical_evidence_required"
+        else:
+            source = "minor" if difference["kind"] == "minor" else "supported"
     if enabled:
         if review.get("status") in {"withheld_review_failure", "withheld_translation_failure"}:
             translation, reason = "withheld_content_failure", "content_review_recovery_exhausted"
