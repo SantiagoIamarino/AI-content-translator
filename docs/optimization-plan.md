@@ -1568,3 +1568,29 @@ The existing listening preview is unchanged and remains for the user's separate
 review. This two-case result cannot establish provider repeatability, broader
 coverage, supported-clause splitting, voice quality or whole-video runtime.
 **Stop before batch 6: fresh evaluation completed, qualification criterion failed.**
+
+
+## Coverage correction 1 — deterministic saved-decision replay (2026-10-17)
+
+Authorized after the Oct-16 coverage diagnosis. Batch 6 stays paused. The current
+overnight job/export are evidence only and have not been migrated or resumed.
+
+`aidub.saved_decisions` now reduces original and scoped raw responses through the
+same envelope/row checks, exact parent/source/English and historical provider
+identity. It returns per-row receipts without calls, writes, locks or budget
+changes. Normal batching and source-resolution replay share that reducer; stale
+aggregate `_aidub_withheld` markers are never authority over a valid raw current
+decision. Restoring a cue produces a copy, retains the prior decision and receipt,
+and keeps a genuine revision unconfirmed. Existing completed jobs require explicit
+stopped-job migration; this change does not silently rewrite their audit/timeline.
+
+Saved-artifact replay confirms that cues 83, 123, 523 and 655 become eligible on
+independent copies. Eligibility is not placement: normal Qwen, verification, safe
+window, ending and tempo checks remain required. Six fixture tests include those
+four cues, stale text/parent/evidence rejection, no duplicate calls or attempt
+changes, and continued fit blocking. Together with content-recovery and batch-5
+and provider-recovery tests: **58 tests passed**, fake providers only. Read-only
+replay does not increment legacy response_reuses counters; receipts record reuse.
+Interrupted infrastructure outcomes remain delegated to the original provider
+state machine with the same persisted identity and budget. No new media or provider request.
+The second correction and full 115-cue comparison follow separately.

@@ -1,0 +1,1221 @@
+{
+  "83": {
+    "source": {
+      "id": 83,
+      "spanish": "Así que vamos a comenzar poniéndolo tal que así creo, algo así.",
+      "english": "So let's start putting it in like this, I think. Something like that.",
+      "asr_alternatives": [
+        {
+          "text": "Así que vamos a comenzar poniéndolo. Vamos a comenzar poniéndolo. Tal que así creo. Algo así.",
+          "mean_probability": 0.9217,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "source_span": [
+        527.450167,
+        547.150792
+      ],
+      "source_evidence": {
+        "episode": "1d6d1d8a77a2761ae66de2df67a5e44895691e61a0922b9ef0700cedb9d40ed8",
+        "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+        "span": [
+          527.450167,
+          547.150792
+        ],
+        "primary_words": [
+          {
+            "word": " que",
+            "start": 527.94,
+            "end": 528.08,
+            "probability": 0.9981550574302673
+          },
+          {
+            "word": " vamos",
+            "start": 528.08,
+            "end": 528.28,
+            "probability": 0.9799560308456421
+          },
+          {
+            "word": " a",
+            "start": 528.28,
+            "end": 528.48,
+            "probability": 0.9869950413703918
+          },
+          {
+            "word": " comenzar",
+            "start": 528.48,
+            "end": 529.1,
+            "probability": 0.9948303997516632
+          },
+          {
+            "word": " poniéndolo",
+            "start": 529.1,
+            "end": 530.02,
+            "probability": 0.965743213891983
+          },
+          {
+            "word": " tal",
+            "start": 530.02,
+            "end": 535.16,
+            "probability": 0.009962810203433037
+          },
+          {
+            "word": " que",
+            "start": 535.16,
+            "end": 539.76,
+            "probability": 0.9899167418479919
+          },
+          {
+            "word": " así",
+            "start": 539.76,
+            "end": 541.04,
+            "probability": 0.9412410855293274
+          },
+          {
+            "word": " creo,",
+            "start": 541.04,
+            "end": 541.48,
+            "probability": 0.8665184378623962
+          },
+          {
+            "word": " algo",
+            "start": 542.06,
+            "end": 546.72,
+            "probability": 0.9571093916893005
+          },
+          {
+            "word": " así.",
+            "start": 546.72,
+            "end": 547.08,
+            "probability": 0.9988827109336853
+          }
+        ],
+        "primary_text": "Así que vamos a comenzar poniéndolo tal que así creo, algo así.",
+        "contextual": {
+          "window": [
+            527.1001669999999,
+            547.500792
+          ],
+          "words": [
+            {
+              "word": "Así",
+              "start": 527.1001669999999,
+              "end": 527.960167,
+              "probability": 0.20679119229316711,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "que",
+              "start": 527.960167,
+              "end": 528.080167,
+              "probability": 0.997365415096283,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "vamos",
+              "start": 528.080167,
+              "end": 528.2801669999999,
+              "probability": 0.9881247282028198,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "a",
+              "start": 528.2801669999999,
+              "end": 528.460167,
+              "probability": 0.997204065322876,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "comenzar",
+              "start": 528.460167,
+              "end": 529.1001669999999,
+              "probability": 0.9993290901184082,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "poniéndolo.",
+              "start": 529.1001669999999,
+              "end": 530.060167,
+              "probability": 0.9860633015632629,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "Vamos",
+              "start": 530.1401669999999,
+              "end": 531.5201669999999,
+              "probability": 0.8695970773696899,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "a",
+              "start": 531.5201669999999,
+              "end": 535.0201669999999,
+              "probability": 0.9997817873954773,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "comenzar",
+              "start": 535.0201669999999,
+              "end": 535.5201669999999,
+              "probability": 0.9994627833366394,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "poniéndolo.",
+              "start": 535.5201669999999,
+              "end": 536.3601669999999,
+              "probability": 0.9995409995317459,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "Tal",
+              "start": 538.0201669999999,
+              "end": 539.420167,
+              "probability": 0.9743568897247314,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "que",
+              "start": 539.420167,
+              "end": 539.7601669999999,
+              "probability": 0.9962671399116516,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "así",
+              "start": 539.7601669999999,
+              "end": 541.0201669999999,
+              "probability": 0.7671095728874207,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "creo.",
+              "start": 541.0201669999999,
+              "end": 541.460167,
+              "probability": 0.9720887541770935,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "Algo",
+              "start": 545.4001669999999,
+              "end": 546.800167,
+              "probability": 0.9943753182888031,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "así.",
+              "start": 546.800167,
+              "end": 547.040167,
+              "probability": 0.9995583891868591,
+              "no_speech_prob": 1.83031931624833e-12
+            }
+          ],
+          "text": " Así que vamos a comenzar poniéndolo. Vamos a comenzar poniéndolo. Tal que así creo. Algo así.",
+          "provenance": {
+            "kind": "saved_second_pass",
+            "stage_fingerprint": "e5f877b4584f0262ae2edd3ae804a2050bd9e2e88f14742f915e86be9b3ccb05",
+            "hearing_identity": "e3e37c9c95da2bbd5f508130d1c9b7658c527d7408a82d3f9740caecd042cf2a",
+            "result_sha256": "286c46ff648b8ea53239e40d54e7f91cf2ac3c73af1e0390a015ddb9c0ce513a",
+            "model": "turbo",
+            "options": {
+              "condition_on_previous_text": false,
+              "beam_size": 5,
+              "best_of": 5
+            }
+          }
+        },
+        "inside": {
+          "text": "Así que vamos a comenzar poniéndolo. Vamos a comenzar poniéndolo. Tal que así creo. Algo así.",
+          "mean_probability": 0.9217,
+          "min_probability": 0.2068,
+          "max_no_speech_prob": 0.0,
+          "words": [
+            {
+              "word": "Así",
+              "start": 527.1001669999999,
+              "end": 527.960167,
+              "probability": 0.20679119229316711,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "que",
+              "start": 527.960167,
+              "end": 528.080167,
+              "probability": 0.997365415096283,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "vamos",
+              "start": 528.080167,
+              "end": 528.2801669999999,
+              "probability": 0.9881247282028198,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "a",
+              "start": 528.2801669999999,
+              "end": 528.460167,
+              "probability": 0.997204065322876,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "comenzar",
+              "start": 528.460167,
+              "end": 529.1001669999999,
+              "probability": 0.9993290901184082,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "poniéndolo.",
+              "start": 529.1001669999999,
+              "end": 530.060167,
+              "probability": 0.9860633015632629,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "Vamos",
+              "start": 530.1401669999999,
+              "end": 531.5201669999999,
+              "probability": 0.8695970773696899,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "a",
+              "start": 531.5201669999999,
+              "end": 535.0201669999999,
+              "probability": 0.9997817873954773,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "comenzar",
+              "start": 535.0201669999999,
+              "end": 535.5201669999999,
+              "probability": 0.9994627833366394,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "poniéndolo.",
+              "start": 535.5201669999999,
+              "end": 536.3601669999999,
+              "probability": 0.9995409995317459,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "Tal",
+              "start": 538.0201669999999,
+              "end": 539.420167,
+              "probability": 0.9743568897247314,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "que",
+              "start": 539.420167,
+              "end": 539.7601669999999,
+              "probability": 0.9962671399116516,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "así",
+              "start": 539.7601669999999,
+              "end": 541.0201669999999,
+              "probability": 0.7671095728874207,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "creo.",
+              "start": 541.0201669999999,
+              "end": 541.460167,
+              "probability": 0.9720887541770935,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "Algo",
+              "start": 545.4001669999999,
+              "end": 546.800167,
+              "probability": 0.9943753182888031,
+              "no_speech_prob": 1.83031931624833e-12
+            },
+            {
+              "word": "así.",
+              "start": 546.800167,
+              "end": 547.040167,
+              "probability": 0.9995583891868591,
+              "no_speech_prob": 1.83031931624833e-12
+            }
+          ]
+        },
+        "region_rms": 0.010647752437332852,
+        "complete": true,
+        "error": null,
+        "identity": "3023178c63131e25a5f100487db825961fd541d1462a4964a1051042548b3c56"
+      }
+    },
+    "decision": {
+      "id": 83,
+      "verdict": "ok",
+      "issues": [],
+      "reason": "Faithfully conveys the plan and the speaker’s uncertainty; the supported acoustic reading includes the repetition, but the current line doesn’t repeat it.",
+      "disputed": false,
+      "source_assessment": {
+        "confidence": "supported",
+        "reading": "Así que vamos a comenzar poniéndolo. Vamos a comenzar poniéndolo. Tal que así creo. Algo así.",
+        "evidence_id": "3023178c63131e25a5f100487db825961fd541d1462a4964a1051042548b3c56",
+        "reason": "The primary and independent acoustic reading support the full Spanish line. English retains the uncertain placement and approximate restatement; the initial repetition is also present acoustically, so it should be retained.",
+        "parts": []
+      }
+    },
+    "segment": {
+      "id": 83,
+      "start": 527.450167,
+      "end": 547.150792,
+      "spanish": "Así que vamos a comenzar poniéndolo tal que así creo, algo así.",
+      "english": "So let's start putting it in like this, I think. Something like that.",
+      "asr_alternatives": [
+        {
+          "text": "Así que vamos a comenzar poniéndolo. Vamos a comenzar poniéndolo. Tal que así creo. Algo así.",
+          "mean_probability": 0.9217,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "translation_review": {
+        "status": "accepted_draft",
+        "draft": "So let's start putting it in like this, I think. Something like that.",
+        "checked_text": "So let's start putting it in like this, I think. Something like that.",
+        "issues": [],
+        "reason": null
+      }
+    },
+    "origin": "handoff/source_resolution/responses/batches/review/9273feff8e903a1cbf6a10ca6a1d114c0d033f1a65bb1f08f88525b800cf6e22/batch_0002/content_recovery/7e2ed5d651769d7e9fafafe8b74cd0f7901d06ab511b7e00fb112305594bfcc4/response_attempts/a802e01cf3dde9014e7f1ef0201b3b27f65f6bd208690d9da4c96c8921ea66b6/attempt_01_response.json"
+  },
+  "123": {
+    "source": {
+      "id": 123,
+      "spanish": "Entonces bien vamos a continuar con lo que teníamos hábitat barreras y vamos a poner del tipo acrílico",
+      "english": "So, okay, let's continue with what we had: habitat barriers, and we'll use the acrylic kind.",
+      "asr_alternatives": [
+        {
+          "text": "Entonces, bien, vamos a continuar con lo que teníamos. Habitat, barreras y vamos a poner del tipo acrílico.",
+          "mean_probability": 0.9426,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "source_span": [
+        790.851188,
+        798.914542
+      ],
+      "source_evidence": {
+        "episode": "f5ed25b180f42eb15e5ba28ddb6f3549b1fa318a9342d779d97fffbe966303f9",
+        "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+        "span": [
+          790.851188,
+          798.914542
+        ],
+        "primary_words": [
+          {
+            "word": " Entonces",
+            "start": 791.06,
+            "end": 791.4,
+            "probability": 0.9881239533424377
+          },
+          {
+            "word": " bien",
+            "start": 791.4,
+            "end": 792.28,
+            "probability": 0.24556629359722137
+          },
+          {
+            "word": " vamos",
+            "start": 792.28,
+            "end": 792.54,
+            "probability": 0.6924343705177307
+          },
+          {
+            "word": " a",
+            "start": 792.54,
+            "end": 792.66,
+            "probability": 0.9978524446487427
+          },
+          {
+            "word": " continuar",
+            "start": 792.66,
+            "end": 792.96,
+            "probability": 0.9973345994949341
+          },
+          {
+            "word": " con",
+            "start": 792.96,
+            "end": 793.16,
+            "probability": 0.99699866771698
+          },
+          {
+            "word": " lo",
+            "start": 793.16,
+            "end": 793.26,
+            "probability": 0.9906641244888306
+          },
+          {
+            "word": " que",
+            "start": 793.26,
+            "end": 793.34,
+            "probability": 0.9991174340248108
+          },
+          {
+            "word": " teníamos",
+            "start": 793.34,
+            "end": 793.78,
+            "probability": 0.9878109693527222
+          },
+          {
+            "word": " hábitat",
+            "start": 793.78,
+            "end": 794.78,
+            "probability": 0.7226478556791941
+          },
+          {
+            "word": " barreras",
+            "start": 794.78,
+            "end": 795.6,
+            "probability": 0.9515269696712494
+          },
+          {
+            "word": " y",
+            "start": 795.6,
+            "end": 796.16,
+            "probability": 0.9779316782951355
+          },
+          {
+            "word": " vamos",
+            "start": 796.16,
+            "end": 796.46,
+            "probability": 0.9952196478843689
+          },
+          {
+            "word": " a",
+            "start": 796.46,
+            "end": 796.58,
+            "probability": 0.9993833303451538
+          },
+          {
+            "word": " poner",
+            "start": 796.58,
+            "end": 796.8,
+            "probability": 0.9986599683761597
+          },
+          {
+            "word": " del",
+            "start": 796.8,
+            "end": 797.04,
+            "probability": 0.9441419839859009
+          },
+          {
+            "word": " tipo",
+            "start": 797.04,
+            "end": 797.38,
+            "probability": 0.9991492033004761
+          },
+          {
+            "word": " acrílico",
+            "start": 797.38,
+            "end": 799.8199999999999,
+            "probability": 0.9903194010257721
+          }
+        ],
+        "primary_text": "Entonces bien vamos a continuar con lo que teníamos hábitat barreras y vamos a poner del tipo acrílico",
+        "contextual": {
+          "window": [
+            790.501188,
+            799.264542
+          ],
+          "words": [
+            {
+              "word": "Entonces,",
+              "start": 790.501188,
+              "end": 791.2811879999999,
+              "probability": 0.547130286693573,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "bien,",
+              "start": 791.3011879999999,
+              "end": 792.2811879999999,
+              "probability": 0.7532023787498474,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "vamos",
+              "start": 792.381188,
+              "end": 792.5411879999999,
+              "probability": 0.9973194003105164,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "a",
+              "start": 792.5411879999999,
+              "end": 792.6611879999999,
+              "probability": 0.9994198083877563,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "continuar",
+              "start": 792.6611879999999,
+              "end": 792.961188,
+              "probability": 0.9971293807029724,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "con",
+              "start": 792.961188,
+              "end": 793.1411879999999,
+              "probability": 0.9963864088058472,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "lo",
+              "start": 793.1411879999999,
+              "end": 793.261188,
+              "probability": 0.9978141784667969,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "que",
+              "start": 793.261188,
+              "end": 793.341188,
+              "probability": 0.999466598033905,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "teníamos.",
+              "start": 793.341188,
+              "end": 793.821188,
+              "probability": 0.9952957928180695,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "Habitat,",
+              "start": 794.261188,
+              "end": 794.741188,
+              "probability": 0.933870255947113,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "barreras",
+              "start": 794.981188,
+              "end": 795.6411879999999,
+              "probability": 0.9936526715755463,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "y",
+              "start": 795.6411879999999,
+              "end": 796.1411879999999,
+              "probability": 0.786116898059845,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "vamos",
+              "start": 796.1411879999999,
+              "end": 796.441188,
+              "probability": 0.998854398727417,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "a",
+              "start": 796.441188,
+              "end": 796.581188,
+              "probability": 0.9999387264251709,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "poner",
+              "start": 796.581188,
+              "end": 796.821188,
+              "probability": 0.999559223651886,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "del",
+              "start": 796.821188,
+              "end": 797.0211879999999,
+              "probability": 0.9748594164848328,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "tipo",
+              "start": 797.0211879999999,
+              "end": 797.361188,
+              "probability": 0.999761164188385,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "acrílico.",
+              "start": 797.361188,
+              "end": 798.941188,
+              "probability": 0.997727707028389,
+              "no_speech_prob": 2.5833311184664254e-12
+            }
+          ],
+          "text": " Entonces, bien, vamos a continuar con lo que teníamos. Habitat, barreras y vamos a poner del tipo acrílico.",
+          "provenance": {
+            "kind": "saved_second_pass",
+            "stage_fingerprint": "e5f877b4584f0262ae2edd3ae804a2050bd9e2e88f14742f915e86be9b3ccb05",
+            "hearing_identity": "e3e37c9c95da2bbd5f508130d1c9b7658c527d7408a82d3f9740caecd042cf2a",
+            "result_sha256": "3a0b43f520a15b36974cedbbd448cd2132bb3c8623c8bcfca6ad1a0c047e43b0",
+            "model": "turbo",
+            "options": {
+              "condition_on_previous_text": false,
+              "beam_size": 5,
+              "best_of": 5
+            }
+          }
+        },
+        "inside": {
+          "text": "Entonces, bien, vamos a continuar con lo que teníamos. Habitat, barreras y vamos a poner del tipo acrílico.",
+          "mean_probability": 0.9426,
+          "min_probability": 0.5471,
+          "max_no_speech_prob": 0.0,
+          "words": [
+            {
+              "word": "Entonces,",
+              "start": 790.501188,
+              "end": 791.2811879999999,
+              "probability": 0.547130286693573,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "bien,",
+              "start": 791.3011879999999,
+              "end": 792.2811879999999,
+              "probability": 0.7532023787498474,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "vamos",
+              "start": 792.381188,
+              "end": 792.5411879999999,
+              "probability": 0.9973194003105164,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "a",
+              "start": 792.5411879999999,
+              "end": 792.6611879999999,
+              "probability": 0.9994198083877563,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "continuar",
+              "start": 792.6611879999999,
+              "end": 792.961188,
+              "probability": 0.9971293807029724,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "con",
+              "start": 792.961188,
+              "end": 793.1411879999999,
+              "probability": 0.9963864088058472,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "lo",
+              "start": 793.1411879999999,
+              "end": 793.261188,
+              "probability": 0.9978141784667969,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "que",
+              "start": 793.261188,
+              "end": 793.341188,
+              "probability": 0.999466598033905,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "teníamos.",
+              "start": 793.341188,
+              "end": 793.821188,
+              "probability": 0.9952957928180695,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "Habitat,",
+              "start": 794.261188,
+              "end": 794.741188,
+              "probability": 0.933870255947113,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "barreras",
+              "start": 794.981188,
+              "end": 795.6411879999999,
+              "probability": 0.9936526715755463,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "y",
+              "start": 795.6411879999999,
+              "end": 796.1411879999999,
+              "probability": 0.786116898059845,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "vamos",
+              "start": 796.1411879999999,
+              "end": 796.441188,
+              "probability": 0.998854398727417,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "a",
+              "start": 796.441188,
+              "end": 796.581188,
+              "probability": 0.9999387264251709,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "poner",
+              "start": 796.581188,
+              "end": 796.821188,
+              "probability": 0.999559223651886,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "del",
+              "start": 796.821188,
+              "end": 797.0211879999999,
+              "probability": 0.9748594164848328,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "tipo",
+              "start": 797.0211879999999,
+              "end": 797.361188,
+              "probability": 0.999761164188385,
+              "no_speech_prob": 2.5833311184664254e-12
+            },
+            {
+              "word": "acrílico.",
+              "start": 797.361188,
+              "end": 798.941188,
+              "probability": 0.997727707028389,
+              "no_speech_prob": 2.5833311184664254e-12
+            }
+          ]
+        },
+        "region_rms": 0.030636414733526064,
+        "complete": true,
+        "error": null,
+        "identity": "3d7c5d1b666a2fedb4ce68edbd34278220d8579dedfce7166abddb775819666c"
+      }
+    },
+    "decision": {
+      "id": 123,
+      "verdict": "ok",
+      "issues": [],
+      "reason": "Faithfully preserves the transition, recap, and acrylic barrier choice.",
+      "disputed": false,
+      "source_assessment": {
+        "confidence": "supported",
+        "reading": "Entonces, bien, vamos a continuar con lo que teníamos. Habitat, barreras y vamos a poner del tipo acrílico.",
+        "evidence_id": "3d7c5d1b666a2fedb4ce68edbd34278220d8579dedfce7166abddb775819666c",
+        "reason": "Primary and independent acoustic readings support the selected reading. The English keeps the recap and the choice to use acrylic.",
+        "parts": []
+      }
+    },
+    "segment": {
+      "id": 123,
+      "start": 790.851188,
+      "end": 798.914542,
+      "spanish": "Entonces bien vamos a continuar con lo que teníamos hábitat barreras y vamos a poner del tipo acrílico",
+      "english": "So, okay, let's continue with what we had: habitat barriers, and we'll use the acrylic kind.",
+      "asr_alternatives": [
+        {
+          "text": "Entonces, bien, vamos a continuar con lo que teníamos. Habitat, barreras y vamos a poner del tipo acrílico.",
+          "mean_probability": 0.9426,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "translation_review": {
+        "status": "accepted_draft",
+        "draft": "So, okay, let's continue with what we had: habitat barriers, and we'll use the acrylic kind.",
+        "checked_text": "So, okay, let's continue with what we had: habitat barriers, and we'll use the acrylic kind.",
+        "issues": [],
+        "reason": null
+      }
+    },
+    "origin": "handoff/source_resolution/responses/batches/review/9273feff8e903a1cbf6a10ca6a1d114c0d033f1a65bb1f08f88525b800cf6e22/batch_0002/content_recovery/7e2ed5d651769d7e9fafafe8b74cd0f7901d06ab511b7e00fb112305594bfcc4/response_attempts/a802e01cf3dde9014e7f1ef0201b3b27f65f6bd208690d9da4c96c8921ea66b6/attempt_01_response.json"
+  },
+  "523": {
+    "source": {
+      "id": 523,
+      "spanish": "no me gustó como queda igual, hay que separarla un poco",
+      "english": "I don't like how it looks, though. We have to move it apart a little.",
+      "asr_alternatives": [
+        {
+          "text": "Esto no me gustó como queda igual, hay que separarlo un poco.",
+          "mean_probability": 0.8053,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "source_span": [
+        3096.632042,
+        3099.222479
+      ],
+      "source_evidence": {
+        "episode": "b1ddd81981d10494d95500dbf1045683983e7e0d610c1d41cdc53390b9267790",
+        "mic_sha256": "0cc2645606845d68853d0bd1ca03a9189af41d09eeb906271f04894c9a3dc916",
+        "span": [
+          3096.632042,
+          3099.222479
+        ],
+        "primary_words": [
+          {
+            "word": " no",
+            "start": 3096.54,
+            "end": 3097.02,
+            "probability": 0.4776049256324768
+          },
+          {
+            "word": " me",
+            "start": 3097.02,
+            "end": 3097.42,
+            "probability": 0.7103970050811768
+          },
+          {
+            "word": " gustó",
+            "start": 3097.42,
+            "end": 3097.58,
+            "probability": 0.9259622097015381
+          },
+          {
+            "word": " como",
+            "start": 3097.58,
+            "end": 3097.74,
+            "probability": 0.8517071604728699
+          },
+          {
+            "word": " queda",
+            "start": 3097.74,
+            "end": 3097.92,
+            "probability": 0.7853534817695618
+          },
+          {
+            "word": " igual,",
+            "start": 3097.92,
+            "end": 3098.14,
+            "probability": 0.8514925241470337
+          },
+          {
+            "word": " hay",
+            "start": 3098.3,
+            "end": 3098.36,
+            "probability": 0.9993828535079956
+          },
+          {
+            "word": " que",
+            "start": 3098.36,
+            "end": 3098.46,
+            "probability": 0.9999877214431763
+          },
+          {
+            "word": " separarla",
+            "start": 3098.46,
+            "end": 3098.86,
+            "probability": 0.7784247696399689
+          },
+          {
+            "word": " un",
+            "start": 3098.86,
+            "end": 3098.98,
+            "probability": 0.9995675683021545
+          },
+          {
+            "word": " poco",
+            "start": 3098.98,
+            "end": 3099.2,
+            "probability": 0.9998613595962524
+          }
+        ],
+        "primary_text": "no me gustó como queda igual, hay que separarla un poco",
+        "contextual": {
+          "window": [
+            3096.2820420000003,
+            3099.572479
+          ],
+          "words": [
+            {
+              "word": "Esto",
+              "start": 3096.6620420000004,
+              "end": 3096.982042,
+              "probability": 0.15077224373817444,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "no",
+              "start": 3096.982042,
+              "end": 3097.2620420000003,
+              "probability": 0.925157368183136,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "me",
+              "start": 3097.2620420000003,
+              "end": 3097.342042,
+              "probability": 0.9009246230125427,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "gustó",
+              "start": 3097.342042,
+              "end": 3097.6420420000004,
+              "probability": 0.7723689675331116,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "como",
+              "start": 3097.6420420000004,
+              "end": 3097.7220420000003,
+              "probability": 0.6487412452697754,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "queda",
+              "start": 3097.7220420000003,
+              "end": 3097.942042,
+              "probability": 0.672954797744751,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "igual,",
+              "start": 3097.942042,
+              "end": 3098.1420420000004,
+              "probability": 0.9022825360298157,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "hay",
+              "start": 3098.2620420000003,
+              "end": 3098.362042,
+              "probability": 0.9481412768363953,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "que",
+              "start": 3098.362042,
+              "end": 3098.442042,
+              "probability": 0.9990445971488953,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "separarlo",
+              "start": 3098.442042,
+              "end": 3098.902042,
+              "probability": 0.7678797543048859,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "un",
+              "start": 3098.902042,
+              "end": 3098.962042,
+              "probability": 0.9784255623817444,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "poco.",
+              "start": 3098.962042,
+              "end": 3099.1820420000004,
+              "probability": 0.9971381425857544,
+              "no_speech_prob": 3.635739279084227e-12
+            }
+          ],
+          "text": " Esto no me gustó como queda igual, hay que separarlo un poco.",
+          "provenance": {
+            "kind": "saved_second_pass",
+            "stage_fingerprint": "e5f877b4584f0262ae2edd3ae804a2050bd9e2e88f14742f915e86be9b3ccb05",
+            "hearing_identity": "e3e37c9c95da2bbd5f508130d1c9b7658c527d7408a82d3f9740caecd042cf2a",
+            "result_sha256": "75b4416add6f3d6bac70f2d8d8bf58457e52ce123f7986e031e005ab71939f50",
+            "model": "turbo",
+            "options": {
+              "condition_on_previous_text": false,
+              "beam_size": 5,
+              "best_of": 5
+            }
+          }
+        },
+        "inside": {
+          "text": "Esto no me gustó como queda igual, hay que separarlo un poco.",
+          "mean_probability": 0.8053,
+          "min_probability": 0.1508,
+          "max_no_speech_prob": 0.0,
+          "words": [
+            {
+              "word": "Esto",
+              "start": 3096.6620420000004,
+              "end": 3096.982042,
+              "probability": 0.15077224373817444,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "no",
+              "start": 3096.982042,
+              "end": 3097.2620420000003,
+              "probability": 0.925157368183136,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "me",
+              "start": 3097.2620420000003,
+              "end": 3097.342042,
+              "probability": 0.9009246230125427,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "gustó",
+              "start": 3097.342042,
+              "end": 3097.6420420000004,
+              "probability": 0.7723689675331116,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "como",
+              "start": 3097.6420420000004,
+              "end": 3097.7220420000003,
+              "probability": 0.6487412452697754,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "queda",
+              "start": 3097.7220420000003,
+              "end": 3097.942042,
+              "probability": 0.672954797744751,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "igual,",
+              "start": 3097.942042,
+              "end": 3098.1420420000004,
+              "probability": 0.9022825360298157,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "hay",
+              "start": 3098.2620420000003,
+              "end": 3098.362042,
+              "probability": 0.9481412768363953,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "que",
+              "start": 3098.362042,
+              "end": 3098.442042,
+              "probability": 0.9990445971488953,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "separarlo",
+              "start": 3098.442042,
+              "end": 3098.902042,
+              "probability": 0.7678797543048859,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "un",
+              "start": 3098.902042,
+              "end": 3098.962042,
+              "probability": 0.9784255623817444,
+              "no_speech_prob": 3.635739279084227e-12
+            },
+            {
+              "word": "poco.",
+              "start": 3098.962042,
+              "end": 3099.1820420000004,
+              "probability": 0.9971381425857544,
+              "no_speech_prob": 3.635739279084227e-12
+            }
+          ]
+        },
+        "region_rms": 0.012223999084533468,
+        "complete": true,
+        "error": null,
+        "identity": "d70ca3c6cf982e3a35c65eebd3508a11c0fce7381f02e0e7c13ab650c6b8f328"
+      }
+    },
+    "decision": {
+      "id": 523,
+      "verdict": "ok",
+      "issues": [],
+      "reason": "The English preserves the speaker’s dislike and suggestion to move it a little; the acoustic reading supports the added demonstrative and neutral English pronoun.",
+      "disputed": false,
+      "source_assessment": {
+        "confidence": "supported",
+        "reading": "Esto no me gustó como queda igual, hay que separarlo un poco.",
+        "evidence_id": "d70ca3c6cf982e3a35c65eebd3508a11c0fce7381f02e0e7c13ab650c6b8f328",
+        "reason": "The contextual acoustic reading supports the demonstrative, negation and masculine object pronoun; English “it” does not require choosing a grammatical gender.",
+        "parts": []
+      }
+    },
+    "segment": {
+      "id": 523,
+      "start": 3096.632042,
+      "end": 3099.222479,
+      "spanish": "no me gustó como queda igual, hay que separarla un poco",
+      "english": "I don't like how it looks, though. We have to move it apart a little.",
+      "asr_alternatives": [
+        {
+          "text": "Esto no me gustó como queda igual, hay que separarlo un poco.",
+          "mean_probability": 0.8053,
+          "source": "second_pass",
+          "note": "Independent second hearing; first-pass text is kept as spanish."
+        }
+      ],
+      "translation_review": {
+        "status": "accepted_draft",
+        "draft": "I don't like how it looks, though. We have to move it apart a little.",
+        "checked_text": "I don't like how it looks, though. We have to move it apart a little.",
+        "issues": [],
+        "reason": null
+      }
+    },
+    "origin": "handoff/source_resolution/responses/batches/review/9273feff8e903a1cbf6a10ca6a1d114c0d033f1a65bb1f08f88525b800cf6e22/batch_0013/content_recovery/ae754a3b629560ab1418e775a4875751f34dac2d052abb8a2345f2c155cf7d36/response_attempts/219653dbe74b38030a96dbcc4dbe14f7abcb7045918285dfdb4187e5050586b6/attempt_01_response.json"
+  },
+  "655": {
+    "source": {
+      "id": 655,
+      "spanish": "Y no sé por qué",
+      "english": "And I don't know why."
+    },
+    "decision": {
+      "id": 655,
+      "verdict": "ok",
+      "issues": [],
+      "disputed": false
+    },
+    "segment": {
+      "id": 655,
+      "start": 3919.277104,
+      "end": 3919.917042,
+      "spanish": "Y no sé por qué",
+      "english": "And I don't know why.",
+      "translation_review": {
+        "status": "withheld_review_failure",
+        "draft": "And I don't know why.",
+        "checked_text": "And I don't know why.",
+        "issues": [],
+        "reason": {
+          "id": 655,
+          "reason": "scoped_content_recovery_exhausted",
+          "validation_errors": [
+            "id 655 revise text is unchanged"
+          ],
+          "recovery_error": null
+        }
+      }
+    },
+    "origin": "normal review batch_0016 scoped recovery"
+  }
+}

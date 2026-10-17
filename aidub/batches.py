@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .providers import ProviderError, invoke_checked, response_errors
 from .util import fingerprint, write_json
+from .saved_decisions import replay_saved_batch, replay_response
 
 
 def request_batches(request: dict, *, max_cues: int = 40, max_chars: int = 24000) -> list[dict]:
@@ -147,6 +148,19 @@ def _saved_invalid_response(directory: Path, role: str) -> tuple[dict, dict, flo
 def _invoke_isolated_batch(spec, request_path, response_path, role, current, directory, cfg, before_invoke):
     request = json.loads(request_path.read_text(encoding="utf-8"))
     try:
+        replay = replay_saved_batch(spec, request, directory, role, current)
+    except ProviderError:
+        # Replay cannot decide an interrupted external outcome. Hand it back to
+        # the established provider state machine, with the SAME identity/budget;
+        # never reinterpret infrastructure failure as a failed content subset.
+        return invoke_checked(spec, request_path, response_path, role, current, before_invoke=before_invoke)
+    if replay["history"] and (len(replay["rows"]) == len(request["segments"]) or replay["recovery_terminal"]):
+        result = replay_response(request, role, replay)
+        write_json(response_path, result)
+        return result
+    if replay["scopes"] and replay["history"]:
+        raise ProviderError("An incomplete saved scoped recovery requires its exact identity; refusing a new subset budget")
+    try:
         # An older exhausted identity remains exhausted even if a later config
         # migration raises the generic provider budget. Recovery gets a distinct,
         # explicitly scoped identity and its own persisted budget below.
@@ -162,43 +176,12 @@ def _invoke_isolated_batch(spec, request_path, response_path, role, current, dir
         envelope = _envelope_error(request, response, role)
         if envelope:
             raise ProviderError(f"{role} response is structurally invalid; no rows were accepted: {envelope}")
-        valid, errors_by_id, valid_times = {}, {}, {}
-        valid_times.update({int(row["id"]): response_stamp for row in response["segments"]
-                            if not _row_valid(request, row, role, current or {})})
-        for row in response["segments"]:
-            sid = int(row["id"])
-            errors = _row_valid(request, row, role, current or {})
-            if errors:
-                errors_by_id[sid] = errors
-            else:
-                valid[sid] = row
-
-        # Add row-valid decisions from all persisted responses in this exhausted identity.
-        # A later invalid retry must not erase an earlier independently valid row.
-        attempt_states = list(directory.glob("response_attempts/*/state.json"))
-        for state_path in attempt_states:
-            try:
-                other = json.loads(state_path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                continue
-            for attempt in other.get("attempts") or []:
-                p = Path(attempt.get("response_path", ""))
-                if not p.is_file():
-                    continue
-                try:
-                    older = json.loads(p.read_text(encoding="utf-8"))
-                except (OSError, ValueError):
-                    continue
-                if _envelope_error(request, older, role):
-                    continue
-                for row in older["segments"]:
-                    sid = int(row["id"])
-                    if not _row_valid(request, row, role, current or {}):
-                        stamp = float(attempt.get("ended_at") or attempt.get("started_at") or 0)
-                        if stamp >= valid_times.get(sid, -1):
-                            valid[sid] = row
-                            valid_times[sid] = stamp
-                            errors_by_id.pop(sid, None)
+        replay = replay_saved_batch(spec, request, directory, role, current)
+        if not replay["history"]:
+            raise ProviderError("Saved attempts do not bind this request/provider/current English")
+        valid = dict(replay["rows"])
+        errors_by_id = {int(sid): [error for item in items for error in item["errors"]]
+                        for sid, items in replay["errors"].items()}
 
         pending = [int(row["id"]) for row in request["segments"] if int(row["id"]) not in valid]
         feedback = []
@@ -252,13 +235,7 @@ def _invoke_isolated_batch(spec, request_path, response_path, role, current, dir
             else:
                 recovery_error = None
                 pending = []
-        result = {"schema": response["schema"], "job_id": response["job_id"],
-                  "translator": response.get("translator"),
-                  "segments": [valid[sid] for sid in sorted(valid)],
-                  "_aidub_historical_validation_feedback": historical_feedback,
-                  "_aidub_withheld": [{"id": sid, "reason": "scoped_content_recovery_exhausted",
-                                       "validation_errors": errors_by_id.get(sid, []),
-                                       "recovery_error": recovery_error}
-                                      for sid in pending]}
+        replay = replay_saved_batch(spec, request, directory, role, current)
+        result = replay_response(request, role, replay)
         write_json(response_path, result)
         return result

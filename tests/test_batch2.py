@@ -152,7 +152,9 @@ class CompactReviewOrchestrationTests(unittest.TestCase):
         after = self.states()
         for key, state in before.items():
             self.assertEqual(after[key]['attempts'], state['attempts'])
-            self.assertEqual(after[key]['response_reuses'], state.get('response_reuses', 0) + 1)
+            # Read-only raw replay leaves historical attempt state untouched;
+            # reuse provenance now lives in saved_decision_receipts.
+            self.assertEqual(after[key].get('response_reuses', 0), state.get('response_reuses', 0))
         self.assertEqual(len(Job(self.job.dir).data['timeline'][0]['revisions']), 1)
 
     def test_failed_later_round_resume_keeps_accepted_response_and_exhausted_budget(self):

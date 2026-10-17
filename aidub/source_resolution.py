@@ -354,66 +354,33 @@ def saved_source_response(root, request, spec, cfg):
     they never invalidate a different supported cue or acquire new retry budgets.
     """
     from .batches import request_batches
+    from .saved_decisions import replay_saved_batch
     limits = cfg.get("batching") or {}
-    batches = request_batches(request, max_cues=int(limits.get("max_cues",40)), max_chars=int(limits.get("max_chars",24000)))
+    batches = request_batches(request, max_cues=int(limits.get("max_cues",40)),
+                              max_chars=int(limits.get("max_chars",24000)))
     base = root / "responses/batches/review" / fingerprint(request)
-    rows, providers, paths, failures = [], {}, {}, {}
+    rows, receipts, failures = [], {}, {}
     found_history = False
     for index, batch in enumerate(batches):
-        directory = base / f"batch_{index:04d}"
-        accepted, errors = {}, {}
-        exhausted = False
-        state_paths = sorted(directory.glob("response_attempts/*/state.json"))
-        for state_path in state_paths:
-            state = read_json(state_path)
-            if not state.get("attempts"): continue
-            found_history = True
-            exhausted |= state.get("status") == "attempts_exhausted"
-            for attempt in state["attempts"]:
-                response_path = Path(attempt["response_path"])
-                request_path = Path(attempt["request_path"])
-                if not response_path.is_file() or not request_path.is_file(): continue
-                saved_request = read_json(request_path)
-                if {k:v for k,v in saved_request.items() if k != "validation_feedback"} != batch: continue
-                try:
-                    data = read_json(response_path)
-                except (OSError, ValueError, UnicodeError):
-                    continue  # retain malformed raw artifact; never accept it
-                if not isinstance(data,dict): continue
-                provider = (data.get("translator") or {}).get("provenance") or {}
-                if spec.get("kind") == "codex_chatgpt" and any(provider.get(k) != spec.get(k) for k in ("model","reasoning","auth")):
-                    continue
-                for src in batch["segments"]:
-                    sid = int(src["id"])
-                    matching = [r for r in (data.get("segments") or []) if isinstance(r,dict) and r.get("id") == sid]
-                    subset_request = dict(batch,segments=[src])
-                    subset_response = dict(data,segments=matching)
-                    issues = validate_review_response(subset_request,subset_response,{sid:src["english"]})
-                    if not issues:
-                        accepted[sid] = matching[0]
-                        providers[str(sid)] = data["translator"]
-                        paths[str(sid)] = str(response_path)
-                    elif issues:
-                        errors.setdefault(str(sid),[]).append({"response":str(response_path),"errors":issues})
-        missing = [int(r["id"]) for r in batch["segments"] if int(r["id"]) not in accepted]
-        if missing and not exhausted:
-            if found_history and spec.get("kind") == "codex_chatgpt":
-                from .codex_provider import provenance
-                current_provider = provenance(spec)
-                if any(read_json(p).get("provider_provenance") != current_provider for p in state_paths):
-                    raise ProviderError("Saved source response remains invalid and the provider contract changed. "
-                                        "Original attempts/budgets are retained; refusing a fresh retry identity.")
+        replay = replay_saved_batch(spec, batch, base / f"batch_{index:04d}", "review",
+                                    {r["id"]: r["english"] for r in batch["segments"]})
+        found_history |= replay["history"]
+        missing = [r["id"] for r in batch["segments"] if r["id"] not in replay["rows"]]
+        if missing and not replay["exhausted"]:
             return None, found_history
-        if missing:
-            for sid in missing:
-                failures[str(sid)] = errors.get(str(sid),[{"errors":["No valid saved decision after bounded attempts"]}])
-        rows.extend(accepted[int(src["id"])] for src in batch["segments"] if int(src["id"]) in accepted)
-    if not found_history: return None, False
-    result = {"schema":"aidub.review_response.v1", "job_id":request["job_id"],
-              "translator":next(iter(providers.values()),{}), "segments":rows,
-              "_aidub_request_identity":fingerprint(request), "saved_response_paths":paths,
-              "source_row_providers":providers, "source_invalid_rows":failures}
-    write_json(root / "revalidated_saved_response.json",result)
+        rows.extend(replay["rows"][r["id"]] for r in batch["segments"] if r["id"] in replay["rows"])
+        receipts.update(replay["receipts"])
+        for sid in missing:
+            failures[str(sid)] = replay["errors"].get(str(sid), [{"errors": ["No valid saved bound decision"]}])
+    if not found_history:
+        return None, False
+    providers = {sid: receipt["provider"] for sid, receipt in receipts.items()}
+    result = {"schema": "aidub.review_response.v1", "job_id": request["job_id"],
+              "translator": next(iter(providers.values()), {}), "segments": rows,
+              "_aidub_request_identity": fingerprint(request), "saved_decision_receipts": receipts,
+              "saved_response_paths": {sid: receipt["response_path"] for sid, receipt in receipts.items()},
+              "source_row_providers": providers, "source_invalid_rows": failures}
+    write_json(root / "revalidated_saved_response.json", result)
     return result, True
 
 
