@@ -55,6 +55,7 @@ class ContentRecoveryTests(unittest.TestCase):
             result = invoke_batches(self.spec, review_request([1, 2, 3, 4]), self.root, "review", 
                                     {1: "English 1", 2: "English 2", 3: "English 3", 4: "English 4"}, self.cfg)
         self.assertEqual([r["id"] for r in result["segments"]], [1, 2, 3, 4])
+        self.assertEqual(result["_aidub_withheld"], [])
         self.assertEqual(calls, [([1, 2], False), ([2], True), ([3, 4], False)])
 
     def test_failed_subset_is_persisted_and_resume_does_not_repeat_it(self):

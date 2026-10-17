@@ -251,6 +251,7 @@ def _invoke_isolated_batch(spec, request_path, response_path, role, current, dir
                 pending = still_pending
             else:
                 recovery_error = None
+                pending = []
         result = {"schema": response["schema"], "job_id": response["job_id"],
                   "translator": response.get("translator"),
                   "segments": [valid[sid] for sid in sorted(valid)],
