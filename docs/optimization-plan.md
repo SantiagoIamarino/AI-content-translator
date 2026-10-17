@@ -6,6 +6,9 @@ tests and a completed **partial** 150-second integrated trial. No batch is
 integrated into the operational checkout. Batch 6 remains proposed and
 unimplemented. Batch 5 has focused tests, the frozen 12-case source evaluation,
 and a cached-artifact **partial** listening preview; it has no listening approval.
+The subsequent fresh corrected-context qualification below **did not pass**:
+the genuine ambiguity control stayed held, but the minor discourse case also
+stayed held. Batch 6 remains deferred pending correction and qualification.
 The original observations were inspected at approximately
 20:15 UTC. The user subsequently authorized batch 1, focused tests, and a check
 of at most eight existing WAVs, with no providers, Qwen synthesis, full-video export,
@@ -1347,8 +1350,11 @@ Live issues and bounded handling are retained in the receipts:
   neighbors rather than treating disputed IDs as adjacent lines. This correction
   is covered by focused tests. Earlier live requests retain their original,
   narrower/misordered subset context in provenance; no extra live round was added
-  after budgets finished. The final corrected neighbor prompt therefore still
-  needs fresh qualification before claims about broader source-resolution quality.
+  after budgets finished. At that point the final corrected neighbor prompt
+  needed fresh qualification before claims about broader source-resolution quality.
+  The subsequent fresh qualification below exercises the corrected prompt and
+  records a remaining minor-uncertainty failure; the earlier recovery result must
+  not be treated as evidence that the final prompt reliably recovers this case.
   The copied global-context artifacts also kept their original job identity during
   source-only evaluation, so those new-job requests did not consume that global
   context/glossary. This evaluation-preparation limitation is separate from normal
@@ -1462,7 +1468,103 @@ around 47–59 s, 125–137 s, 140–146 s, and cue 7 around 67–71 s. Use rand
 baseline/candidate order, noting recovered content separately from unchanged speech;
 check meaning, filler/restart function, calmness/identity, protected soft endings,
 reaction timing and game audibility. The shared listening protocol above remains
-required for approval. Before broader runtime or coverage claims, separately
-qualify the corrected neighbor prompt with a small fresh source-only review and
-exercise a real supported-clause split; existing cached audio should be reused.
-No further model call, synthesis, trial or batch 6 implementation is started here.
+required for approval. Before broader runtime or coverage claims, resolve the
+corrected-prompt qualification failure recorded below and exercise a real
+supported-clause split; existing cached audio should be reused. The original
+batch-5 execution stopped here; the separately authorized qualification follows.
+
+### Fresh corrected-context qualification — 2026-10-17 UTC
+
+**Result: not qualified for reliable minor-uncertainty recovery.** One fresh
+two-cue review through the corrected normal auto handoff retained the genuine
+ambiguity control, but also withheld the supported discourse case. No prompt,
+threshold, validator or provider change was made to obtain a passing result.
+No batch 6 work was started.
+
+Code under evaluation: `dc48c472cd4290ae6220c7ac3d0149ad430f0b1b`.
+New isolated job: `jobs/batch5_context_qualification_01`. The worktree's
+`bin/aidub auto` ran the real `unattended.run_unattended` / `pipeline.run_job`
+owned-lock handoff and `source_resolution.resolve_sources`, including durable
+requests, provider invocation, acceptance and shared eligibility. Evaluation-only
+hooks restricted targets to two representative IDs, froze inspect/extract/
+transcribe to existing artifacts, observed requests, and stopped at the scheduling
+boundary. The complete 790-cue timeline remained available for request context;
+this was not an unrestricted full-job run or an end-to-end media trial.
+
+Before the live invocation, observers asserted the exact real neighbors:
+79 received 76–78 / 80–82; 685 received 682–684 / 686–688, including their English.
+The full unchanged Spanish transcript and microphone identity were checked before
+explicitly rebinding the copied global-context lookup to the new job. Its original
+identity, contents and provider provenance were retained. The actual request
+contained the matching global summary/register/style and **108 glossary entries**.
+Two matching saved acoustic records were reused byte for byte. No new hearing
+or acoustic model initialization was required.
+
+| Case | Fresh response and actual downstream result |
+| --- | --- |
+| Long 79, 576.293–580.240 s | English remained `It's pretty nice. It's like an African savanna.` Provider returned `ok`, but `disputed=true`, `uncertain_source`, and source confidence `material`. Its reason explicitly says the trailing `¿no?` difference “does not change the translated proposition.” Shared eligibility therefore still withholds the cue. This is an unnecessary omission, not a successful recovery. |
+| Long 685, 4743.150–4744.595 s | Existing `I don't remember where the toys were` remained unchanged. Provider returned `ok` with material/disputed source confidence. The negation is absent from primary timed words and the inside-cue second reading; the padded contextual hearing contains a low-confidence `No` before the cue. Evidence does not confidently settle polarity; withholding remains appropriate. |
+
+Both saved resolutions remain unconfirmed; shared eligibility reports
+`stale_or_unconfirmed_source_resolution`, with translation fidelity accepted and
+synthesis withheld. `ok` for fidelity did not silently override material source
+uncertainty. The 685 rationale overstates omission of `No` from the whole padded
+contextual hearing: it is present there at low confidence. This is not evidence
+that the text model reliably interprets every supplied acoustic field.
+
+The 79 request still carries historical
+`material_source_conflict.kind=opposite_source_polarity` and
+`decision=unvoiced_pending_source_resolution`. Its response refers to the marked
+unresolved conflict despite recognizing equivalent propositional meaning.
+**Possible cause, not demonstrated:** the model may be anchoring on that historical
+diagnostic rather than reassessing materiality from evidence. The current
+`source_resolution.INSTRUCTIONS` already says trailing tags must not withhold
+supported interventions. `assessment_errors` accepts the internally structured
+material abstention, and acceptance/eligibility correctly honor it. The remaining
+problem is the semantic classification, not permission to bypass acceptance.
+A bounded follow-up should clarify that historical conflict flags are hypotheses
+and enforce consistent materiality classification; it must retain the negation
+control, exact revised-English confirmation and existing budgets. No automatic
+approval of all discourse cases is justified by this evaluation.
+
+| Measurement | Observed |
+| --- | --- |
+| Fresh provider calls | **1 review**, covering both cues; all other roles zero |
+| Effective provider | `gpt-6-luna`, `medium`, ChatGPT subscription authentication; adapter `aidub.codex_chatgpt.v2`, CLI `0.163.0`; no fallback |
+| Provider command-attempt interval | **5.285 s**, including CLI/adapter overhead; not isolated inference time |
+| First source-only auto execution | **7.844 s**, including launcher and reused-artifact/acceptance work |
+| Same-job auto resume | **1.000 s**, **zero additional calls** |
+| Retries / invalid provider attempts | **0 / 0**; one response-ready attempt |
+| Fresh ASR / synthesis / exports | **0 / 0 / 0**; no scheduling, mix or validation performed |
+| Newly recovered / held in this qualification | **0 / 2**; both English strings unchanged |
+
+This newly authorized qualification had a deliberately small independent budget:
+one semantic round per cue, up to two provider validation attempts. No old job or
+episode was reset; prior manifests, decisions, responses and budgets remain
+retained separately. The provider did not request a revision, so the single-round
+cap did not remove an exact-text confirmation opportunity. Both new episodes
+finished after their one material assessment. Resume preserved the source-state
+file's SHA-256 exactly (`b0d6b53040a2763def39393789bdeedf0618f83795b82606b27f4af741d05bfc`),
+including rounds/history, and made no new call. Exit **85** on each invocation was
+the deliberate evaluation stop before scheduling, not a production success gate
+or a failed media validation. The job remains partial, never complete.
+
+Ignored evidence: `jobs/.batch5-context-qualification/` contains preparation and
+observer code, exact scope/config receipt, request/context assertions, logs,
+first/resume process measurements, source-state snapshot, result receipt and
+preservation signatures. The new job retains original acoustic evidence, raw
+request/response, atomic attempt history, historical parent records and resulting
+eligibility. Request identity:
+`7dd08964ac53c7df4cf2c2c0967fd293b5e84babd4a19c888a5f4f9ae073ce84`.
+The aggregate response SHA-256 is
+`44052944de654cc8a0cd3fe507039fb0051f243a89b777bcbe91f5ce35435511`.
+No production source changed, so the focused suite was not rerun; executable
+evaluation assertions and same-job resume passed. Operational Git status/binary
+diff and file-tree metadata signatures matched before/after for operational jobs,
+overnight evidence, batch-3 artifacts, the batch-5 preview and the earlier long
+source evaluation. No prior job lock was acquired or worker interrupted.
+
+The existing listening preview is unchanged and remains for the user's separate
+review. This two-case result cannot establish provider repeatability, broader
+coverage, supported-clause splitting, voice quality or whole-video runtime.
+**Stop before batch 6: fresh evaluation completed, qualification criterion failed.**
