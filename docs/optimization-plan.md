@@ -1645,3 +1645,68 @@ resume, full export, merge or push. Applying the evaluated recovery to the
 original job later requires an explicit stopped-job migration under its owned
 lock, followed by normal synthesis/verification/placement. This is a focused
 correction, not a claim that the recording's remaining coverage problem is solved.
+
+## Bounded coverage qualification checkpoint (2026-10-17)
+
+Batch 6 remains paused. User authorized 12 representative source omissions and
+normal placement qualification of the eight eligible cues, then a checkpoint
+before original-job migration/export. Expected decisions were saved and hashed
+before external review in `jobs/.coverage-bounded-20261017/expected.json`.
+Source study: 31, 155, 293, 130; material controls 234/676; pending revisions
+32, 62, 595, 636, 644, 812. Existing approvals were evidence, not assumed truth:
+62 omitted affirmative “sí”; 644 still had an actor/responsibility question.
+
+Two general adjudication corrections ran through normal auto with regression
+coverage. A primary reading may be supported by independent complete contextual
+evidence differing only in an already qualified equivalent/minor connector;
+a truncated older alternative alone cannot veto it. Conversely selecting one
+ASR cannot settle competing acoustic numbers (3300 versus .300). This adds no
+episode rounds or provider attempts. `source_disagreement.v2` changes downstream
+policy identity, not the historical source episode/budget identity.
+
+Source qualification used a distinct, authorized job/request namespace and
+archived the unchanged exhausted parent ledger. It reused all saved acoustic
+evidence and frozen full-transcript context, with no source ASR or translation
+rerun. Normal auto spent 8 Luna/medium/ChatGPT calls (70.523s invocation wall
+intervals; about 82s service time). Six became eligible: 32, 62, 130, 293, 595,
+636. Cue 62 received a real affirmative repair, then exact confirmation. Both
+material controls remained withheld; invalid number/partial responses were
+rejected, not silently approved. 31/155 exhausted their persisted contract
+recovery; 644/812 ended revised but unconfirmed. Thus safety controls passed,
+but **broader positive coverage/confirmation qualification did not pass**.
+One normal-auto resume made zero additional calls and left attempt states
+byte-identical. No unchanged terminal subset was repeatedly retried.
+
+Eight-cue audio qualification placed **8/8** (2,4,83,123,523,553,655,721), each
+with four valid candidates, 44 fresh takes total, zero matching cache hits,
+45 generated-audio ASR calls and one second verification. All selected tempo
+factors are 1.00, verified endings pass, and selected used-WAV hashes match.
+Fresh inference totals 141.449s inside a 174.669s scheduling stage (~178s
+service time); intervals overlap and must not be added. Selected placed voice
+duration is 33.754833s, distinct from 54.918271s source windows. The full frozen
+occupancy comparison has 714 placed rows and no overlaps. The other 706
+placements were reused as timing/voice-context fixtures, not regenerated or
+revalidated; this is not a new full export or validation pass.
+
+The first isolated synthesis launch accidentally included a replayed non-target
+cue (61); the pre-provider guard stopped it before external invocation or target
+synthesis. Its state/uncertain-labelled local failure is retained. A new v2
+study changed that input scope to only the selected eight, preserving original
+non-target decisions and budgets. No original-job state was changed.
+
+Offline revalidation also exposes saved approvals for 392/428 under the general
+connector rule; those two are eligibility only, outside the representative
+live sample and audio qualification. Following only the verified eight, 107
+original export omissions remain: 73 localized review-contract exhaustion,
+13 explicit material abstentions, 7 competing readings, 3 English confirmation
+cases, 2 protected endings, 1 terminal duration repair, and 8 eligible-only
+cases (the qualified six plus 392/428). Categories are primary and disjoint;
+secondary source flags overlap. All 115 individual rows are retained in the
+checkpoint report, without writing the original job.
+
+Tests: **52 focused pass**; full suite **230 pass, 1 skip, 1 pre-existing legacy
+transcription migration failure** (same previously reproduced baseline failure).
+Original job/export/configuration, responses, budgets and caches retain their
+preservation signatures. The independent study services stopped intentionally
+with code 85 before mix/export; original coverage is still 706/821. No merge,
+push, full export, or human listening approval. No broader qualification claim.

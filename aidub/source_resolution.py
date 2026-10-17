@@ -23,7 +23,7 @@ from .review import review_request, validate_review_response
 from .second_pass import _Mic, _words, _inside, _summary, settings as hearing_settings
 from .util import fingerprint, read_json, sha256_file, write_json
 from .verification import file_identity
-from .source_disagreement import disagreement, bind_comparison_evidence
+from .source_disagreement import disagreement, bind_comparison_evidence, compare_readings, acoustic_numbers_differ
 
 CONFIDENCES = {"supported", "minor", "material", "supported_spans", "non_speech"}
 INSTRUCTIONS = """This is bounded evidence-based source/English resolution, not a style rewrite.
@@ -265,8 +265,10 @@ def assessment_errors(row, src, current):
             and disagreement(src)["kind"] not in {"equivalent", "minor"}):
         raw = e.get("contextual") or {}
         if (raw.get("provenance", {}).get("kind") == "primary_source_words" or
-                reading_tokens(a["reading"]) != reading_tokens(e.get("inside", {}).get("text", ""))):
+                compare_readings(a["reading"], e.get("inside", {}).get("text", ""))["kind"] not in {"equivalent", "minor"}):
             errors.append("divergent actor/action/number/referent or grammar readings need contextual acoustic support, not context agreement")
+    if confidence in {"supported", "minor"} and acoustic_numbers_differ(e):
+        errors.append("competing acoustic number readings remain unresolved; use material or independently supported_spans")
     # True opposite polarity needs a contextual hearing that supports the chosen
     # reading. Merely re-reading the primary or global context cannot resolve it.
     if material_conflict(src) and confidence in {"supported", "minor"}:

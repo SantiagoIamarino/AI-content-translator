@@ -9,10 +9,20 @@ import copy
 from difflib import SequenceMatcher
 from .util import fingerprint
 
-POLICY = "aidub.source_disagreement.v1"
+POLICY = "aidub.source_disagreement.v2"
 ORTHOGRAPHY = {"hábitat": "habitat", "vídeo": "video"}
 NUMBERS = {"cero": "0", "dos": "2", "tres": "3", "cuatro": "4", "cinco": "5",
            "seis": "6", "siete": "7", "ocho": "8", "nueve": "9", "diez": "10"}
+
+
+def acoustic_numbers_differ(evidence):
+    """Selecting one supplied ASR cannot establish which competing number is true."""
+    def numbers(text):
+        text = re.sub(r"(?<=\d)\s*[.,]\s*(?=\d{3}(?:\D|$))", "", text)
+        return [t for t in _tokens(text) if t.isdigit()]
+    a = numbers(evidence.get("primary_text", ""))
+    b = numbers(evidence.get("inside", {}).get("text", ""))
+    return bool(a or b) and a != b
 
 
 def _tokens(text):

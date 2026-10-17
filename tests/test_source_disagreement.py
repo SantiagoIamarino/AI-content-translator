@@ -73,3 +73,24 @@ class DisagreementTests(unittest.TestCase):
                 self.assertTrue(any("contextual acoustic" in e for e in errors))
             else:
                 self.assertEqual(errors, [], (sid, errors))
+
+    def test_primary_can_be_supported_by_independent_context_with_minor_connector(self):
+        s = copy.deepcopy(CASES["4"]["segment"])
+        e = copy.deepcopy(CASES["4"]["episode"]["evidence"])
+        s.update(source_evidence=e, source_span=e["span"])
+        # An older clipped alternative is not authority over the independently
+        # heard complete clause. Acceptance still needs a valid source review.
+        s["asr_alternatives"] = [{"text": "para el staff"}]
+        row = {"verdict": "ok", "issues": [], "disputed": False, "source_assessment": {
+            "confidence": "minor", "reading": e["primary_text"], "evidence_id": e["identity"],
+            "reason": "Independent context supports the same clause; initial conjunction only", "parts": []}}
+        self.assertEqual(assessment_errors(row, s, s["english"]), [])
+        self.assertEqual(eligibility(s, CFG)["synthesis"], "withheld")
+
+    def test_number_control_cannot_be_approved_by_choosing_the_other_asr(self):
+        c = CASES["676"]; e = c["episode"]["evidence"]
+        s = dict(c["segment"], source_evidence=e, source_span=e["span"])
+        row = {"verdict": "ok", "issues": [], "disputed": False, "source_assessment": {
+            "confidence": "supported", "reading": e["inside"]["text"], "evidence_id": e["identity"],
+            "reason": "Selected alternative", "parts": []}}
+        self.assertTrue(any("number readings" in error for error in assessment_errors(row, s, s["english"])))

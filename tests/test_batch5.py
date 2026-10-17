@@ -346,6 +346,14 @@ class ResolutionTests(unittest.TestCase):
             self.assertEqual(events.count('source_review'),1)
         worker.close.assert_called_once()
 
+    def test_normal_auto_accepts_independently_supported_connector_difference(self):
+        self.seg.update(spanish="Y ahora ponemos una puerta para el staff", english="And now we put in a staff door.",
+                        english_original="And now we put in a staff door.", asr_alternatives=[{"text": "falta para el staff"}])
+        self.seg["source_words"] = [dict(word=w, start=1.1+i*.2, end=1.25+i*.2, probability=.95)
+                                    for i,w in enumerate("ahora ponemos una puerta para el staff".split())]
+        self.seg["translation_review"] = dict(status="disputed", checked_text=self.seg["english"])
+        self.test_normal_auto_resolves_before_media_under_owned_lock()
+
     def test_near_silent_unknown_can_be_accounted_without_inventing_speech(self):
         from aidub.events import event_placement_report
         from aidub.fidelity import region_is_resolved
@@ -402,7 +410,10 @@ class PolicyTests(unittest.TestCase):
             row=dict(verdict='ok',issues=[],disputed=False,source_assessment=dict(confidence='supported',reading=primary,evidence_id='e',reason='Context agrees',parts=[]))
             self.assertTrue(any('contextual acoustic' in e for e in assessment_errors(row,src,s['english'])))
             row['source_assessment']['reading']=alternative
-            self.assertEqual(assessment_errors(row,src,s['english']),[])
+            if primary == 'Tengo dos balas':
+                self.assertTrue(any('number readings' in e for e in assessment_errors(row,src,s['english'])))
+            else:
+                self.assertEqual(assessment_errors(row,src,s['english']),[])
 
     def test_accent_sensitive_grammar_is_not_erased_by_matching(self):
         from aidub.fidelity import readings_differ
