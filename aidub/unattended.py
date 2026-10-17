@@ -19,6 +19,7 @@ from .providers import ProviderError, require_provider, validate_provider_config
 from .batches import invoke_batches
 from .context import settings as quality_settings
 from .quality_flow import translate_with_review, validate_quality_providers, review_pending_repairs
+from .source_resolution import resolve_sources
 from .util import read_json, write_json
 
 
@@ -74,6 +75,12 @@ def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=
                 timings.append({"stage": f"run:{job.state}", "seconds": round(time.perf_counter() - t0, 3), "exit": code})
                 if code in {0, 1, 3}:
                     return code
+                if job.state == "awaiting_source_review":
+                    started = time.perf_counter()
+                    resolve_sources(job, stored, providers,
+                                    before_invoke=lambda: require_synthesis_ready(stored))
+                    timings.append({"stage": "source_resolution", "seconds": round(time.perf_counter()-started, 3)})
+                    continue
                 if job.state == "awaiting_repair_review":
                     if review_pending_repairs(job, stored, providers,
                                               before_invoke=lambda: require_synthesis_ready(stored)):
@@ -88,7 +95,7 @@ def run_unattended(cfg: dict, video: str, name: str, mic=None, game=None, mixed=
             raise ProviderError("Unattended run exceeded configured max_handoff_rounds. Check job diagnostics.")
         except KeyboardInterrupt:
             job = Job(dest)
-            if job.state in {"awaiting_translation", "awaiting_repair", "awaiting_repair_review"}:
+            if job.state in {"awaiting_translation", "awaiting_repair", "awaiting_repair_review", "awaiting_source_review"}:
                 job.error = "Interrupted during provider handoff; a call without a durable response has uncertain external completion/billing. Resume to recover matching responses."
                 job.save()
             raise

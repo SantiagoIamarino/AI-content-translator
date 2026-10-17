@@ -176,7 +176,7 @@ def failure_class(exit_code: int, manifest: dict | None, log_tail: str) -> tuple
         return "partial_terminal", "The pipeline reported partial completion; unresolved source content or failed gates need review."
     if exit_code == 0 and state == "complete":
         return "complete", "Technical pipeline status is complete."
-    if state in {"awaiting_translation", "awaiting_repair", "awaiting_repair_review"} or (manifest or {}).get("provider_error"):
+    if state in {"awaiting_translation", "awaiting_repair", "awaiting_repair_review", "awaiting_source_review"} or (manifest or {}).get("provider_error"):
         return "provider_handoff", "Provider handoff failed or awaits work. Inspect identity-bound responses, uncertainty and remaining configured attempts before manual resume."
     if any(term in error for term in PERMANENT_MARKERS):
         return "permanent_blocker", (manifest or {}).get("error") or "A persistent configuration, source, storage, authentication, quota or response blocker was detected."

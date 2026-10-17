@@ -24,6 +24,9 @@ class CompactReviewOrchestrationTests(unittest.TestCase):
         self.cfg = load_config()
         self.cfg['jobs_dir'] = str(self.root)
         self.cfg['source_events'] = {'enabled': True}
+        # Isolate batch-2 compact review budgets from the separately tested
+        # batch-5 source-resolution handoff enabled for new performance jobs.
+        self.cfg['source_resolution'] = {'enabled': False}
         self.cfg['translation_quality'] = {'enabled': True, 'review': {
             'enabled': True, 'max_rounds': 2, 'back_translation': 'disputed'}}
         # Even an accidentally unmocked invocation cannot contact a provider.

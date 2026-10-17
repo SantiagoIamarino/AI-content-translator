@@ -5,6 +5,7 @@ from .job import Job
 from .pipeline import _save_timeline, translation_fingerprint
 from .review import validate_review_response, review_decision
 from .util import fingerprint, read_json, sha256_file, write_json
+from .fidelity import eligibility, resolution_source_current, reconfirm_resolution
 
 
 def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
@@ -58,6 +59,7 @@ def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
     response_rel = str(response_path.relative_to(job.dir))
     acoustic_rel = str(acoustic_report_path.relative_to(job.dir))
     accepted = disputed = revised = unconfirmed = 0
+    mic_sha = read_json(job.dir / "extract/alignment.json")["mic_sha256"]
     for row in rows:
         sid = int(row["id"])
         seg = by_id[sid]
@@ -66,7 +68,8 @@ def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
         new_english = verdict.get("english", old_english).strip()
         issues = sorted(set(verdict.get("issues") or []))
         decision = review_decision(verdict, old_english, new_english,
-                                   material_conflict=seg.get("material_source_conflict"))
+                                   material_conflict=seg.get("material_source_conflict") and
+                                   not (verdict["verdict"] == "ok" and new_english == old_english and resolution_source_current(seg, mic_sha)))
         source_disputed = decision["source_disputed"]
         status = decision["status"]
         if status == "accepted_draft":
@@ -96,10 +99,13 @@ def accept_targeted_review(job: Job, request_path: Path, response_path: Path,
             "targeted_review_request_identity": identity,
             "targeted_review_response": response_rel,
         }
-        if status == "disputed":
-            disputed += 1
-        elif status == "revised_unconfirmed":
+        if verdict["verdict"] == "ok" and not source_disputed:
+            reconfirm_resolution(seg,mic_sha,new_english,response_rel)
+        scheduling = eligibility(seg, job.config(), mic_sha)
+        if scheduling["translation_fidelity"] == "revision_pending":
             unconfirmed += 1
+        elif scheduling["synthesis"] == "withheld":
+            disputed += 1
         else:
             accepted += 1
 

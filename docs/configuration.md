@@ -74,3 +74,42 @@ The `performance` preset adds `source_events.enabled` (optional local
 and `voice_edge.protection.inspect_full_tail` with `max_analysis_tail_sec=2` and
 `decay_floor_rms=0.0001`. Uncertain events, unintelligible source spans and disputed
 translation reviews keep the job partial. See [performance.md](performance.md).
+
+### Bounded automatic source resolution
+
+New jobs with `source_events.enabled=true` materialize
+`source_resolution: {"enabled": true, "max_semantic_rounds": 2}`; the performance
+preset enables it explicitly. Existing snapshots lacking the block remain
+unchanged. Do not add it to an active job. A stopped-job migration requires a
+separately authorized snapshot change; retain all historical decisions and media.
+
+`auto` resolves disputed source readings and unconfirmed English before scheduling.
+It uses the configured review provider and already provisioned local Whisper model,
+with at most one new contextual hearing and two semantic rounds per source-evidence
+identity. Exact saved hearings are reused, and budgets survive resume. A last-round
+revision remains unconfirmed. Back-translation cannot supply acoustic proof.
+
+Minor grammatical/equivalent readings can be voiced when meaning is supported and
+exact English is accepted. Material ambiguities remain visible when evidence cannot
+decide. Independent supported clauses require acoustic word boundaries, a second
+review of exact child English/parts, stable lineage, and explicit unresolved
+remainders. Event-bearing cues require scoped boundary reconciliation before a
+partial split. Unknown periodic events and short noise hallucinations are not
+turned into speech; only bound near-silence with empty lexical evidence can be
+excluded automatically. Overlapping/implausible source boundaries block synthesis
+before fit/repair attempts, without moving reaction anchors.
+
+Original conflicts and prior text stay in history. `source_resolution` records bind
+microphone, span, readings, acoustic model/options/provenance and exact reviewed
+English. Acceptance, scheduling and validation share the eligibility reducer.
+Malformed/contradictory source decisions fail validation; after provider attempts
+are exhausted, independently valid saved rows can be retained while invalid rows
+become explicit abstentions. Authentication, missing responses and uncertain
+provider outcomes retain the provider helper's bounded recovery rules. No alternate
+provider or billing path is substituted.
+
+Manual `run`/`resume` stops at `awaiting_source_review`; `auto` holds the owned job
+lock through resolution and acceptance. Evidence/budgets are in
+`handoff/source_resolution/`; eligibility, remaining regions and boundary diagnostics
+are in `report/source_resolution.json` and `report/source_boundaries.json`.
+Technical partial status and all required English protections remain in force.

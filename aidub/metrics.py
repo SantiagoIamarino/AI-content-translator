@@ -8,7 +8,9 @@ from .util import read_json
 
 def provider_metrics(job_dir):
     totals = {"attempts_started": 0, "uncertain_outcomes": 0, "response_reuses": 0, "batches_with_responses": 0}
-    for path in (job_dir / 'handoff/batches').glob('*/*/batch_*/response_attempts/*/state.json'):
+    # Include nested source/compact review handoffs and context parts, retaining
+    # each existing attempt record rather than counting aggregate responses.
+    for path in (job_dir / 'handoff').rglob('response_attempts/*/state.json'):
         state = read_json(path)
         totals['attempts_started'] += len(state.get('attempts', []))
         totals['uncertain_outcomes'] += len(state.get('uncertain_outcomes', []))

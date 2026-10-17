@@ -16,7 +16,7 @@ from .job import Job
 from .providers import invoke_checked, require_provider, resolve_role, validate_provider_config
 from .review import run_review, settings as review_settings
 from .util import fingerprint, read_json, write_json
-from .fidelity import repairs_needing_review
+from .fidelity import repairs_needing_review, resolution_source_current, reconfirm_resolution
 
 QUALITY_ROLES = ("context", "review", "back_translation")
 
@@ -42,7 +42,16 @@ def load_context(job: Job, cfg: dict, segments: list[dict]) -> dict | None:
     if not quality_settings(cfg) or not path.is_file():
         return None
     data = read_json(path)
-    return data if data.get("identity") == context_identity(job.data["job_id"], segments, cfg) else None
+    if data.get("identity") == context_identity(job.data["job_id"], segments, cfg):
+        return data
+    parents = job.data.get("source_resolution_parents") or []
+    if parents:
+        # Frozen global context/glossary still describes the original source,
+        # including unresolved remainders. Never regenerate it from partial text.
+        original = [s for s in segments if not s.get("source_lineage")] + parents
+        if data.get("identity") == context_identity(job.data["job_id"], original, cfg):
+            return data
+    return None
 
 
 def ensure_context(job: Job, cfg: dict, segments: list[dict], providers: dict, before_invoke=None) -> dict:
@@ -128,7 +137,14 @@ def review_pending_repairs(job: Job, cfg: dict, providers: dict, before_invoke=N
     ids={int(s["id"]) for s in pending}
     english={int(s["id"]):s["english"] for s in pending}
     request["segments"]=[r for r in request["segments"] if int(r["id"]) in ids]
+    alignment_path=job.dir/"extract/alignment.json"
+    mic_sha=read_json(alignment_path)["mic_sha256"] if alignment_path.is_file() else None
     for row in request["segments"]:
+        seg=next(s for s in pending if s["id"]==row["id"])
+        if resolution_source_current(seg,mic_sha):
+            resolution=seg["source_resolution"]
+            row["resolved_source"]={"assessment":resolution["assessment"],"evidence_id":resolution["evidence"]["identity"],
+                                    "note":"Evidence-bound source reading; original alternatives remain in history."}
         for side in ("context_before","context_after"):
             for neighbor in row.get(side,[]):
                 neighbor["english"]=next(s.get("english") for s in segments if s["id"]==neighbor["id"])
@@ -152,6 +168,8 @@ def review_pending_repairs(job: Job, cfg: dict, providers: dict, before_invoke=N
         s["english"]=final[sid]
         s["translation_review"]={"status":line["status"],"draft":english[sid],"checked_text":final[sid],
                                  "issues":sorted({i for r in line["rounds"] for i in r.get("issues",[])})}
+        if line["status"] in {"accepted_draft","revised_confirmed"}:
+            reconfirm_resolution(s,mic_sha,final[sid],str((root/"audit.json").relative_to(job.dir)))
     for stage in ("schedule","mix","validate"):
         job.stage(stage).update(status="pending",fingerprint=None)
     _save_timeline(job)

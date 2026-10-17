@@ -31,7 +31,7 @@ from .second_pass import run_second_pass, settings as second_pass_settings, unre
 from .continuity import identity as continuity_identity, source_pacing_score, render_protected
 from .events import identity as events_identity, apply_events, event_placement_report
 from .vocal_verification import verify_prefix
-from .fidelity import voicing_uncertainty, pending_repair_review, repairs_needing_review
+from .fidelity import voicing_uncertainty, pending_repair_review, repairs_needing_review, eligibility, boundary_diagnostics, RESOLUTION_POLICY, region_is_resolved
 from .performance import identity as performance_identity, attach_source_pauses, score_contextual, contextual_quality
 from .selection import choose as choose_take, running_profile, score_take, settings as voice_selection_settings, pacing as take_pacing
 from .textnorm import content_tokens, normalize_tokens
@@ -232,6 +232,8 @@ def stage_extract(job: Job, cfg: dict, inspected: dict) -> dict:
 
 
 def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
+    prior_timeline = copy.deepcopy(job.data.get("timeline") or [])
+    prior_translation = copy.deepcopy(job.stage("translation"))
     segmentation_inputs = {k: v for k, v in cfg["segmentation"].items() if k != "untranscribed_energy_policy"}
     legacy_fp = fingerprint({
         "mic": alignment["mic_sha256"],
@@ -293,6 +295,17 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
         seg["english"] = None
         seg["english_original"] = None
         seg["revisions"] = []
+    reuse_translation = (prior_translation.get("status") == "complete" and
+                         translation_fingerprint(prior_timeline) == translation_fingerprint(built["segments"]))
+    if reuse_translation:
+        prior_by_id = {int(s["id"]): s for s in prior_timeline}
+        for seg in built["segments"]:
+            prior = prior_by_id[int(seg["id"])]
+            for key in ("english", "english_original", "revisions", "translation_review", "syllable_budget",
+                        "material_source_conflict", "targeted_review_history", "repair_review_history",
+                        "source_resolution", "source_resolution_history", "source_lineage"):
+                if key in prior:
+                    seg[key] = copy.deepcopy(prior[key])
     write_json(out_dir / "segments.json", built)
     write_json(out_dir / "corrections.json", {
         "word_rewrites": [],
@@ -315,8 +328,12 @@ def stage_transcribe(job: Job, cfg: dict, alignment: dict) -> dict:
     job.data["timeline"] = built["segments"]
     write_json(job.dir / "timeline.json", {"segments": built["segments"], "timestamp_status": built["timestamp_status"]})
     job.set_stage("transcribe", "complete", fp, {"raw": "transcribe/raw.json", "segments": "transcribe/segments.json"})
-    job.stage("translation")["status"] = "pending"
-    job.stage("translation")["fingerprint"] = None
+    if reuse_translation:
+        job.data["stages"]["translation"] = prior_translation
+        print("translation: preserving accepted historical text/provenance for identical source spans")
+    else:
+        job.stage("translation")["status"] = "pending"
+        job.stage("translation")["fingerprint"] = None
     job.save()
     print(f"transcribe: {len(built['segments'])} segments, {len(built['dropped'])} dropped, {len(built['uncertain'])} uncertain words")
     return built
@@ -803,13 +820,23 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
     ref_text = reference_text(cfg)
     ref_sha = sha256_file(Path(ref_wav))
     segments = _timeline(job)
+    if (cfg.get("source_resolution") or {}).get("enabled"):
+        diagnostics = boundary_diagnostics(segments)
+        for s in segments:
+            s.pop("boundary_diagnostic", None)
+            if int(s["id"]) in diagnostics:
+                s["boundary_diagnostic"] = diagnostics[int(s["id"])]
+        write_json(job.dir / "report/source_boundaries.json", diagnostics)
     fp = fingerprint({
         "segments": [
             {"id": s["id"], "english": s.get("english"), "start": s["start"], "end": s["end"], "revisions": s.get("revisions") or [],
-             **{k:s[k] for k in ("material_source_conflict","translation_review","vocal_events","required_event_prefix","source_pauses") if k in s}}
+             **{k:s[k] for k in ("spanish", "asr_alternatives", "material_source_conflict","translation_review","vocal_events","required_event_prefix","source_pauses",
+                                  "source_resolution", "source_lineage", "source_remainder", "boundary_diagnostic") if k in s}}
             for s in segments
         ],
         "video_duration": source_duration,
+        "source_mic": inspected.get("mapping", {}).get("mic", {}).get("sha256") or read_json(job.dir / "extract/alignment.json")["mic_sha256"],
+        "eligibility_policy": RESOLUTION_POLICY,
         "reference_sha256": ref_sha,
         "reference_text": ref_text,
         "schedule": cfg["schedule"],
@@ -840,7 +867,8 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
             return saved
         print("schedule: placement file missing/changed; rebuilding from synthesis cache")
     cache_dir = job.dir / "cache" / "synth"
-    misses = _cache_misses(segments, cfg, cache_dir, ref_sha, ref_text, source_duration)
+    source_mic = read_json(job.dir / "extract/alignment.json")["mic_sha256"]
+    misses = _cache_misses(segments, cfg, cache_dir, ref_sha, ref_text, source_duration, source_mic)
     backend = None
     if shared_backend_loaded():
         print("synthesize: reusing loaded Qwen and voice prompt")
@@ -916,7 +944,7 @@ def stage_schedule(job: Job, cfg: dict) -> dict:
             text = seg.get("english") or ""
             context_before = ordered[i - 1]["spanish"] if i else None
             context_after = ordered[i + 1]["spanish"] if i + 1 < len(ordered) else None
-            uncertainty = voicing_uncertainty(seg,cfg)
+            uncertainty = voicing_uncertainty(seg,cfg,source_mic)
             if uncertainty:
                 item = _unplaced_from_history(seg,prior_attempts.get(int(seg["id"]),[]),nxt,source_duration)
                 item.update(timing_error=uncertainty["kind"],voicing_uncertainty=uncertainty)
@@ -1354,13 +1382,13 @@ def _ensure_backend(backend, cfg):
     return backend
 
 
-def _cache_misses(segments, cfg, cache_dir, ref_sha, ref_text, source_duration) -> list[int]:
+def _cache_misses(segments, cfg, cache_dir, ref_sha, ref_text, source_duration, mic_sha=None) -> list[int]:
     from .schedule import synth_cache_key
 
     misses = []
     ordered = sorted(segments, key=lambda s: (float(s["start"]), int(s["id"])))
     for i, seg in enumerate(ordered):
-        if voicing_uncertainty(seg,cfg):
+        if voicing_uncertainty(seg,cfg,mic_sha):
             continue
         if any(r.get("action") == "leave_unresolved" for r in seg.get("revisions") or []):
             continue
@@ -1551,11 +1579,18 @@ def stage_mix(job: Job, cfg: dict, summary: dict) -> dict:
     return gain
 
 
-def source_uncertainty_issues(corrections, timeline):
+def source_uncertainty_issues(corrections, timeline, cfg=None, mic_sha=None, region_resolutions=None):
     """A completed review is not evidence that ambiguous source meaning is resolved."""
     issues = [{"kind":"unintelligible_source","span":g["span"],"text":g.get("second_pass",{}).get("text","")}
               for g in (corrections or {}).get("untranscribed_energy",[])
-              if g.get("second_pass",{}).get("outcome") == "unintelligible"]
+              if g.get("second_pass",{}).get("outcome") == "unintelligible" and
+              not region_is_resolved({"kind": "gap", "span": g["span"], "original": g}, region_resolutions, mic_sha)]
+    if cfg is not None:
+        issues += [{"kind": "disputed_translation" if d["reason"] == "unresolved_source_or_translation" else d["reason"],
+                    "id": s["id"], "span": [s["start"],s["end"]], "spanish": s["spanish"],
+                    "english": s.get("english"), "eligibility": d}
+                   for s in timeline if (d := eligibility(s, cfg, mic_sha))["reason"]]
+        return issues
     issues += [{"kind":"disputed_translation","id":s["id"],"span":[s["start"],s["end"]],
                 "spanish":s["spanish"],"english":s.get("english"),"status":s["translation_review"]["status"]}
                for s in timeline if s.get("translation_review",{}).get("status") in {"disputed","revised_unconfirmed"}]
@@ -1588,6 +1623,8 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     corrections_file = job.dir / "transcribe/corrections.json"
     event_file = job.dir / "transcribe/vocal_events.json"
     validate_fp = fingerprint({"version": 7, "spanish_comparison_requested": comparison,
+                               "source_resolution_policy": RESOLUTION_POLICY,
+                               "source_decisions": {"timeline": _timeline(job), "regions": job.data.get("source_region_resolutions")},
                                **({"protected_endings_gate": 1} if int(summary.get("presentation_version", 1)) >= 3 else {}), "source_sha256": source_sha, "protected": protected_now,
                                "artifacts": {label: sha256_file(path) for label, path in artifacts.items()},
                                "schedule": job.stage("schedule").get("fingerprint"), "mix": job.stage("mix").get("fingerprint"),
@@ -1701,17 +1738,24 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     if (cfg.get("source_events") or {}).get("enabled"):
         ledger_path = job.dir / "transcribe/vocal_events.json"
         ledger = read_json(ledger_path) if ledger_path.is_file() else {"events": []}
-        event_report = event_placement_report(ledger, summary["segments"])
+        event_report = event_placement_report(ledger, summary["segments"], job.data.get("source_region_resolutions"))
         write_json(job.dir / "report/vocal_events.json", event_report)
         add("source_events_accounted", ledger_path.is_file() and not event_report["unresolved"],
             event_report["unresolved"] or "all confirmed vocal events placed; non-speech exclusions explicit")
         bad_prefixes = [s["id"] for s in summary["segments"] if s.get("placed") and s.get("required_event_prefix")
                         and not s.get("presentation",{}).get("event_prefix_processed_verified")]
         add("processed_vocal_events_verified",not bad_prefixes,bad_prefixes or "required prefixes heard in processed takes")
-        source_uncertainties = source_uncertainty_issues(corrections,_timeline(job))
+        mic_sha = read_json(job.dir / "extract/alignment.json")["mic_sha256"]
+        source_uncertainties = source_uncertainty_issues(corrections,_timeline(job),cfg,mic_sha,job.data.get("source_region_resolutions"))
         write_json(job.dir / "report/source_uncertainties.json", source_uncertainties)
         add("source_uncertainty_resolved",not source_uncertainties,
             source_uncertainties or "no unintelligible source spans or unresolved bilingual reviews")
+        if (cfg.get("source_resolution") or {}).get("enabled"):
+            by_id = {int(s["id"]): s for s in _timeline(job)}
+            invalid = [s["id"] for s in summary["segments"] if s.get("placed") and
+                       (int(s["id"]) not in by_id or eligibility(by_id[int(s["id"])],cfg,mic_sha)["synthesis"] == "withheld"
+                        or s.get("english") != by_id[int(s["id"])].get("english"))]
+            add("placed_text_eligible",not invalid,invalid or "placed English is exact accepted text under shared eligibility")
     placed = [s for s in summary["segments"] if s.get("placed")]
     bounds_bad = []
     ordered = summary["segments"]
@@ -1874,6 +1918,8 @@ def next_hint(job: Job) -> str:
             "Resume with bin/aidub auto using this job's original video/name and configured review provider. "
             "No provider is called by manual run/resume; disabled review leaves this handoff blocked."
         )
+    if state == "awaiting_source_review":
+        return "Bounded source review awaits configured auto execution; saved evidence/response identities and budgets are retained."
     if state in {"complete", "partial"}:
         report = job.dir / "report/validation.md"
         return f"Report: {report}"
@@ -1899,7 +1945,7 @@ def run_job(job: Job, *, lock: JobLock | None = None) -> int:
             stage_call(job, "transcribe", stage_transcribe, job, cfg, alignment)
             segments = _timeline(job)
             restore_translation_if_response_matches(job, segments, cfg)
-            if any(not (s.get("english") or "").strip() for s in segments) or job.stage("translation")["status"] != "complete":
+            if any(not (s.get("english") or "").strip() and not s.get("source_remainder") for s in segments) or job.stage("translation")["status"] != "complete":
                 path = export_translation(job, cfg)
                 job.state = "awaiting_translation"
                 job.save()
@@ -1921,6 +1967,12 @@ def run_job(job: Job, *, lock: JobLock | None = None) -> int:
                 job.save()
                 print("STATE awaiting_repair_review")
                 print(next_hint(job))
+                return 2
+            from .source_resolution import pending_source_resolution
+            if pending_source_resolution(job, cfg):
+                job.state = "awaiting_source_review"
+                job.save()
+                print("STATE awaiting_source_review (bounded evidence/semantic budgets)")
                 return 2
             summary = stage_call(job, "schedule", stage_schedule, job, cfg)
             if summary.get("needs_repair"):

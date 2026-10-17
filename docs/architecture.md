@@ -47,3 +47,30 @@ mixed audio with explicit audio ordinal and absolute picture-origin seeking;
 their cache binds the source, mapping and preview settings. Offline picture-only
 evaluation helpers can use a saved English copied picture if the original is
 missing, with their existing limitation that this cannot revalidate the original.
+
+### Source resolution handoff (batch 5)
+
+With explicit source-resolution configuration, `run_job` returns the
+`awaiting_source_review` handoff before scheduling/mixing. `run_unattended` invokes
+the synchronous resolver under its existing owned lock. No additional runner or
+lock reacquisition is introduced. `fidelity.eligibility` keeps source confidence,
+translation fidelity and synthesis eligibility separate; the targeted acceptor,
+cache-miss scan, scheduler and validator consume that decision.
+
+Per-evidence episodes reserve their hearing/semantic budgets atomically before
+calls. An exact pending request resumes through the existing provider helpers.
+The manifest records accepted decisions and an acceptance receipt before the
+sidecar budget save, allowing a crash between those writes to recover without
+reapplying a split or resetting counters. Saved responses can be revalidated with
+their original provenance; invalid rows never become approvals. Exhausted
+invalid rows are recorded separately so they cannot poison a valid neighbor.
+
+Only eligible schedules/downstream artifacts are invalidated. Source policy is
+versioned independently from raw ASR and synthesis identities. Identical source
+spans retain accepted historical English/provenance when source diagnostics are
+recomputed from cached evidence. Raw takes/ASR remain reusable. Supported splits
+retain the parent in the manifest, introduce stable child lineage, and keep
+unknown remainder rows unvoiced and technically partial. Frozen global context
+can still be read against reconstructed original parent spans. A confirmed compact
+repair may rebind exact English only when its source evidence is still current;
+it cannot confirm a changed microphone/span/readings or grant another source budget.

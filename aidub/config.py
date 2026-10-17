@@ -25,6 +25,8 @@ def spanish_comparison_enabled(cfg: dict) -> bool:
 def new_job_config(cfg: dict) -> dict:
     result = copy.deepcopy(cfg)
     result.setdefault("export", {}).setdefault("spanish_compare", False)
+    result.setdefault("source_resolution", {"enabled": bool((result.get("source_events") or {}).get("enabled")),
+                                             "max_semantic_rounds": 2})
     spanish_comparison_enabled(result)
     return result
 

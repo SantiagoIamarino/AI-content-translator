@@ -339,7 +339,8 @@ class TargetedReviewTests(unittest.TestCase):
 
     def fixture(self, root):
         job_dir = root / "job"
-        job = Job.create(job_dir, "fixture", "/tmp/source.mp4", {})
+        job = Job.create(job_dir, "fixture", "/tmp/source.mp4", {"source_events": {"enabled": True}, "source_resolution": {"enabled": False}})
+        write_json(job_dir / "extract/alignment.json", {"mic_sha256": "fixture-mic"})
         job.data["timeline"] = [{"id": 1, "start": 0.0, "end": 1.0,
                                   "spanish": "Hola.", "english": "Hello.",
                                   "english_original": "Hello.", "asr_alternatives": [],

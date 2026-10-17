@@ -72,6 +72,17 @@ def _schema(role: str, request: dict, model: str = "gpt-6-luna") -> dict:
                      "issues": {"type": "array", "items": {"type": "string", "enum": sorted(ISSUE_KINDS)}},
                      "reason": {"type": ["string", "null"]}, "disputed": {"type": "boolean"}}
             required = ["id", "verdict", "english", "issues", "reason", "disputed"]
+            if request.get("source_resolution_policy"):
+                props["reason"] = {"type": "string", "minLength": 1}
+                props["source_assessment"] = {"type": "object", "additionalProperties": False,
+                    "properties": {
+                        "confidence": {"type": "string", "enum": ["supported", "minor", "material", "supported_spans", "non_speech"]},
+                        "reading": {"type": "string"}, "evidence_id": {"type": "string"}, "reason": {"type": "string"},
+                        "parts": {"type": "array", "items": {"type": "object", "additionalProperties": False,
+                            "properties": {"word_range": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2},
+                                           "english": {"type": "string", "minLength": 1}}, "required": ["word_range", "english"]}}},
+                    "required": ["confidence", "reading", "evidence_id", "reason", "parts"]}
+                required.append("source_assessment")
         else:
             props = {"id": row_id, "spanish": {"type": "string", "minLength": 1}}
             required = ["id", "spanish"]

@@ -15,7 +15,7 @@ import soundfile as sf
 
 from .config import resolve_path
 from .util import fingerprint, read_json, sha256_file
-from .fidelity import material_conflict
+from .fidelity import material_conflict, region_is_resolved
 
 HESITATIONS_ES = {"eh", "em", "mmm", "mm", "hmm"}
 REALIZATIONS = {"hesitation": {"Uh...", "Um...", "Hmm..."}}
@@ -200,10 +200,15 @@ def apply_events(built, raw, mic_path, offset, cfg, mic_sha):
     return out
 
 
-def event_placement_report(ledger, rows):
+def event_placement_report(ledger, rows, region_resolutions=None):
     by_id = {s["id"]: s for s in rows}
     events = copy.deepcopy(ledger.get("events", []))
     for e in events:
+        region = {"kind": "event", "span": [e["start"],e["end"]], "original": copy.deepcopy(e)}
+        if region_is_resolved(region, region_resolutions, ledger.get("mic_sha256")):
+            e["original_disposition"] = e.get("disposition")
+            e["disposition"] = "intentionally_not_voiced"
+            e["resolution"] = "evidence_bound_near_silence"
         row = by_id.get(e.get("cue_id"))
         if row:
             e.update(english=row.get("english"), placed=bool(row.get("placed")),

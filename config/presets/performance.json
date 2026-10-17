@@ -121,5 +121,9 @@
   "source_events": {
     "enabled": true,
     "realization_mode": "prefix_with_following"
+  },
+  "source_resolution": {
+    "enabled": true,
+    "max_semantic_rounds": 2
   }
 }
