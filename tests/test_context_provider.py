@@ -8,7 +8,6 @@ from unittest.mock import patch
 from aidub.context import CONTEXT_SCHEMA, context_request, validate_context_response
 from aidub.providers import invoke_checked
 from aidub.util import read_json, write_json
-from scripts.provider_cursor_agent import _prompt
 
 
 class ContextProviderRegressionTests(unittest.TestCase):
@@ -54,9 +53,6 @@ class ContextProviderRegressionTests(unittest.TestCase):
             self.assertEqual(validate_context_response(request, accepted), [])
             self.assertEqual(read_json(response_path), valid)
 
-            command_prompt = _prompt("context", seen[1])
-            self.assertIn("Correct every actual validator error", command_prompt)
-            self.assertIn(error, command_prompt)
 
     def test_empty_summary_still_fails_validation(self):
         request = context_request("j", [{"id": 1, "start": 0.0, "end": 1.0, "spanish": "Hola."}], 0, 1, None)

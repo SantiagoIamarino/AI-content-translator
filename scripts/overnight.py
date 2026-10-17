@@ -187,63 +187,6 @@ def failure_class(exit_code: int, manifest: dict | None, log_tail: str) -> tuple
     return "unclassified", (manifest or {}).get("error") or f"Supervisor child exited with status {exit_code}; inspect logs and job report."
 
 
-def apply_provider_fallback(launch: dict, job_dir: Path, launch_path: Path,
-                            report_path: Path, event_path: Path) -> tuple[bool, str]:
-    """One-way migration of provider specs after a Cursor handoff blocker.
-
-    Only the saved job snapshot's provider mapping changes. All pipeline and
-    generation settings, provider state files, and accepted responses stay put.
-    """
-    fallback_path = launch.get("fallback_config")
-    if not fallback_path or launch.get("provider_fallback_applied_at"):
-        return False, "No unused fallback config is available."
-    from aidub.providers import resolve_role, require_provider, validate_provider_config
-
-    current_path = job_dir / "config.json"
-    current = read_json(current_path)
-    fallback = read_json(Path(fallback_path))
-    if not isinstance(current, dict) or not isinstance(fallback, dict):
-        return False, "Cannot read the saved job or fallback configuration."
-    current_providers = current.get("providers") or {}
-    if any((resolve_role(current_providers, role) or {}).get("kind") == "codex_chatgpt"
-           for role in ("context", "translation", "review", "back_translation", "repair")):
-        return False, "Explicit ChatGPT subscription providers prohibit provider fallback; fix the configured provider."
-    target_providers = fallback.get("providers") or {}
-    if not target_providers:
-        return False, "Fallback configuration has no provider mapping."
-    for role in ("context", "translation", "review", "back_translation", "repair"):
-        spec = resolve_role(target_providers, role)
-        validate_provider_config(require_provider(spec, role))
-        if spec.get("kind") != "command" or "provider_codex.py" not in " ".join(map(str, spec.get("command", []))):
-            return False, f"Fallback role {role} is not configured for the confined Codex adapter."
-    old_ids = {r: (resolve_role(current_providers, r) or {}).get("command", [])
-               for r in ("context", "translation", "review", "back_translation", "repair")}
-    new_ids = {r: (resolve_role(target_providers, r) or {}).get("command", [])
-               for r in ("context", "translation", "review", "back_translation", "repair")}
-    # Write only the provider mapping, atomically; config snapshot is authoritative.
-    current["providers"] = target_providers
-    temporary = current_path.with_suffix(".json.fallback-tmp")
-    temporary.write_text(json.dumps(current, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    os.replace(temporary, current_path)
-    stamp = now()
-    launch["provider_fallback_applied_at"] = stamp
-    launch["provider_transition"] = {"time": stamp,
-                                      "from": "Cursor adapter; model inherited from Cursor selection (Grok 4.7 500K Extra High Fast)",
-                                      "to": "gpt-6-luna (ChatGPT/Codex login), reasoning=medium",
-                                      "uncertain_cursor_calls_preserved": True}
-    launch_path.write_text(json.dumps(launch, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    report = read_json(report_path, {}) or {}
-    transitions = report.setdefault("provider_transitions", [])
-    transitions.append({**launch["provider_transition"], "old_provider_commands": old_ids,
-                        "new_provider_commands": new_ids,
-                        "note": "Existing response/state identities and all non-provider config preserved."})
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    append_jsonl(event_path, {"time": stamp, "event": "provider_fallback_applied",
-                              **launch["provider_transition"], "old_provider_commands": old_ids,
-                              "new_provider_commands": new_ids})
-    return True, "Provider mapping migrated to gpt-6-luna; saved work and request histories retained."
-
-
 def tail(path: Path, limit: int = 8000) -> str:
     try:
         with path.open("rb") as f:
@@ -293,8 +236,6 @@ def run_supervisor(args, *, worker_prefix=None, inhibitor_prefix=None, monitor_i
                   "max_process_retries": args.max_process_retries,
                   "retry_delays_seconds": list(args.retry_delays_seconds),
                   "monitor_interval_seconds": monitor_interval}
-        if getattr(args, "fallback_config", None):
-            launch["fallback_config"] = str(Path(args.fallback_config).expanduser().resolve())
         launch_path.write_text(json.dumps(launch, indent=2) + "\n", encoding="utf-8")
 
     if not Path(launch["video"]).is_file():
@@ -432,15 +373,6 @@ def run_supervisor(args, *, worker_prefix=None, inhibitor_prefix=None, monitor_i
                 report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
                 say(reason)
                 break
-            if category == "provider_handoff":
-                changed, transition_message = apply_provider_fallback(launch, job_dir, launch_path,
-                                                                     report_path, events)
-                if changed:
-                    say(transition_message)
-                    # Exactly one same-job continuation on Luna; subsequent failures block.
-                    launch["provider_fallback_applied_at"] = launch.get("provider_fallback_applied_at") or now()
-                    retry_index = 0
-                    continue
             if category != "recoverable_worker" or retry_index >= launch["max_process_retries"]:
                 final_code = code or 1
                 report.update(status="human_intervention_required", finished_at=now(), actionable_reason=reason)
@@ -506,15 +438,6 @@ def start(args):
                 "--game", str(args.game), "--mixed", str(args.mixed)]
         if args.preset:
             cmd += ["--preset", args.preset]
-        if args.fallback_config:
-            fallback = Path(args.fallback_config).expanduser().resolve()
-            if not fallback.is_file():
-                raise SystemExit(f"Fallback config unavailable: {fallback}")
-            launch_path = logs / "launch.json"
-            saved_launch = read_json(launch_path, {}) or {}
-            saved_launch["fallback_config"] = str(fallback)
-            launch_path.write_text(json.dumps(saved_launch, indent=2) + "\n", encoding="utf-8")
-            cmd += ["--fallback-config", str(fallback)]
     cfg = read_json(config, {}) or {}
     setenv = [f"--setenv=AIDUB_CONFIG={config}"]
     for spec in (cfg.get("providers") or {}).values():
@@ -550,7 +473,6 @@ def main():
     s.add_argument("--max-process-retries", type=int, default=2)
     s.add_argument("--retry-delays", default="10,30", help="increasing seconds, two values; default 10,30")
     s.add_argument("--resume", action="store_true")
-    s.add_argument("--fallback-config", help="one-way provider mapping used only after provider_handoff")
     s.set_defaults(func=start)
     r = sub.add_parser("run", help=argparse.SUPPRESS)
     r.add_argument("--name", required=True); r.add_argument("--config", required=True)
@@ -558,7 +480,6 @@ def main():
     r.add_argument("--preset"); r.add_argument("--max-process-retries", type=int, default=2)
     r.add_argument("--retry-delays", default="10,30")
     r.add_argument("--resume", action="store_true")
-    r.add_argument("--fallback-config")
     r.set_defaults(func=lambda a: run_supervisor(a))
     st = sub.add_parser("status", help="show service and operational report")
     st.add_argument("name"); st.set_defaults(func=status)

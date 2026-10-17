@@ -44,9 +44,8 @@ does not migrate existing jobs.
 Before each fresh request, `login status` must report ChatGPT. The adapter strips
 inherited API keys, API gateways and remote-session overrides, forces the built-in
 OpenAI provider and `forced_login_method=chatgpt`, and never selects an alternative
-provider. A known mismatch fails before a model attempt. The old supervisor
-fallback cannot change a `codex_chatgpt` provider. Existing legacy Cursor fallback
-configuration is retained for historical compatibility only.
+provider. A known mismatch fails before a model attempt. The overnight
+supervisor has no provider fallback.
 
 Execution uses a fresh temporary working directory, read-only sandbox, ignored
 user configuration/rules, no project instructions, disabled shell, web search,

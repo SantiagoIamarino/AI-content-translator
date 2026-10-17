@@ -2,9 +2,11 @@
 
 Turn Spanish microphone commentary from an OBS recording into English Qwen voice-clone speech, mixed with the continuous original game bed. The picture is stream-copied. `auto` uses configured translation/repair providers; the manual JSON handoffs remain available.
 
-This development branch has regression tests, controlled media fixtures and a configured 81-second model run with interruption/resume. That run exported **partial** because six source-energy spans lack transcript text, despite all 26 kept cues being placed. No representative 1–2 hour model run has passed. Technical validation is separate from human listening approval.
+No representative 1–2 hour run has passed yet: the 82-minute October 16 job exported **partial** (706/821 cues). Current diagnosis and proposed next steps: [docs/frontier-review-report-20261017.md](docs/frontier-review-report-20261017.md) and [docs/frontier-review-plan-20261017.md](docs/frontier-review-plan-20261017.md). Technical validation is separate from human listening approval.
 
 ## What runs
+
+The table below is the base pipeline. The full current flow with presets, provider handoffs, retry budgets and feedback loops is in [the pipeline map](docs/frontier-review-report-20261017.md#9-funcionamiento-actual-del-pipeline-estado-en-8eb4e4c).
 
 | Stage | Implementation and outputs |
 | --- | --- |
@@ -30,16 +32,15 @@ bin/aidub auto /absolute/path/recording.mp4 --name recording_en \
   --mic-ordinal 2 --game-ordinal 1 --mixed-ordinal 0 --preset quality
 ```
 
-It adds a second ASR hearing for doubtful speech and voiced gaps, whole-transcript context with a glossary, utterance-aware translation with soft syllable budgets, a separate bilingual review with an audit trail, best-of-N voice takes with sequence-aware text checks, one consistent presentation path for every take (including tempo-adjusted ones), and a risk-ranked listening report. Qwen generation, ICL, reference B, trim and max tempo 1.10 are unchanged. Existing jobs keep their snapshots. See [docs/quality.md](docs/quality.md); short-sample evidence is in [runs/quality/REPORT.md](runs/quality/REPORT.md).
+It adds a second ASR hearing for doubtful speech and voiced gaps, whole-transcript context with a glossary, utterance-aware translation with soft syllable budgets, a separate bilingual review with an audit trail, best-of-N voice takes with sequence-aware text checks, one consistent presentation path for every take (including tempo-adjusted ones), and a risk-ranked listening report. Qwen generation, ICL, reference B, trim and max tempo 1.10 are unchanged. Existing jobs keep their snapshots. See [docs/quality.md](docs/quality.md).
 
-## Continuity investigation
+## Continuity and performance presets
 
-The opt-in `--preset continuity` adds source-duration take ranking and protected generated endings to the quality pipeline. It also fixes two demonstrated cue omissions. See [evidence, previews, limits and reproduction](docs/continuity.md). Existing reference pairs and Qwen generation settings are preserved.
+The opt-in `--preset continuity` adds source-duration take ranking and protected generated endings to the quality pipeline. Existing reference pairs and Qwen generation settings are preserved.
 
 The opt-in `--preset performance` adds evidenced timed vocal events, source-supported
 pause evaluation, complete generated-tail inspection and explicit partial status
-for unresolved source meaning. See [conversational performance](docs/performance.md)
-and [implementation/recovery checkpoints](docs/performance-progress.md).
+for unresolved source meaning. See [conversational performance](docs/performance.md).
 
 ## Fresh clone setup
 
@@ -75,14 +76,14 @@ Reference B's WAV is not distributed. Configure `reference.wav` and `reference.t
 
 ### Providers
 
-Both providers must be configured for `auto`. Command providers take an argv list with `{request}`, `{response}` and `{role}` placeholders; the default working directory is the checkout, or set `cwd` explicitly. They write a JSON response file or print a JSON object. OpenAI-compatible providers use an explicit URL/model and a credential environment variable; credentials must remain outside tracked configuration.
+Both providers must be configured for `auto`. The primary configuration uses `codex_chatgpt` (`gpt-6-luna`, reasoning `medium`, ChatGPT authentication) for all five roles; see [docs/luna-provider.md](docs/luna-provider.md). Command providers take an argv list with `{request}`, `{response}` and `{role}` placeholders; the default working directory is the checkout, or set `cwd` explicitly. They write a JSON response file or print a JSON object. OpenAI-compatible providers use an explicit URL/model and a credential environment variable; credentials must remain outside tracked configuration.
 
 ```json
 {
   "providers": {
     "translation": {
       "kind": "command",
-      "command": ["python3", "scripts/provider_cursor_agent.py", "--agent", "/path/to/cursor-agent", "--request", "{request}", "--response", "{response}", "--role", "{role}"],
+      "command": ["/absolute/path/to/provider", "--request", "{request}", "--response", "{response}", "--role", "{role}"],
       "timeout_sec": 900,
       "max_attempts": 2
     },
@@ -98,7 +99,7 @@ Both providers must be configured for `auto`. Command providers take an argv lis
 }
 ```
 
-Cursor is an optional adapter. It uses the configured host binary/account, not an embedded credential or a replacement provider. Requests include validation feedback on retries. There is no provider fallback.
+Requests include validation feedback on retries. There is no provider fallback.
 
 ## Recordings and commands
 
@@ -174,7 +175,7 @@ Full-recording audio work is bounded by `processing.block_frames` (default 65536
 | Timing / process peak RAM | `report/stage_metrics.jsonl` |
 | Decode/bitstream and technical gates | `report/validation.json`, `report/validation.md`, `report/*_decode.log` |
 
-`timeouts` configures worker startup, candidate/chunk ASR, tempo, probe and media budgets. Provider budgets live in each provider spec. Qwen cache metadata records its process's inference wall time and peak GPU allocation; it does not measure another worker's VRAM. See [host verification](docs/host-verification.md) and [hardening verification](docs/hardening-verification.md) for measured facts and remaining checks.
+`timeouts` configures worker startup, candidate/chunk ASR, tempo, probe and media budgets. Provider budgets live in each provider spec. Qwen cache metadata records its process's inference wall time and peak GPU allocation; it does not measure another worker's VRAM.
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. /path/to/qwen-env/bin/python -m unittest discover -s tests -v

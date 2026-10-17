@@ -812,19 +812,6 @@ class AdditionalRegressionTests(unittest.TestCase):
         self.assertEqual(described['video']['duration'], 2.0)
         self.assertEqual(described['audios'][0]['start_time'], 0.0)
 
-    def test_measurement_wrapper_preserves_exit_and_reports_resource_scope(self):
-        with tempfile.TemporaryDirectory() as td:
-            output = Path(td) / 'resources.json'
-            script = Path(__file__).resolve().parents[1] / 'scripts/run-measured.py'
-            proc = subprocess.run([sys.executable, str(script), str(output), sys.executable,
-                                   '-c', 'raise SystemExit(3)'], timeout=10)
-            self.assertEqual(proc.returncode, 3)
-            report = read_json(output)
-            self.assertEqual(report['exit_code'], 3)
-            self.assertGreater(report['wall_seconds'], 0)
-            self.assertGreater(report['exited_child_peak_ram_bytes'], 0)
-            self.assertIn('not aggregate', report['memory_scope'])
-
     def test_worker_request_timeout_reaps_the_worker_promptly(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);script=root/'hang.py'

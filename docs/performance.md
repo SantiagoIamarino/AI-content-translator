@@ -1,14 +1,12 @@
 # Conversational performance
 
-This work follows the audit of `f82d286` and the user's observation of a sustained
-thinking sound near 00:10. The approved relaxed reference, its transcript, Qwen
+The approved relaxed reference, its transcript, Qwen
 generation settings, English ICL, trim measurement (RMS 0.005 / 10 ms / pad 0),
 maximum tempo 1.10, continuous game bed and copied video remain fixed.
 
 Use `--preset performance` for an explicitly configured new job. Existing jobs
 retain their configuration snapshots; do not point a new experiment at an old
-job name in the same jobs directory. Implementation checkpoints and exact recovery
-steps are in [performance-progress.md](performance-progress.md).
+job name in the same jobs directory.
 
 ## Demonstrated problems addressed
 
@@ -175,43 +173,3 @@ Generation keys remain unchanged for identical text, seed and reference settings
 Contextual pause decisions are separate from raw take verification. Processing and
 selection identities include their implementation and settings. Validation-only
 changes reuse completed analysis, provider responses and raw takes.
-
-## Evaluation tools
-
-`scripts/continuity-evidence.py --preset performance` renders a cached-take
-comparison without providers, synthesis or new ASR. It rechecks saved ASR, records
-same-take processing separately from reselection, and never accepts a job.
-
-`scripts/performance-evaluate.py prepare` creates a bounded isolated passage from
-an existing job's extracted tracks and available copied picture. Supply the
-approved reference configuration explicitly. A missing original recording remains
-a validation limitation. Fixtures preserve copied video packets and game samples;
-stream-copy seeks can include keyframe preroll, so WAV boundaries are authoritative.
-
-Run each prepared source with this checkout's `bin/aidub auto`, using the saved
-local configuration, source and name from `passage.json`. `run-set` serializes those
-commands, retains per-job logs and checkpoints `queue/state.json` after each job.
-It holds a separate queue lock and passes normal work through the existing CLI.
-`render` creates original Spanish / prior English / new English video and voice
-comparisons, plus cue and event accounting. These are experimental listening
-artifacts, not perceptual approval.
-
-`excerpts --output PASSAGE --start A --end B` creates short three-way comparisons
-using absolute original recording times. Their voice/mix WAVs have exact requested
-sample boundaries. The videos preserve MP4 edit-list preroll and compare their
-first displayed frame with the requested source frame.
-
-The initial Matroska passage fixtures normalized copied keyframe preroll: for the
-600-second passage, the first packet was from 598.55 seconds but displayed at
-zero alongside samples from 600 seconds. This was an evaluation-tool error, not a
-change to production extraction. Existing fixtures/jobs are preserved for audit;
-their pipeline exports do not establish absolute picture alignment. The corrected
-comparison renderer copies directly from the full available baseline picture,
-preserves the MP4 seek origin, and checks the first displayed frame after mux.
-New fixture preparation instead aligns every audio crop to the actual copied
-keyframe, records requested and actual intervals, and checks its displayed origin
-before ASR or providers. It refuses a mismatch.
-
-Completed results, exact cue/event accounting, listening paths, cached/fresh
-comparisons and remaining limitations are in [performance-results.md](performance-results.md).
-No full-length soak run or general automatic filler-recovery guarantee is claimed.

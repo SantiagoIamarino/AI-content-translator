@@ -199,16 +199,5 @@ print(json.dumps({'type':'thread.started','thread_id':'fake-session'}))
         self.assertFalse(schema['additionalProperties'])
         self.assertEqual(schema['properties']['job_id']['enum'],['fixture'])
 
-    def test_subscription_provider_cannot_enter_legacy_supervisor_fallback(self):
-        from scripts.overnight import apply_provider_fallback
-        job=self.root/'job';job.mkdir()
-        original={'providers':{'translation':self.spec}}
-        write_json(job/'config.json',original)
-        fallback=self.root/'fallback.json';write_json(fallback,{'providers':{}})
-        changed,reason=apply_provider_fallback({'fallback_config':str(fallback)},job,
-                                             self.root/'launch.json',self.root/'report.json',self.root/'events.jsonl')
-        self.assertFalse(changed);self.assertIn('prohibit provider fallback',reason)
-        self.assertEqual(read_json(job/'config.json'),original)
-
 
 if __name__=='__main__':unittest.main(verbosity=2)

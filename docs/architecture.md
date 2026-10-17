@@ -1,6 +1,8 @@
 # Pipeline and persistence
 
-Jobs contain atomic config/manifest snapshots and derived files. States are pending, running, awaiting_translation, awaiting_repair, awaiting_repair_review, failed, partial, complete. Manual and auto runners share the same stages; auto alone completes provider handoffs while holding the job operation lock.
+Jobs contain atomic config/manifest snapshots and derived files. States are pending, running, awaiting_translation, awaiting_repair, awaiting_repair_review, awaiting_source_review, failed, partial, complete. Manual and auto runners share the same stages; auto alone completes provider handoffs while holding the job operation lock.
+
+An end-to-end map of the current stages, handoffs, retry budgets, feedback loops, eligibility order and cache identities (as of `8eb4e4c`) is in [frontier-review-report-20261017.md §9](frontier-review-report-20261017.md#9-funcionamiento-actual-del-pipeline-estado-en-8eb4e4c). README's "What runs" table predates the quality/performance presets and source resolution.
 
 For source-events jobs, a compact revision whose exact English lacks a matching
 review reaches `awaiting_repair_review` before scheduling, mixing, export or

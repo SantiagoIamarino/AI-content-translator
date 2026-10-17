@@ -42,10 +42,20 @@ Do not put API keys in the file. Example:
   }
 }
 
+ChatGPT-authenticated Codex provider (see docs/luna-provider.md):
+{
+  "kind": "codex_chatgpt",
+  "codex": "/absolute/path/to/codex",
+  "auth": "chatgpt",
+  "model": "gpt-6-luna",
+  "reasoning": "medium",
+  "timeout_sec": 900
+}
+
 command provider (argv may contain {request}, {response}, and {role}):
 {
   "kind": "command",
-  "command": ["python3", "scripts/provider_cursor_agent.py", "--request", "{request}", "--response", "{response}", "--role", "{role}"],
+  "command": ["/absolute/path/to/provider", "--request", "{request}", "--response", "{response}", "--role", "{role}"],
   "timeout_sec": 900
 }
 
@@ -111,9 +121,6 @@ def validate_provider_config(spec: dict) -> None:
             raise ProviderError("Configured provider command executable is missing. Set its argv in the local config.")
         if len(command) > 1 and str(command[1]).endswith(".py") and not (cwd / str(command[1])).is_file():
             raise ProviderError(f"Configured provider script is missing: {command[1]}")
-        if any(str(part).endswith("provider_cursor_agent.py") for part in command):
-            if "--agent" not in command or command.index("--agent") + 1 >= len(command) or not shutil.which(str(command[command.index("--agent") + 1])):
-                raise ProviderError("Cursor provider --agent executable is missing; configure the installed host binary")
     else:
         env = spec.get("api_key_env") or "AIDUB_API_KEY"
         if not os.environ.get(env):

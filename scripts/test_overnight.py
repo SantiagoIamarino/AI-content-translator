@@ -204,38 +204,6 @@ finally: marker.unlink(missing_ok=True)
         self.assertEqual(self.invoke("partial"), 3)
         self.assertEqual((self.base / "counter").read_text(), "1")
 
-    def test_fallback_migrates_only_provider_mapping_once(self):
-        import copy
-        job = self.job_dir
-        job.mkdir(parents=True)
-        old = {"preset": "performance", "quality": {"max_retries": 2},
-               "providers": {"translation": {"kind": "command", "command": ["cursor-agent"]},
-                             "repair": {"kind": "same_as", "role": "translation"}}}
-        (job / "config.json").write_text(json.dumps(old))
-        adapter = ROOT / "scripts/provider_codex.py"
-        python = sys.executable
-        luna = {"kind": "command", "command": [python, str(adapter), "--request", "{request}",
-                 "--response", "{response}", "--role", "{role}"], "timeout_sec": 900,
-                "max_attempts": 2}
-        fallback = self.base / "fallback.json"
-        fallback.write_text(json.dumps({"providers": {"translation": luna, "repair": luna,
-            "context": {"kind": "same_as", "role": "translation"},
-            "review": {"kind": "same_as", "role": "repair"},
-            "back_translation": {"kind": "same_as", "role": "repair"}}}))
-        launch = {"fallback_config": str(fallback)}
-        self.logs.mkdir(parents=True, exist_ok=True)
-        launch_path = self.logs / "launch.json"
-        report_path = self.logs / "operational-report.json"
-        events = self.logs / "events.jsonl"
-        changed, _ = overnight.apply_provider_fallback(launch, job, launch_path, report_path, events)
-        self.assertTrue(changed)
-        migrated = json.loads((job / "config.json").read_text())
-        self.assertEqual(migrated["preset"], old["preset"])
-        self.assertEqual(migrated["quality"], old["quality"])
-        self.assertEqual(migrated["providers"], json.loads(fallback.read_text())["providers"])
-        self.assertTrue(launch["provider_fallback_applied_at"])
-        self.assertFalse(overnight.apply_provider_fallback(launch, job, launch_path, report_path, events)[0])
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

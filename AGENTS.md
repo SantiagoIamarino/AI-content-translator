@@ -12,4 +12,4 @@
 
 Use `bin/aidub auto VIDEO --name NAME --mic-ordinal N --game-ordinal N --mixed-ordinal N` for configured unattended work; add `--preset quality` for new jobs that should use the quality pipeline (docs/quality.md). Repeat to resume. Manual init/run/accept-translation/accept-repair/resume remain available. Identify track roles by listening per recording; ordinals count audio streams, not all container indices.
 
-Read README, `docs/configuration.md`, `docs/architecture.md`, and `docs/host-verification.md` for setup, migration, bounded retries and validation. Do not delete jobs/caches to recover. Legacy WAVs can be verified under new checker identities. State/errors and current output paths are in the manifest/report.
+Read README, `docs/configuration.md` and `docs/architecture.md` for setup, migration, bounded retries and validation. The current diagnosis, pipeline map (§9) and proposed plan are in `docs/frontier-review-report-20261017.md` and `docs/frontier-review-plan-20261017.md`. Do not delete jobs/caches to recover. Legacy WAVs can be verified under new checker identities. State/errors and current output paths are in the manifest/report.

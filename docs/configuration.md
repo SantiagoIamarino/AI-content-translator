@@ -65,8 +65,7 @@ To alter a stopped existing job, edit its `jobs/NAME/config.json`. Verification-
 The optional `continuity` preset extends `quality` with `voice_selection.source_pacing`
 (`enabled`, `weight=4.0`) and `voice_edge.presentation_version=3`. Its `protection`
 settings are `floor_rms=0.0015`, `max_lead_ms=80`, `max_tail_ms=400`, `settle_ms=20`.
-See [the measured continuity investigation](continuity.md) before changing existing
-job snapshots. Presentation v3 rejects unpreservable endings and requires the
+Do not change existing job snapshots to adopt it. Presentation v3 rejects unpreservable endings and requires the
 `generated_endings_preserved` gate.
 
 The `performance` preset adds `source_events.enabled` (optional local
