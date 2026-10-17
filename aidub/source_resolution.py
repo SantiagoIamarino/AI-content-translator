@@ -514,6 +514,16 @@ def resolve_sources(job, cfg, providers, *, before_invoke=None, hearing=None):
                 except ProviderError:
                     response, _ = saved_source_response(root, req, spec, cfg)
                     if response is None: raise
+                if response.get("_aidub_withheld"):
+                    # Generic review batching has already spent the separate,
+                    # persisted cue-recovery budget. Source resolution records
+                    # each abstention in its episode ledger and keeps valid
+                    # neighboring evidence available for acceptance.
+                    response["source_invalid_rows"] = {
+                        str(int(item["id"])): [{"errors": item.get("validation_errors") or [],
+                                               "recovery_error": item.get("recovery_error"),
+                                               "reason": item.get("reason")}]
+                        for item in response["_aidub_withheld"]}
             invalid_rows = response.get("source_invalid_rows") or {}
             if invalid_rows:
                 expected = {int(r["id"]) for r in req["segments"]}

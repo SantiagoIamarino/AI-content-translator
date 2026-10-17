@@ -257,6 +257,19 @@ class ResolutionTests(unittest.TestCase):
         # An invalid row is an explicit abstention, never an approved substitute.
         self.assertEqual(read_json(sp),response)
 
+    def test_cue_scoped_review_withholding_is_recorded_and_does_not_abort_source_resolution(self):
+        from aidub.source_resolution import load_state
+        def invoke(spec, req, *args, **kwargs):
+            return {"schema": "aidub.review_response.v1", "job_id": req["job_id"],
+                    "translator": {"kind": "command"}, "segments": [],
+                    "_aidub_withheld": [{"id": req["segments"][0]["id"],
+                                         "reason": "scoped_content_recovery_exhausted",
+                                         "validation_errors": ["id 1 invalid source assessment"]}]}
+        self.run_resolution(invoke)
+        episode = next(iter(load_state(self.job)["episodes"].values()))
+        self.assertTrue(episode["finished"])
+        self.assertEqual(episode["failure"]["kind"], "source_review_contract_exhausted")
+
     def test_compact_confirmation_rebinds_only_unchanged_source(self):
         from aidub.fidelity import reconfirm_resolution
         self.run_resolution()
