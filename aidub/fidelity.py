@@ -23,6 +23,23 @@ def polarity_tokens(text):
     return set(tokens(text)) & NEGATORS
 
 
+def reading_tokens(text):
+    """Keep accent-sensitive grammar; ignore only explicit discourse punctuation."""
+    text = re.sub(r"^\s*nada\s*[,;.…]+", "", text, flags=re.I)
+    text = re.sub(r"[,;]?\s*¿\s*no\s*\?\s*$", "", text, flags=re.I)
+    return re.findall(r"\w+", unicodedata.normalize("NFC", text.lower()))
+
+
+def readings_differ(seg):
+    parts = seg.get("source_cues") or [seg]
+    for alternative in seg.get("asr_alternatives", []):
+        other = reading_tokens(alternative["text"])
+        source = max(parts, key=lambda p: SequenceMatcher(None, reading_tokens(p["spanish"]), other).ratio())
+        if reading_tokens(source["spanish"]) != other:
+            return True
+    return False
+
+
 def material_conflict(seg):
     for alternative in seg.get("asr_alternatives", []):
         other = tokens(alternative["text"])
@@ -103,6 +120,8 @@ def eligibility(seg, cfg, mic_sha=None):
         source, reason = "material", "stale_or_unconfirmed_source_resolution"
     elif seg.get("material_source_conflict") and not resolution_ok:
         source, reason = "material", "material_source_asr_conflict"
+    elif (cfg.get("source_resolution") or {}).get("enabled") and readings_differ(seg) and not resolution_ok:
+        source, reason = "material", "source_readings_pending_resolution"
     if enabled:
         if pending_repair_review(seg):
             translation, reason = "revision_pending", "unreviewed_compact_repair"

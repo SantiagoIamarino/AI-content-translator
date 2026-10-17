@@ -91,7 +91,10 @@ revision remains unconfirmed. Back-translation cannot supply acoustic proof.
 
 Minor grammatical/equivalent readings can be voiced when meaning is supported and
 exact English is accepted. Material ambiguities remain visible when evidence cannot
-decide. Independent supported clauses require acoustic word boundaries, a second
+decide. Divergent actor/action/number/referent or accent-sensitive grammar readings
+require contextual acoustic support even when the ordinary text review missed the
+dispute. Explicit punctuated discourse markers alone do not create that divergence.
+Independent supported clauses require acoustic word boundaries, a second
 review of exact child English/parts, stable lineage, and explicit unresolved
 remainders. Event-bearing cues require scoped boundary reconciliation before a
 partial split. Unknown periodic events and short noise hallucinations are not

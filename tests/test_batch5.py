@@ -376,6 +376,25 @@ class PolicyTests(unittest.TestCase):
         row=dict(verdict='ok',issues=[],disputed=False,source_assessment=dict(confidence='supported',reading='No recuerdo juguetes',reason='Context agrees',parts=[],evidence_id='e'))
         self.assertTrue(any('contextual' in e for e in assessment_errors(row,src,'I cannot remember toys.')))
 
+
+    def test_non_polarity_material_alternatives_need_contextual_support(self):
+        from aidub.fidelity import readings_differ
+        for primary,alternative in [('Tengo dos balas','Tengo tres balas'),('Yo abro la puerta','Ellos abren la puerta'),('Quiero venderlo','Quiero comprarlo')]:
+            s=cue();s.update(spanish=primary,asr_alternatives=[{'text':alternative}],translation_review={'status':'accepted_draft','checked_text':s['english']})
+            self.assertTrue(readings_differ(s))
+            self.assertEqual(eligibility(s,{'source_events':{'enabled':True},'source_resolution':{'enabled':True}},'mic')['synthesis'],'withheld')
+            evidence={'identity':'e','complete':True,'primary_text':primary,'primary_words':[dict(word=primary,start=1.,end=2.,probability=.95)],
+                      'contextual':{'provenance':{'kind':'saved_second_pass'}},'inside':{'text':alternative,'words':[dict(word=alternative,start=1.,end=2.,probability=.95)]}}
+            src=dict(s,source_span=[1.,3.],source_evidence=evidence)
+            row=dict(verdict='ok',issues=[],disputed=False,source_assessment=dict(confidence='supported',reading=primary,evidence_id='e',reason='Context agrees',parts=[]))
+            self.assertTrue(any('contextual acoustic' in e for e in assessment_errors(row,src,s['english'])))
+            row['source_assessment']['reading']=alternative
+            self.assertEqual(assessment_errors(row,src,s['english']),[])
+
+    def test_accent_sensitive_grammar_is_not_erased_by_matching(self):
+        from aidub.fidelity import readings_differ
+        self.assertTrue(readings_differ({'spanish':'Morí','asr_alternatives':[{'text':'Mori'}]}))
+
     def test_resolution_contract_is_scoped_to_review_not_translation(self):
         import importlib.util
         path=Path(__file__).resolve().parents[1]/'scripts/provider_codex.py'

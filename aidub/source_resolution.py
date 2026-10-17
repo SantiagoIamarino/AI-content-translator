@@ -17,7 +17,7 @@ import soundfile as sf
 from .batches import invoke_batches
 from .config import second_pass_model_file
 from .fidelity import (RESOLUTION_POLICY, boundary_diagnostics, eligibility,
-                       material_conflict, resolution_binding, tokens, valid_resolution)
+                       material_conflict, resolution_binding, tokens, valid_resolution, readings_differ, reading_tokens)
 from .providers import ProviderError, require_provider, resolve_role
 from .review import review_request, validate_review_response
 from .second_pass import _Mic, _words, _inside, _summary, settings as hearing_settings
@@ -77,7 +77,7 @@ def load_state(job):
 def target_segments(job):
     """Include ambiguous cues, unconfirmed English, unknown gaps and vocal events."""
     targets = [s for s in job.data.get("timeline", []) if not s.get("source_remainder") and
-               (s.get("material_source_conflict") or
+               (s.get("material_source_conflict") or readings_differ(s) or
                 (s.get("translation_review") or {}).get("status") in {"disputed", "revised_unconfirmed"})]
     regions = []
     corrections = _read(job.dir / "transcribe/corrections.json", {})
@@ -160,7 +160,7 @@ def acoustic_evidence(job, seg, cfg, entry, save_state, hearing):
     # Unknown-region/real-conflict resolution requires context. Exact English
     # confirmation alone can use the existing primary waveform/word evidence.
     existing = _existing_hearing(job, seg, cfg) if not seg.get("region") else None
-    needs_context = bool(seg.get("region") or seg.get("material_source_conflict") or
+    needs_context = bool(seg.get("region") or seg.get("material_source_conflict") or readings_differ(seg) or
                          (seg.get("translation_review") or {}).get("status") == "disputed")
     words = seg.get("source_words") or []
     raw = existing
@@ -256,6 +256,11 @@ def assessment_errors(row, src, current):
             sum(w.get("probability", 0) for w in supported_words) / len(supported_words) < .6 or
             not any(w.get("end", -1) > span[0] and w.get("start", float("inf")) < span[1] for w in supported_words)):
         errors.append("resolved source needs lexical acoustic support, not context/text agreement alone")
+    if readings_differ(src) and confidence in {"supported", "minor"}:
+        raw = e.get("contextual") or {}
+        if (raw.get("provenance", {}).get("kind") == "primary_source_words" or
+                reading_tokens(a["reading"]) != reading_tokens(e.get("inside", {}).get("text", ""))):
+            errors.append("divergent actor/action/number/referent or grammar readings need contextual acoustic support, not context agreement")
     # True opposite polarity needs a contextual hearing that supports the chosen
     # reading. Merely re-reading the primary or global context cannot resolve it.
     if material_conflict(src) and confidence in {"supported", "minor"}:
