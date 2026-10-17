@@ -41,7 +41,8 @@ def settings(cfg: dict) -> dict:
 
 
 def review_request(job_id: str, translation_request: dict, english: dict[int, str], ids: list[int], round_no: int,
-                   max_rounds: int, history: dict[int, list], back: dict[int, str]) -> dict:
+                   max_rounds: int, history: dict[int, list], back: dict[int, str],
+                   validation_feedback: dict[int, list[str]] | None = None) -> dict:
     rows_by_id = {int(r["id"]): r for r in translation_request["segments"]}
     ordered = [int(r["id"]) for r in translation_request["segments"]]
     position = {sid: k for k, sid in enumerate(ordered)}
@@ -92,6 +93,13 @@ def review_request(job_id: str, translation_request: dict, english: dict[int, st
     }
     if translation_request.get("global_context"):
         request["global_context"] = translation_request["global_context"]
+    scoped_feedback = [error for sid in ids for error in (validation_feedback or {}).get(sid, [])]
+    if scoped_feedback:
+        request["validation_feedback"] = {
+            "errors": scoped_feedback,
+            "instruction": ("Address these earlier validator failures for the listed IDs. Either accept unchanged English "
+                           "only with an appropriate source-uncertainty status, or provide a justified actual English revision. "
+                           "A revision must be confirmed in a later round on that exact text.")}
     return request
 
 
@@ -239,11 +247,15 @@ def run_review(job_id: str, translation_request: dict, draft: dict[int, str], in
     rounds = []
     last_rows = {}
     withheld: dict[int, dict] = {}
+    validation_feedback: dict[int, list[str]] = {}
     for round_no in range(1, max_rounds + 1):
         if not ids:
             break
-        request = review_request(job_id, translation_request, english, ids, round_no, max_rounds, history, back)
+        request = review_request(job_id, translation_request, english, ids, round_no, max_rounds, history, back,
+                                 validation_feedback)
         response = invoke("review", request, {sid: english[sid] for sid in ids})
+        for sid, errors in (response.get("_aidub_historical_validation_feedback") or {}).items():
+            validation_feedback.setdefault(int(sid), []).extend(errors)
         revised, disputed = [], []
         newly_withheld = {int(item["id"]): item for item in response.get("_aidub_withheld", [])}
         for sid, item in newly_withheld.items():

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .providers import ProviderError, invoke_checked, response_errors
@@ -69,6 +70,11 @@ def invoke_batches(spec: dict, request: dict, root: Path, role: str, current: di
               "batch_providers": [response["translator"] for response in responses],
               "_aidub_request_identity": identity}
     result["_aidub_withheld"] = [item for response in responses for item in response.get("_aidub_withheld", [])]
+    feedback = {}
+    for response in responses:
+        for sid, errors in (response.get("_aidub_historical_validation_feedback") or {}).items():
+            feedback.setdefault(str(sid), []).extend(errors)
+    result["_aidub_historical_validation_feedback"] = feedback
     write_json(root / f"{role}_provider_response.json", result)
     return result
 
@@ -196,8 +202,12 @@ def _invoke_isolated_batch(spec, request_path, response_path, role, current, dir
 
         pending = [int(row["id"]) for row in request["segments"] if int(row["id"]) not in valid]
         feedback = []
+        historical_feedback = {}
         for attempt in state.get("attempts") or []:
             for error in attempt.get("errors") or []:
+                match = re.search(r"id (\d+) ", str(error))
+                if match:
+                    historical_feedback.setdefault(match.group(1), []).append(str(error))
                 if any(f"id {sid} " in str(error) for sid in pending):
                     feedback.append(str(error))
         recovery_cfg = cfg.get("content_recovery") or {}
@@ -244,6 +254,7 @@ def _invoke_isolated_batch(spec, request_path, response_path, role, current, dir
         result = {"schema": response["schema"], "job_id": response["job_id"],
                   "translator": response.get("translator"),
                   "segments": [valid[sid] for sid in sorted(valid)],
+                  "_aidub_historical_validation_feedback": historical_feedback,
                   "_aidub_withheld": [{"id": sid, "reason": "scoped_content_recovery_exhausted",
                                        "validation_errors": errors_by_id.get(sid, []),
                                        "recovery_error": recovery_error}

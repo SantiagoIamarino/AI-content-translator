@@ -115,6 +115,30 @@ class ContentRecoveryTests(unittest.TestCase):
         seg = {"english": "English", "translation_review": {"status": "withheld_review_failure"}}
         self.assertEqual(eligibility(seg, {"source_events": {"enabled": True}})["synthesis"], "withheld")
 
+    def test_prior_unchanged_revise_failures_are_explicit_in_next_review_request(self):
+        req = {"job_id": "job", "segments": [{"id": 523, "spanish": "No me gustó", "english": "It looked bad."},
+                                                   {"id": 556, "spanish": "Parece una rampa", "english": "It looks like a ramp."}]}
+        next_request = {}
+
+        def invoke(role, request, current):
+            nonlocal next_request
+            if request["round"] == 1:
+                return {"segments": [decision(523, "revise", "I didn't like how it looked."),
+                                     {"id": 556, "verdict": "ok", "issues": ["uncertain_source"],
+                                      "reason": "The source wording is uncertain.", "disputed": True}],
+                        "_aidub_historical_validation_feedback": {
+                            "523": ["id 523 revise text is unchanged"],
+                            "556": ["id 556 revise text is unchanged"]}}
+            next_request = request
+            return {"segments": [decision(523), decision(556)]}
+
+        cfg = {"translation_quality": {"enabled": True, "review": {"enabled": True, "max_rounds": 2,
+                                                                           "back_translation": "off"}}}
+        run_review("job", req, {523: "It looked bad.", 556: "It looks like a ramp."}, invoke, cfg)
+        errors = next_request["validation_feedback"]["errors"]
+        self.assertTrue(any("id 523" in e for e in errors))
+        self.assertTrue(any("id 556" in e for e in errors))
+
     def test_infrastructure_failure_is_not_reclassified_as_content_omission(self):
         req = review_request([1, 2])
         with patch("aidub.providers.invoke_provider", side_effect=ProviderError("quota exhausted", permanent=True)):
