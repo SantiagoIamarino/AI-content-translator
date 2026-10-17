@@ -1297,7 +1297,7 @@ were weakened to obtain passing results. `git diff --check` passed.
 
 `jobs/.batch5-eval/cases-predefined.local.json` fixed **12 cases before execution**.
 Only new evaluation jobs were written. The long-source evaluation retained its
-complete frozen timeline/context while filtering target selection to the predefined
+complete frozen timeline while filtering target selection to the predefined
 IDs; no long-job scheduling or synthesis ran. Both evaluations called the production
 resolver under owned locks. The later preview used normal `bin/aidub auto` with
 persisted decisions; no individual cue was manually accepted or rescued.
@@ -1349,6 +1349,12 @@ Live issues and bounded handling are retained in the receipts:
   narrower/misordered subset context in provenance; no extra live round was added
   after budgets finished. The final corrected neighbor prompt therefore still
   needs fresh qualification before claims about broader source-resolution quality.
+  The copied global-context artifacts also kept their original job identity during
+  source-only evaluation, so those new-job requests did not consume that global
+  context/glossary. This evaluation-preparation limitation is separate from normal
+  auto, which builds context for its own job identity. The preview's explicit
+  compatible context rebind below restores name/assessment cache inputs, without
+  retroactively claiming that the earlier provider calls consumed that context.
 
 Acoustic source evidence: **6 saved second hearings + 2 primary-word/waveform
 records reused**, and **3 genuinely new contextual windows** for the two tiny gaps
