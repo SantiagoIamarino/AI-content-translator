@@ -74,3 +74,18 @@ unknown remainder rows unvoiced and technically partial. Frozen global context
 can still be read against reconstructed original parent spans. A confirmed compact
 repair may rebind exact English only when its source evidence is still current;
 it cannot confirm a changed microphone/span/readings or grant another source budget.
+
+### Cue-scoped translation and review recovery
+
+Translation and bilingual review batches isolate decisions only after the saved
+response has a valid envelope and an exact, unique set of requested IDs. Each row
+is then checked against its original source and exact current English. Valid rows
+survive a sibling's content error; malformed envelopes, missing/duplicate/foreign
+IDs, uncertain provider outcomes, authentication/quota failures and other
+infrastructure errors remain batch-level stops. Invalid cue subsets receive one
+separate persisted recovery identity by default (`content_recovery.max_attempts`,
+bounded to 1..2), with explicit validator feedback and the original row evidence.
+Exhausted cues are marked withheld and remain silent in the voice track; independent
+batches continue. A revised review line still needs a later `ok` verdict on that
+exact text. `report/omissions.json` and `.md` bind each omitted cue and its reason
+to the final export hash and validation fingerprint. Such an export is partial.

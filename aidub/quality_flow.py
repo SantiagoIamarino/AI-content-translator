@@ -101,14 +101,25 @@ def translate_with_review(job: Job, cfg: dict, providers: dict, export_translati
 
     draft = invoke("translation", request, None)
     english = {int(row["id"]): row["english"].strip() for row in draft["segments"]}
+    translation_withheld = {int(row["id"]): row for row in draft.get("_aidub_withheld", [])}
     audit = None
-    if review_settings(cfg):
-        english, audit = run_review(job.data["job_id"], request, english, invoke, cfg)
+    review_request_data = dict(request, segments=[row for row in request["segments"] if int(row["id"]) in english])
+    if review_settings(cfg) and english:
+        english, audit = run_review(job.data["job_id"], review_request_data, english, invoke, cfg)
+    if audit is None:
+        audit = {"schema": "aidub.translation_audit.v1", "lines": {}}
+    for sid, item in translation_withheld.items():
+        source = next(row for row in request["segments"] if int(row["id"]) == sid)
+        audit["lines"][str(sid)] = {"spanish": source["spanish"], "draft": None, "final": None,
+                                    "status": "withheld_translation_failure", "rounds": [],
+                                    "withheld": item}
     final = {
         "schema": draft["schema"],
         "job_id": request["job_id"],
         "translator": draft["translator"],
-        "segments": [{"id": int(row["id"]), "english": english[int(row["id"])]} for row in request["segments"]],
+        "segments": [{"id": int(row["id"]), "english": english[int(row["id"])]}
+                     for row in request["segments"] if int(row["id"]) in english],
+        "_aidub_withheld": list(translation_withheld.values()),
     }
     if audit is not None:
         audit["request_identity"] = fingerprint(request)

@@ -18,6 +18,7 @@ New `init` checks executable permissions, reference approval, local source/verif
 | `transcription` | `chunk_sec=600`, `overlap_sec=2`; words belong to one core window by midpoint |
 | `processing` | `block_frames=65536`, valid 128..1048576; `storage_reserve_bytes` optionally adjusts the disk estimate reserve |
 | `batching` | `max_cues=40`, `max_chars=24000`, including context |
+| `content_recovery` | `max_attempts=1` (bounded to 1..2) for persisted cue-scoped translation/review recovery after a fully formed batch contains isolated invalid rows |
 | `providers` | Explicit command or OpenAI-compatible translation/repair; `timeout_sec=900`, `max_attempts=2` (1..5), `max_response_bytes=1048576` |
 | `timeouts` | Worker startup 180s; candidate ASR 180s; source ASR window 1800s; tempo 180s; probe 1200s; media 10800s |
 | `quality` | Candidate `asr_model`/`asr_model_path`, `asr_language`, `asr_device`; `speaker_proxy_enabled`; bounded retries and checker tag |

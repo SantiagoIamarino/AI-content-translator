@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .providers import ProviderError, invoke_checked
+from .providers import ProviderError, invoke_checked, response_errors
 from .util import fingerprint, write_json
 
 
@@ -56,7 +56,11 @@ def invoke_batches(spec: dict, request: dict, root: Path, role: str, current: di
         subset = {sid: text for sid, text in (current or {}).items() if sid in needed}
         print(f"provider {role}: batch {i + 1}/{len(batches)} cues={len(needed)}")
         bounded_spec = dict(spec, max_request_chars=int(limits.get("max_chars", 24000)))
-        responses.append(invoke_checked(bounded_spec, request_path, directory / "response.json", role, subset, before_invoke=before_invoke))
+        if role in {"translation", "review"}:
+            responses.append(_invoke_isolated_batch(bounded_spec, request_path, directory / "response.json", role,
+                                                    subset, directory, cfg, before_invoke))
+        else:
+            responses.append(invoke_checked(bounded_spec, request_path, directory / "response.json", role, subset, before_invoke=before_invoke))
     if not responses:
         raise ProviderError(f"No cues in {role} request")
     result = {"schema": responses[0]["schema"], "job_id": request["job_id"],
@@ -64,5 +68,185 @@ def invoke_batches(spec: dict, request: dict, root: Path, role: str, current: di
               "segments": [row for response in responses for row in response["segments"]],
               "batch_providers": [response["translator"] for response in responses],
               "_aidub_request_identity": identity}
+    result["_aidub_withheld"] = [item for response in responses for item in response.get("_aidub_withheld", [])]
     write_json(root / f"{role}_provider_response.json", result)
     return result
+
+
+def _envelope_error(request: dict, response: dict, role: str) -> str | None:
+    """Only row-level contract failures may be isolated; envelope/ID failures are atomic."""
+    if not isinstance(response, dict):
+        return "response is not an object"
+    rows = response.get("segments")
+    if not isinstance(rows, list):
+        return "segments is not a list"
+    expected = [int(row["id"]) for row in request["segments"]]
+    ids = []
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("id"), int):
+            return "response contains a malformed row identity"
+        ids.append(row["id"])
+    if len(ids) != len(set(ids)):
+        return "response contains duplicate IDs"
+    if set(ids) != set(expected):
+        return "response IDs do not exactly match the request"
+    expected_schema = {"translation": "aidub.translation_response.v1", "review": "aidub.review_response.v1"}[role]
+    errors = []
+    if response.get("schema") != expected_schema:
+        errors.append(f"schema must be {expected_schema}")
+    if response.get("job_id") != request.get("job_id"):
+        errors.append("job_id does not match the request")
+    if not isinstance(response.get("translator"), dict):
+        errors.append("translator must be an object")
+    return "; ".join(errors) if errors else None
+
+
+def _row_valid(request: dict, row: dict, role: str, current: dict) -> list[str]:
+    one = dict(request, segments=[next(s for s in request["segments"] if int(s["id"]) == int(row["id"]))])
+    candidate = {**{k: v for k, v in request.items() if k in {"schema", "job_id"}},
+                 "schema": ("aidub.translation_response.v1" if role == "translation" else "aidub.review_response.v1"),
+                 "job_id": request["job_id"], "translator": {"kind": "command"}, "segments": [row]}
+    return response_errors(one, candidate, role,
+                           {int(row["id"]): current.get(int(row["id"]))} if role == "review" else None)
+
+
+def _saved_invalid_response(directory: Path, role: str) -> tuple[dict, dict, float] | None:
+    """Find the most recent durable content-invalid attempt, never an uncertain call."""
+    found = []
+    for path in directory.glob("response_attempts/*/state.json"):
+        try:
+            state = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if state.get("role") != role or state.get("status") != "attempts_exhausted":
+            continue
+        attempts = state.get("attempts") or []
+        if not attempts or any(a.get("status") in {"outcome_uncertain", "provider_failed", "blocked"} for a in attempts):
+            continue
+        for attempt in reversed(attempts):
+            response_path = Path(attempt.get("response_path", ""))
+            if response_path.is_file():
+                try:
+                    found.append((float(attempt.get("ended_at") or attempt.get("started_at") or 0),
+                                  json.loads(response_path.read_text(encoding="utf-8")), state))
+                except (OSError, ValueError):
+                    return None
+                break
+    if not found:
+        return None
+    stamp, response, state = max(found, key=lambda item: item[0])
+    return response, state, stamp
+
+
+def _invoke_isolated_batch(spec, request_path, response_path, role, current, directory, cfg, before_invoke):
+    request = json.loads(request_path.read_text(encoding="utf-8"))
+    try:
+        # An older exhausted identity remains exhausted even if a later config
+        # migration raises the generic provider budget. Recovery gets a distinct,
+        # explicitly scoped identity and its own persisted budget below.
+        if _saved_invalid_response(directory, role) is not None:
+            raise ProviderError(f"{role} batch identity already has exhausted content attempts")
+        response = invoke_checked(spec, request_path, response_path, role, current, before_invoke=before_invoke)
+        return response
+    except ProviderError:
+        saved = _saved_invalid_response(directory, role)
+        if saved is None:
+            raise
+        response, state, response_stamp = saved
+        envelope = _envelope_error(request, response, role)
+        if envelope:
+            raise ProviderError(f"{role} response is structurally invalid; no rows were accepted: {envelope}")
+        valid, errors_by_id, valid_times = {}, {}, {}
+        valid_times.update({int(row["id"]): response_stamp for row in response["segments"]
+                            if not _row_valid(request, row, role, current or {})})
+        for row in response["segments"]:
+            sid = int(row["id"])
+            errors = _row_valid(request, row, role, current or {})
+            if errors:
+                errors_by_id[sid] = errors
+            else:
+                valid[sid] = row
+
+        # Add row-valid decisions from all persisted responses in this exhausted identity.
+        # A later invalid retry must not erase an earlier independently valid row.
+        attempt_states = list(directory.glob("response_attempts/*/state.json"))
+        for state_path in attempt_states:
+            try:
+                other = json.loads(state_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            for attempt in other.get("attempts") or []:
+                p = Path(attempt.get("response_path", ""))
+                if not p.is_file():
+                    continue
+                try:
+                    older = json.loads(p.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if _envelope_error(request, older, role):
+                    continue
+                for row in older["segments"]:
+                    sid = int(row["id"])
+                    if not _row_valid(request, row, role, current or {}):
+                        stamp = float(attempt.get("ended_at") or attempt.get("started_at") or 0)
+                        if stamp >= valid_times.get(sid, -1):
+                            valid[sid] = row
+                            valid_times[sid] = stamp
+                            errors_by_id.pop(sid, None)
+
+        pending = [int(row["id"]) for row in request["segments"] if int(row["id"]) not in valid]
+        feedback = []
+        for attempt in state.get("attempts") or []:
+            for error in attempt.get("errors") or []:
+                if any(f"id {sid} " in str(error) for sid in pending):
+                    feedback.append(str(error))
+        recovery_cfg = cfg.get("content_recovery") or {}
+        recovery_budget = int(recovery_cfg.get("max_attempts", 1))
+        if pending and not 1 <= recovery_budget <= 2:
+            raise ProviderError("content_recovery.max_attempts must be 1..2")
+        if pending:
+            by_id = {int(row["id"]): row for row in request["segments"]}
+            scoped = dict(request)
+            scoped["segments"] = [by_id[sid] for sid in pending]
+            scoped["content_recovery"] = {"parent_request_identity": fingerprint(request), "ids": pending,
+                                          "budget": recovery_budget,
+                                          "instruction": "Repair only these exact rows. Preserve every source meaning. Validation feedback is binding; do not claim approval by repeating invalid text."}
+            scoped["validation_feedback"] = {"errors": feedback or [f"id {sid} failed independent row validation" for sid in pending],
+                                              "instruction": "Correct only the listed IDs and return the complete scoped response contract."}
+            recovery_dir = directory / "content_recovery" / fingerprint(scoped)
+            write_json(recovery_dir / "request.json", scoped)
+            recovery_spec = dict(spec, max_attempts=recovery_budget)
+            try:
+                recovered = invoke_checked(recovery_spec, recovery_dir / "request.json", recovery_dir / "response.json",
+                                           role, current, before_invoke=before_invoke)
+                valid.update({int(row["id"]): row for row in recovered["segments"]})
+            except ProviderError as exc:
+                # Only content-invalid, fully answered responses are omissions. Infrastructure failures stay global.
+                recovered_saved = _saved_invalid_response(recovery_dir, role)
+                if recovered_saved is None:
+                    raise
+                bad, _, _ = recovered_saved
+                if _envelope_error(scoped, bad, role):
+                    raise
+                recovery_error = str(exc)
+                still_pending = []
+                for row in bad["segments"]:
+                    sid = int(row["id"])
+                    errors = _row_valid(scoped, row, role, current or {})
+                    if errors:
+                        still_pending.append(sid)
+                        errors_by_id[sid] = errors
+                    else:
+                        valid[sid] = row
+                pending = still_pending
+            else:
+                recovery_error = None
+        result = {"schema": response["schema"], "job_id": response["job_id"],
+                  "translator": response.get("translator"),
+                  "segments": [valid[sid] for sid in sorted(valid)],
+                  "_aidub_withheld": [{"id": sid, "reason": "scoped_content_recovery_exhausted",
+                                       "validation_errors": errors_by_id.get(sid, []),
+                                       "recovery_error": recovery_error}
+                                      for sid in pending]}
+        write_json(response_path, result)
+        return result

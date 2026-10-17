@@ -431,7 +431,9 @@ def accept_translation(job: Job, response_path: Path) -> None:
         export_translation(job, job.config())
     request = read_json(req_path)
     response = read_json(response_path)
-    errors = validate_translation_response(request, response)
+    withheld_ids = {int(item["id"]) for item in response.get("_aidub_withheld", [])}
+    accepted_request = dict(request, segments=[row for row in request["segments"] if int(row["id"]) not in withheld_ids])
+    errors = validate_translation_response(accepted_request, response)
     if errors:
         raise RuntimeError("Translation response rejected:\n- " + "\n- ".join(errors))
     by_id = {row["id"]: row["english"].strip() for row in response["segments"]}
@@ -440,7 +442,14 @@ def accept_translation(job: Job, response_path: Path) -> None:
     audit = read_json(audit_path) if audit_path.is_file() else {}
     audit_lines = audit.get("lines") or {} if audit.get("request_identity") == fingerprint(request) else {}
     for seg in job.data["timeline"]:
-        seg["english"] = by_id[int(seg["id"])]
+        sid = int(seg["id"])
+        if sid not in by_id:
+            seg["english"] = None
+            seg["translation_review"] = {"status": "withheld_translation_failure", "checked_text": None,
+                                          "reason": next((item for item in response.get("_aidub_withheld", [])
+                                                          if int(item["id"]) == sid), None)}
+            continue
+        seg["english"] = by_id[sid]
         if not seg.get("english_original"):
             seg["english_original"] = seg["english"]
         if "target_syllables" in rows[int(seg["id"])]:
@@ -449,7 +458,8 @@ def accept_translation(job: Job, response_path: Path) -> None:
         if line:
             seg["translation_review"] = {"status": line.get("status"), "draft": line.get("draft"),
                                          "checked_text": line.get("final"),
-                                         "issues": sorted({i for r in line.get("rounds") or [] for i in r.get("issues") or []})}
+                                         "issues": sorted({i for r in line.get("rounds") or [] for i in r.get("issues") or []}),
+                                         "reason": line.get("withheld")}
     dest = job.dir / "handoff" / "translation_response.json"
     response["_aidub_request_identity"] = fingerprint(request)
     write_json(dest, response)
@@ -1634,8 +1644,9 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
                                **({"source_event_ledger": sha256_file(event_file) if event_file.is_file() else None}
                                   if (cfg.get("source_events") or {}).get("enabled") else {}),
                                "validator_code": [sha256_file(Path(__file__)), sha256_file(Path(__file__).with_name("media.py")),
-                                                  sha256_file(Path(__file__).with_name("streaming.py")), sha256_file(Path(__file__).with_name("export.py"))]})
-    validation_files = ["report/validation.json", "report/validation.md"]
+                                                  sha256_file(Path(__file__).with_name("streaming.py")), sha256_file(Path(__file__).with_name("export.py")),
+                                                  sha256_file(Path(__file__).with_name("omissions.py"))]})
+    validation_files = ["report/validation.json", "report/validation.md", "report/omissions.json", "report/omissions.md"]
     if (cfg.get("source_events") or {}).get("enabled"):
         validation_files += ["report/vocal_events.json", "report/source_uncertainties.json"]
     if _fp_ok(job, "validate", validate_fp, validation_files):
@@ -1695,8 +1706,12 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
     srt = (job.dir / "output/english.srt").read_text(encoding="utf-8")
     omitted = omitted_lines(summary["segments"])
     add("srt_omits_unplaced", srt == render_srt(summary["segments"]), "subtitles exactly match placed cue IDs/text")
-    missing_en = [s["id"] for s in _timeline(job) if not (s.get("english") or "").strip()]
-    add("no_missing_translation", not missing_en, missing_en or "none")
+    missing_en = [s for s in _timeline(job) if not (s.get("english") or "").strip()]
+    explicitly_withheld = [s for s in missing_en if (s.get("translation_review") or {}).get("status") == "withheld_translation_failure"]
+    unaccounted_missing = [s["id"] for s in missing_en if s not in explicitly_withheld]
+    add("no_missing_translation", not unaccounted_missing,
+        {"explicitly_withheld": [s["id"] for s in explicitly_withheld], "unaccounted": unaccounted_missing}
+        if explicitly_withheld or unaccounted_missing else "none")
     corrections_path = job.dir / "transcribe/corrections.json"
     corrections = read_json(corrections_path) if corrections_path.is_file() else None
     gaps = (corrections or {}).get("untranscribed_energy") or []
@@ -1716,7 +1731,12 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
             required=energy_policy != "warn")
     if quality_translation_settings(cfg) and (quality_translation_settings(cfg).get("review") or {}).get("enabled", True):
         unreviewed = [s["id"] for s in _timeline(job) if not (s.get("translation_review") or {}).get("status")]
-        add("translation_reviewed", not unreviewed, unreviewed or "every line has a bilingual review record")
+        failed_content = [s["id"] for s in _timeline(job)
+                          if (s.get("translation_review") or {}).get("status") in
+                          {"withheld_review_failure", "withheld_translation_failure"}]
+        add("translation_reviewed", not unreviewed and not failed_content,
+            {"missing_review": unreviewed, "withheld_content_failures": failed_content}
+            if unreviewed or failed_content else "every line has a valid bilingual review record")
     if int(summary.get("presentation_version", 1)) >= 2:
         inconsistent = [s["id"] for s in summary["segments"] if s.get("placed")
                         and ((s.get("presentation") or {}).get("version") != int(summary.get("presentation_version", 2)) or s.get("loudness_gain") is None)]
@@ -1859,6 +1879,11 @@ def stage_validate(job: Job, cfg: dict, summary: dict, gain: dict) -> dict:
         **({"vocal_events": event_report} if event_report is not None else {}),
         **({"source_uncertainties": source_uncertainties} if event_report is not None else {}),
     }
+    from .omissions import build_omission_report, omissions_markdown
+    omission_report = build_omission_report(job.data["job_id"], status, en_path, sha256_file(en_path),
+                                            validate_fp, omitted, _timeline(job))
+    write_json(job.dir / "report/omissions.json", omission_report)
+    (job.dir / "report/omissions.md").write_text(omissions_markdown(omission_report), encoding="utf-8")
     write_json(job.dir / "report/validation.json", report)
     (job.dir / "report").mkdir(parents=True, exist_ok=True)
     (job.dir / "report/validation.md").write_text(validation_markdown(report), encoding="utf-8")

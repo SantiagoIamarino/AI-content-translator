@@ -238,12 +238,17 @@ def run_review(job_id: str, translation_request: dict, draft: dict[int, str], in
     ids = [int(r["id"]) for r in translation_request["segments"]]
     rounds = []
     last_rows = {}
+    withheld: dict[int, dict] = {}
     for round_no in range(1, max_rounds + 1):
         if not ids:
             break
         request = review_request(job_id, translation_request, english, ids, round_no, max_rounds, history, back)
         response = invoke("review", request, {sid: english[sid] for sid in ids})
         revised, disputed = [], []
+        newly_withheld = {int(item["id"]): item for item in response.get("_aidub_withheld", [])}
+        for sid, item in newly_withheld.items():
+            if sid in ids:
+                withheld[sid] = item
         for row in response["segments"]:
             sid = int(row["id"])
             last_rows[sid] = row
@@ -258,7 +263,8 @@ def run_review(job_id: str, translation_request: dict, draft: dict[int, str], in
                 disputed.append(sid)
             lines[sid]["rounds"].append(entry)
             history.setdefault(sid, []).append({k: entry[k] for k in ("round", "verdict", "issues", "reason", "disputed")})
-        rounds.append({"round": round_no, "reviewed": len(ids), "revised": revised, "disputed": disputed,
+        rounds.append({"round": round_no, "reviewed": len(ids) - len(newly_withheld), "revised": revised, "disputed": disputed,
+                       "withheld": sorted(newly_withheld),
                        "provider": response.get("translator")})
         need_back = sorted(set(disputed)) if back_mode == "disputed" else []
         # Only the next bilingual round consumes this evidence. The last round
@@ -269,10 +275,17 @@ def run_review(job_id: str, translation_request: dict, draft: dict[int, str], in
                 sid = int(row["id"])
                 back[sid] = row["spanish"].strip()
                 lines[sid]["back_translations"].append({"round": round_no, "english": english[sid], "spanish": back[sid]})
-        ids = sorted(set(revised) | set(disputed))
+        ids = sorted((set(revised) | set(disputed)) - set(withheld))
     for sid, entry in lines.items():
         entry["final"] = english[sid]
-        entry["status"] = review_decision(last_rows[sid], entry["draft"], entry["final"])["status"]
+        if sid in withheld:
+            entry["status"] = "withheld_review_failure"
+            entry["withheld"] = withheld[sid]
+        elif sid in last_rows:
+            entry["status"] = review_decision(last_rows[sid], entry["draft"], entry["final"])["status"]
+        else:
+            entry["status"] = "withheld_review_failure"
+            entry["withheld"] = {"reason": "no_valid_review_decision"}
     audit = {"schema": "aidub.translation_audit.v1", "max_rounds": max_rounds, "back_translation": back_mode,
              "decision_policy": "back_translation_before_next_round_v1",
              "decision_contract": DECISION_CONTRACT,

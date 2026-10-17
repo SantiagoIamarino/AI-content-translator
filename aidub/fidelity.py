@@ -123,7 +123,9 @@ def eligibility(seg, cfg, mic_sha=None):
     elif (cfg.get("source_resolution") or {}).get("enabled") and readings_differ(seg) and not resolution_ok:
         source, reason = "material", "source_readings_pending_resolution"
     if enabled:
-        if pending_repair_review(seg):
+        if review.get("status") in {"withheld_review_failure", "withheld_translation_failure"}:
+            translation, reason = "withheld_content_failure", "content_review_recovery_exhausted"
+        elif pending_repair_review(seg):
             translation, reason = "revision_pending", "unreviewed_compact_repair"
         elif review.get("checked_text") is not None and review["checked_text"] != seg.get("english"):
             translation, reason = "revision_pending", "unconfirmed_exact_english"
